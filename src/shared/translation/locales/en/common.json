@@ -1,0 +1,12 @@
+{
+  "common": {
+    "created": "{{entity}} Created Successfully",
+    "updated": "{{entity}} Updated Successfully",
+    "deleted": "{{entity}} Deleted Successfully",
+    "filtered": "{{entity}} Filtered Successfully",
+    "fetched": "{{entity}} Fetched Successfully",
+    "mapped": "{{entity}} Mapped Successfully",
+    "found": "{{entity}} Found Successfully",
+    "notFound": "{{entity}} Not Found"
+  }
+}

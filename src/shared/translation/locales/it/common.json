@@ -1,0 +1,12 @@
+{
+  "common": {
+    "created": "{{entity}} Creato Successivamente",
+    "updated": "{{entity}} Aggiornato Successivamente",
+    "deleted": "{{entity}} Eliminato Successivamente",
+    "filtered": "{{entity}} Filtrato Successivamente",
+    "fetched": "{{entity}} Recuperato Successivamente",
+    "mapped": "{{entity}} Mappato Successivamente",
+    "found": "{{entity}} Trovato Successivamente",
+    "notFound": "{{entity}} Non Trovato"
+  }
+}

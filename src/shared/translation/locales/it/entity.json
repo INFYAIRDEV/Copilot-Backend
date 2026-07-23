@@ -1,0 +1,8 @@
+{
+  "entity": {
+    "user": "Utente",
+    "location": "Posizione",
+    "priority": "Priorità",
+    "date": "Data"
+  }
+}
