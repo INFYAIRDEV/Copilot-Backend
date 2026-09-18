@@ -18,7 +18,7 @@
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
-    "express": "^4.18.2",
+    "express": "^4.22.3",
     "helmet": "^7.2.0",
     "i18next": "^26.3.6",
     "i18next-fs-backend": "^2.6.6",
