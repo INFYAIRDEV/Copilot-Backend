@@ -1,7 +1,7 @@
 {
-  "name": "backend-boilerplate",
+  "name": "copilot-backend",
   "version": "1.0.0",
-  "description": "TypeScript Express Backend Boilerplate",
+  "description": "TypeScript Express Backend for Copilot",
   "type": "module",
   "main": "dist/server.js",
   "scripts": {
@@ -42,6 +42,7 @@
     "prettier": "^3.0.3",
     "prisma": "^5.0.0",
     "ts-node": "^10.9.1",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.3"
   }
 }
