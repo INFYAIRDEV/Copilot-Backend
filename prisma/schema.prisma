@@ -272,6 +272,331 @@ model snapshot_manifest {
   @@schema("analytics")
 }
 
+model answer {
+  id                    Int                   @id @default(autoincrement())
+  answer_uuid           String                @unique @db.Uuid
+  request_uuid          String                @db.Uuid
+  policy_decision_uuid  String?               @db.Uuid
+  conversation_id       Int
+  message_id            Int?
+  status                answer_status
+  locale                locale_code           @default(en)
+  retention_class       retention_class       @default(STANDARD)
+  journey_no            Int?
+  plan_hash             String?
+  normalized_plan       Json?
+  metric_versions       Json?
+  dataset_id            String?
+  dataset_version       String?
+  period_start          DateTime?             @db.Timestamptz(6)
+  period_end            DateTime?             @db.Timestamptz(6)
+  as_of                 DateTime?             @db.Timestamptz(6)
+  structured_result_ref String?
+  warnings              Json?
+  synthetic_label       Boolean               @default(true)
+  narration_source      narration_source?
+  policy_version        String?
+  scope_hash            String?
+  query_fingerprint     String?
+  output_hash           String?
+  version               Int                   @default(1)
+  created_at            DateTime              @default(now()) @db.Timestamptz(6)
+  published_at          DateTime?             @db.Timestamptz(6)
+  expires_at            DateTime?             @db.Timestamptz(6)
+  conversation          conversation          @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  conversation_message  conversation_message? @relation(fields: [message_id], references: [id])
+  export_job            export_job[]
+  model_usage           model_usage[]
+  report_run            report_run[]
+  saved_question        saved_question[]
+  user_feedback         user_feedback[]
+
+  @@index([conversation_id, created_at])
+  @@index([request_uuid])
+  @@schema("analytics")
+}
+
+model audit_event {
+  id                 BigInt   @id @default(autoincrement())
+  event_day          DateTime @db.Date
+  sequence           Int
+  previous_hash      String?
+  event_hash         String
+  signature_manifest String?
+  request_uuid       String   @db.Uuid
+  conversation_id    Int?
+  subject_ref        String?
+  event_type         String
+  plan_hash          String?
+  policy_version     String?
+  scope_hash         String?
+  query_fingerprint  String?
+  output_hash        String?
+  status             String?
+  warning_codes      String[]
+  redacted_payload   Json?
+  created_at         DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([event_day, sequence])
+  @@index([event_type, created_at])
+  @@index([request_uuid])
+  @@schema("analytics")
+}
+
+model conversation {
+  id                   Int                    @id @default(autoincrement())
+  conversation_uuid    String                 @unique @db.Uuid
+  owner_user_id        Int
+  locale               locale_code            @default(en)
+  state                conversation_state     @default(ACTIVE)
+  retention_class      retention_class        @default(STANDARD)
+  dataset_id           String?
+  dataset_version      String?
+  analytical_context   Json?
+  version              Int                    @default(1)
+  created_at           DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime               @db.Timestamptz(6)
+  deleted_at           DateTime?              @db.Timestamptz(6)
+  answer               answer[]
+  users                users                  @relation(fields: [owner_user_id], references: [user_id], onDelete: Cascade)
+  conversation_message conversation_message[]
+
+  @@index([owner_user_id, created_at])
+  @@schema("analytics")
+}
+
+model conversation_message {
+  id                  Int          @id @default(autoincrement())
+  conversation_id     Int
+  role                message_role
+  kind                message_kind
+  text                String?
+  text_redacted       Boolean      @default(false)
+  question_hash       String?
+  locale              locale_code  @default(en)
+  request_uuid        String?      @unique @db.Uuid
+  idempotency_key     String?
+  canonical_body_hash String?
+  created_at          DateTime     @default(now()) @db.Timestamptz(6)
+  answer              answer[]
+  conversation        conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+
+  @@unique([conversation_id, idempotency_key])
+  @@index([conversation_id, created_at])
+  @@schema("analytics")
+}
+
+model evaluation_run {
+  id               Int               @id @default(autoincrement())
+  suite            String
+  release_version  String
+  semantic_version String?
+  dataset_id       String?
+  dataset_version  String?
+  prompt_version   String?
+  model_version    String?
+  policy_version   String?
+  total_checks     Int
+  passed_checks    Int
+  failed_checks    Int
+  result           evaluation_result
+  details          Json?
+  started_at       DateTime          @db.Timestamptz(6)
+  finished_at      DateTime?         @db.Timestamptz(6)
+  created_at       DateTime          @default(now()) @db.Timestamptz(6)
+
+  @@index([release_version, created_at])
+  @@schema("analytics")
+}
+
+model export_job {
+  id              Int             @id @default(autoincrement())
+  export_uuid     String          @unique @db.Uuid
+  answer_id       Int?
+  owner_user_id   Int
+  format          export_format
+  state           job_state       @default(QUEUED)
+  artifact_state  artifact_state?
+  artifact_ref    String?
+  scope_hash      String?
+  masking_profile String?
+  idempotency_key String?
+  synthetic_label Boolean         @default(true)
+  error_code      String?
+  created_at      DateTime        @default(now()) @db.Timestamptz(6)
+  completed_at    DateTime?       @db.Timestamptz(6)
+  expires_at      DateTime?       @db.Timestamptz(6)
+  revoked_at      DateTime?       @db.Timestamptz(6)
+  answer          answer?         @relation(fields: [answer_id], references: [id])
+
+  @@unique([owner_user_id, idempotency_key])
+  @@index([owner_user_id, expires_at])
+  @@schema("analytics")
+}
+
+model model_usage {
+  id             Int      @id @default(autoincrement())
+  request_uuid   String   @db.Uuid
+  answer_id      Int?
+  provider       String
+  model          String
+  prompt_version String?
+  purpose        String
+  input_tokens   Int?
+  output_tokens  Int?
+  latency_ms     Int?
+  estimated_cost Decimal? @db.Decimal(12, 6)
+  retry_count    Int      @default(0)
+  status         String
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+  answer         answer?  @relation(fields: [answer_id], references: [id])
+
+  @@index([created_at])
+  @@index([request_uuid])
+  @@schema("analytics")
+}
+
+model report_definition {
+  id                Int               @id @default(autoincrement())
+  owner_user_id     Int
+  title             String
+  state             definition_state  @default(DRAFT)
+  report_template   String?
+  config            Json
+  filters           Json?
+  metric_versions   Json
+  saved_question_id Int?
+  version           Int               @default(1)
+  created_at        DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime          @db.Timestamptz(6)
+  saved_question    saved_question?   @relation(fields: [saved_question_id], references: [id])
+  report_schedule   report_schedule[]
+
+  @@index([owner_user_id])
+  @@schema("analytics")
+}
+
+model report_run {
+  id               Int             @id @default(autoincrement())
+  schedule_id      Int
+  planned_run_at   DateTime        @db.Timestamptz(6)
+  state            job_state       @default(QUEUED)
+  answer_id        Int?
+  artifact_ref     String?
+  artifact_state   artifact_state?
+  error_code       String?
+  lease_owner      String?
+  lease_expires_at DateTime?       @db.Timestamptz(6)
+  heartbeat_at     DateTime?       @db.Timestamptz(6)
+  started_at       DateTime?       @db.Timestamptz(6)
+  finished_at      DateTime?       @db.Timestamptz(6)
+  expires_at       DateTime?       @db.Timestamptz(6)
+  created_at       DateTime        @default(now()) @db.Timestamptz(6)
+  answer           answer?         @relation(fields: [answer_id], references: [id])
+  report_schedule  report_schedule @relation(fields: [schedule_id], references: [id], onDelete: Cascade)
+
+  @@unique([schedule_id, planned_run_at])
+  @@index([lease_expires_at])
+  @@schema("analytics")
+}
+
+model report_schedule {
+  id                   Int               @id @default(autoincrement())
+  report_definition_id Int
+  owner_user_id        Int
+  timezone             String            @default("Europe/Rome")
+  cadence              schedule_cadence
+  state                schedule_state    @default(DRAFT)
+  metric_versions      Json
+  next_run_at          DateTime?         @db.Timestamptz(6)
+  lease_owner          String?
+  lease_expires_at     DateTime?         @db.Timestamptz(6)
+  heartbeat_at         DateTime?         @db.Timestamptz(6)
+  version              Int               @default(1)
+  created_at           DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime          @db.Timestamptz(6)
+  report_run           report_run[]
+  report_definition    report_definition @relation(fields: [report_definition_id], references: [id], onDelete: Cascade)
+
+  @@index([lease_expires_at])
+  @@index([state, next_run_at])
+  @@schema("analytics")
+}
+
+model roles {
+  role_id     Int       @id @default(autoincrement())
+  name        String
+  role_code   String    @unique
+  description String?
+  created_at  DateTime? @default(now())
+  updated_at  DateTime?
+  notes       String?
+  is_active   Boolean   @default(true)
+  updated_by  String?
+  users       users[]
+
+  @@schema("analytics")
+}
+
+model saved_question {
+  id                Int                 @id @default(autoincrement())
+  owner_user_id     Int
+  title             String
+  version           Int                 @default(1)
+  normalized_plan   Json
+  plan_hash         String?
+  metric_versions   Json
+  locale            locale_code         @default(en)
+  source_answer_id  Int?
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime            @db.Timestamptz(6)
+  archived_at       DateTime?           @db.Timestamptz(6)
+  report_definition report_definition[]
+  answer            answer?             @relation(fields: [source_answer_id], references: [id])
+
+  @@unique([owner_user_id, title, version])
+  @@schema("analytics")
+}
+
+model user_feedback {
+  id           Int                   @id @default(autoincrement())
+  answer_id    Int
+  user_id      Int
+  category     feedback_category
+  comment      String?
+  review_state feedback_review_state @default(NEW)
+  reviewed_by  String?
+  reviewed_at  DateTime?             @db.Timestamptz(6)
+  created_at   DateTime              @default(now()) @db.Timestamptz(6)
+  answer       answer                @relation(fields: [answer_id], references: [id], onDelete: Cascade)
+
+  @@unique([answer_id, user_id, category])
+  @@index([review_state, created_at])
+  @@schema("analytics")
+}
+
+model users {
+  user_id           Int            @id @default(autoincrement())
+  username          String         @unique
+  password_hash     String
+  full_name         String?
+  email             String?        @unique
+  mobile            String?        @unique
+  emergency_contact String?
+  notes             String?
+  is_active         Boolean        @default(true)
+  role_id           String
+  created_at        DateTime       @default(now())
+  refresh_token     String?
+  updated_at        DateTime?
+  updated_by        String?
+  src_hash          String?
+  conversation      conversation[]
+  roles             roles          @relation(fields: [role_id], references: [role_code])
+
+  @@schema("analytics")
+}
+
 /// The underlying view does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
 view v_asset_publishability {
   asset_id          String?
@@ -568,5 +893,150 @@ view v_supplier_transaction_fact {
   net_amount       Decimal?  @db.Decimal(18, 2)
 
   @@ignore
+  @@schema("analytics")
+}
+
+enum RoleCode {
+  SUPER_ADMIN
+  USER
+
+  @@schema("analytics")
+}
+
+enum answer_status {
+  SUCCESS
+  PARTIAL
+  EMPTY
+  REFUSED
+  FAILED
+
+  @@schema("analytics")
+}
+
+enum artifact_state {
+  AVAILABLE
+  REVOKED
+  EXPIRED
+
+  @@schema("analytics")
+}
+
+enum conversation_state {
+  ACTIVE
+  ARCHIVED
+  DELETED
+
+  @@schema("analytics")
+}
+
+enum definition_state {
+  DRAFT
+  ACTIVE
+  SUSPENDED
+  RETIRED
+
+  @@schema("analytics")
+}
+
+enum evaluation_result {
+  PASS
+  FAIL
+
+  @@schema("analytics")
+}
+
+enum export_format {
+  CSV
+  EXCEL
+  PDF
+
+  @@schema("analytics")
+}
+
+enum feedback_category {
+  CORRECT
+  INCORRECT
+  WRONG_METRIC
+  MISSING_DATA
+
+  @@schema("analytics")
+}
+
+enum feedback_review_state {
+  NEW
+  IN_REVIEW
+  RESOLVED
+  DISMISSED
+
+  @@schema("analytics")
+}
+
+enum job_state {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCEL_REQUESTED
+  CANCELLED
+  EXPIRED
+
+  @@schema("analytics")
+}
+
+enum locale_code {
+  en
+  it
+
+  @@schema("analytics")
+}
+
+enum message_kind {
+  QUESTION
+  CLARIFICATION_REQUEST
+  CLARIFICATION_REPLY
+
+  @@schema("analytics")
+}
+
+enum message_role {
+  USER
+  ASSISTANT
+  SYSTEM
+
+  @@schema("analytics")
+}
+
+enum narration_source {
+  MODEL
+  SERVER_TEMPLATE
+
+  @@schema("analytics")
+}
+
+enum retention_class {
+  STANDARD
+  SHORT
+  LEGAL_HOLD
+
+  @@schema("analytics")
+}
+
+enum schedule_cadence {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  HALF_YEARLY
+  ANNUAL
+
+  @@schema("analytics")
+}
+
+enum schedule_state {
+  DRAFT
+  ACTIVE
+  PAUSED
+  SUSPENDED_OWNER_INACTIVE
+  RETIRED
+
   @@schema("analytics")
 }
