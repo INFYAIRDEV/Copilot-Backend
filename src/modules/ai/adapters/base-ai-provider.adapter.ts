@@ -30,7 +30,7 @@ export abstract class BaseAIProviderAdapter implements IAIProvider {
 
     let category: AIErrorCategory = "TRANSIENT_FAILURE";
 
-    if (fullErrorStr.includes("timeout") || fullErrorStr.includes("etimedout")) {
+    if (fullErrorStr.includes("timeout") || fullErrorStr.includes("etimedout") || fullErrorStr.includes("abort")) {
       category = "TIMEOUT";
     } else if (fullErrorStr.includes("429") || fullErrorStr.includes("rate") || fullErrorStr.includes("quota")) {
       category = "RATE_LIMITED";
