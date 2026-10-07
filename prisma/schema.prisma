@@ -1,21 +1,572 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema", "views"]
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = env("RDS_POSTGRES_URL")
+  schemas  = ["analytics"]
 }
 
-// Sample table creation
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model calendar_definition {
+  id               Int       @id @default(autoincrement())
+  calendar_id      String
+  version          String
+  display_name     String
+  timezone         String
+  calendar_type    String
+  week_system      String
+  week_start_day   Int       @db.SmallInt
+  year_start_month Int       @default(1) @db.SmallInt
+  description      String?
+  effective_from   DateTime  @db.Date
+  effective_to     DateTime? @db.Date
+  lifecycle_state  String    @default("DRAFT")
+  created_at       DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime  @default(now()) @db.Timestamptz(6)
 
-model Example {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  status    String   @default("active")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  @@unique([calendar_id, version], map: "uq_calendar_definition")
+  @@schema("analytics")
+}
 
-  @@map("examples")
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model data_asset {
+  asset_id                 String
+  version                  String              @default("1.0.0")
+  object_schema            String              @default("analytics")
+  object_name              String
+  asset_type               String
+  grain                    String
+  owner_name               String
+  data_classification      String              @default("INTERNAL")
+  contains_pii             Boolean             @default(false)
+  target_freshness_minutes Int?
+  certification_state      String              @default("DRAFT")
+  source_versions          Json?
+  created_at               DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime            @default(now()) @db.Timestamptz(6)
+  id                       Int                 @id @default(autoincrement())
+  data_quality_rule        data_quality_rule[]
+  metric_lineage           metric_lineage[]
+  refresh_batch            refresh_batch[]
+
+  @@unique([object_schema, object_name, version], map: "uq_data_asset_object_version")
+  @@unique([asset_id, version], map: "uq_data_asset_version")
+  @@index([certification_state], map: "ix_data_asset_certification")
+  @@index([object_schema, object_name], map: "ix_data_asset_object")
+  @@schema("analytics")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model data_quality_rule {
+  id              Int        @id @default(autoincrement())
+  rule_id         String     @unique
+  asset_id        String
+  asset_version   String
+  rule_name       String
+  rule_type       String
+  severity        String
+  target_column   String?
+  rule_config     Json       @default("{}")
+  description     String
+  lifecycle_state String     @default("DRAFT")
+  created_at      DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime   @default(now()) @db.Timestamptz(6)
+  data_asset      data_asset @relation(fields: [asset_id, asset_version], references: [asset_id, version], onDelete: NoAction, onUpdate: NoAction, map: "fk_data_quality_rule_asset")
+
+  @@schema("analytics")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model dimension {
+  dimension_id          String                  @unique(map: "uq_analytics_dimension_dimension_id")
+  display_name          String
+  description           String
+  owner_name            String
+  sensitivity_class     String                  @default("INTERNAL")
+  allow_filter          Boolean                 @default(true)
+  allow_group           Boolean                 @default(true)
+  allow_sort            Boolean                 @default(true)
+  lifecycle_state       String                  @default("DRAFT")
+  created_at            DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime                @default(now()) @db.Timestamptz(6)
+  id                    Int                     @id @default(autoincrement())
+  metric_dimension_rule metric_dimension_rule[]
+  semantic_term         semantic_term[]
+
+  @@schema("analytics")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model metric {
+  metric_id       String           @unique(map: "uq_analytics_metric_metric_id")
+  display_name    String
+  description     String
+  owner_name      String
+  lifecycle_state String           @default("DRAFT")
+  created_at      DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime         @default(now()) @db.Timestamptz(6)
+  id              Int              @id @default(autoincrement())
+  metric_version  metric_version[]
+  semantic_term   semantic_term[]
+
+  @@schema("analytics")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model metric_dimension_rule {
+  metric_id                                                                     String
+  metric_version                                                                String
+  dimension_id                                                                  String
+  allow_filter                                                                  Boolean        @default(true)
+  allow_group                                                                   Boolean        @default(true)
+  allow_sort                                                                    Boolean        @default(true)
+  lifecycle_state                                                               String         @default("DRAFT")
+  notes                                                                         String?
+  created_at                                                                    DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at                                                                    DateTime       @default(now()) @db.Timestamptz(6)
+  id                                                                            Int            @id @default(autoincrement())
+  dimension                                                                     dimension      @relation(fields: [dimension_id], references: [dimension_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_metric_dimension_rule_dimension")
+  metric_version_metric_dimension_rule_metric_id_metric_versionTometric_version metric_version @relation("metric_dimension_rule_metric_id_metric_versionTometric_version", fields: [metric_id, metric_version], references: [metric_id, version], onDelete: NoAction, onUpdate: NoAction, map: "fk_metric_dimension_rule_metric_version")
+
+  @@unique([metric_id, metric_version, dimension_id], map: "uq_metric_dimension_rule")
+  @@index([dimension_id], map: "ix_metric_dimension_rule_dimension")
+  @@schema("analytics")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model metric_lineage {
+  metric_id                                                              String
+  metric_version                                                         String
+  asset_id                                                               String
+  asset_version                                                          String
+  lineage_role                                                           String         @default("PRIMARY")
+  transformation_version                                                 String
+  created_at                                                             DateTime       @default(now()) @db.Timestamptz(6)
+  id                                                                     Int            @id @default(autoincrement())
+  data_asset                                                             data_asset     @relation(fields: [asset_id, asset_version], references: [asset_id, version], onDelete: NoAction, onUpdate: NoAction, map: "fk_metric_lineage_data_asset")
+  metric_version_metric_lineage_metric_id_metric_versionTometric_version metric_version @relation("metric_lineage_metric_id_metric_versionTometric_version", fields: [metric_id, metric_version], references: [metric_id, version], onDelete: NoAction, onUpdate: NoAction, map: "fk_metric_lineage_metric_version")
+
+  @@unique([metric_id, metric_version, asset_id, asset_version], map: "uq_metric_lineage")
+  @@schema("analytics")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model metric_version {
+  metric_id                                                                            String
+  version                                                                              String
+  business_definition                                                                  String?
+  grain                                                                                String?
+  unit                                                                                 String?
+  aggregation                                                                          String?
+  time_mode                                                                            String?
+  formula_ast                                                                          Json?
+  formula_hash                                                                         String?
+  null_zero_policy                                                                     String?
+  reversal_policy                                                                      String?
+  cancellation_reopen_policy                                                           String?
+  currency_policy                                                                      Json?
+  rounding_policy                                                                      String?
+  additivity                                                                           String?
+  late_arrival_restatement_policy                                                      String?
+  freshness_max_age_minutes                                                            Int?
+  reconciliation_policy                                                                Json?
+  effective_from                                                                       DateTime                @default(now()) @db.Timestamptz(6)
+  effective_to                                                                         DateTime?               @db.Timestamptz(6)
+  lifecycle_state                                                                      String                  @default("DRAFT")
+  created_at                                                                           DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at                                                                           DateTime                @default(now()) @db.Timestamptz(6)
+  id                                                                                   Int                     @id @default(autoincrement())
+  metric_dimension_rule_metric_dimension_rule_metric_id_metric_versionTometric_version metric_dimension_rule[] @relation("metric_dimension_rule_metric_id_metric_versionTometric_version")
+  metric_lineage_metric_lineage_metric_id_metric_versionTometric_version               metric_lineage[]        @relation("metric_lineage_metric_id_metric_versionTometric_version")
+  metric                                                                               metric                  @relation(fields: [metric_id], references: [metric_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_metric_version_metric")
+
+  @@unique([metric_id, version], map: "uq_metric_version")
+  @@index([metric_id], map: "ix_metric_version_metric")
+  @@index([lifecycle_state], map: "ix_metric_version_state")
+  @@schema("analytics")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model refresh_batch {
+  id                     Int        @id @default(autoincrement())
+  batch_key              String
+  asset_id               String
+  asset_version          String
+  batch_type             String
+  started_at             DateTime   @db.Timestamptz(6)
+  completed_at           DateTime?  @db.Timestamptz(6)
+  source_cutoff_at       DateTime?  @db.Timestamptz(6)
+  status                 String
+  row_count              BigInt?
+  transformation_version String?
+  data_quality_status    String     @default("NOT_ASSESSED")
+  reconciliation_status  String     @default("NOT_ASSESSED")
+  published              Boolean    @default(false)
+  notes                  String?
+  created_at             DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime   @default(now()) @db.Timestamptz(6)
+  data_asset             data_asset @relation(fields: [asset_id, asset_version], references: [asset_id, version], onDelete: NoAction, onUpdate: NoAction, map: "fk_refresh_batch_asset")
+
+  @@unique([asset_id, asset_version, batch_key], map: "uq_refresh_batch")
+  @@schema("analytics")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model semantic_term {
+  locale            String
+  term              String
+  target_type       String
+  metric_id         String?
+  dimension_id      String?
+  is_preferred_term Boolean    @default(false)
+  lifecycle_state   String     @default("DRAFT")
+  notes             String?
+  created_at        DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime   @default(now()) @db.Timestamptz(6)
+  id                Int        @id @default(autoincrement())
+  dimension         dimension? @relation(fields: [dimension_id], references: [dimension_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_semantic_term_dimension")
+  metric            metric?    @relation(fields: [metric_id], references: [metric_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_semantic_term_metric")
+
+  @@schema("analytics")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model snapshot_manifest {
+  id                     Int       @id @default(autoincrement())
+  snapshot_id            String
+  version                String
+  dataset_id             String
+  dataset_version        String
+  snapshot_at            DateTime  @db.Timestamptz(6)
+  reporting_timezone     String
+  snapshot_type          String
+  business_period_label  String?
+  synthetic_data         Boolean   @default(false)
+  certification_state    String
+  source_cutoff_at       DateTime? @db.Timestamptz(6)
+  data_quality_status    String
+  reconciliation_status  String
+  refresh_batch_key      String?
+  asset_manifest         Json
+  metric_manifest        Json
+  output_hash            String
+  supersedes_snapshot_id String?
+  supersedes_version     String?
+  restated               Boolean   @default(false)
+  restatement_reason     String?
+  created_at             DateTime  @default(now()) @db.Timestamptz(6)
+  created_by             String    @default(dbgenerated("CURRENT_USER"))
+
+  @@unique([snapshot_id, version], map: "uq_snapshot_manifest")
+  @@schema("analytics")
+}
+
+/// The underlying view does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+view v_asset_publishability {
+  asset_id          String?
+  asset_version     String?
+  analytical_object String?
+  trust_state       String?
+  may_execute       Boolean?
+  warning_required  Boolean?
+  reason_code       String?
+
+  @@ignore
+  @@schema("analytics")
+}
+
+/// The underlying view does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+view v_asset_trust_status {
+  asset_id                     String?
+  asset_version                String?
+  analytical_object            String?
+  certification_state          String?
+  total_dq_rules               BigInt?
+  passed_dq_rules              BigInt?
+  failed_dq_rules              BigInt?
+  blocking_dq_failures         BigInt?
+  warning_dq_failures          BigInt?
+  data_quality_state           String?
+  batch_key                    String?
+  batch_type                   String?
+  source_cutoff_at             DateTime? @db.Timestamptz(6)
+  row_count                    BigInt?
+  target_freshness_minutes     Int?
+  age_minutes                  Decimal?  @db.Decimal
+  freshness_state              String?
+  batch_data_quality_status    String?
+  reconciliation_status        String?
+  mapping_checks               BigInt?
+  complete_mapping_checks      BigInt?
+  partial_mapping_checks       BigInt?
+  unmapped_mapping_checks      BigInt?
+  minimum_mapping_coverage_pct Decimal?  @db.Decimal
+  mapping_evidence             Json?
+  identity_mapping_state       String?
+  trust_state                  String?
+
+  @@ignore
+  @@schema("analytics")
+}
+
+/// The underlying view does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+view v_customer_delay_exposure_current {
+  customer_id                String?
+  customer_code              String?
+  customer_name              String?
+  sales_order_id             String?
+  sales_order_line_id        String?
+  production_order_id        String?
+  allocation_weight          Decimal? @db.Decimal(18, 8)
+  delayed_line_backlog_value Decimal? @db.Decimal(18, 2)
+  allocated_backlog_value    Decimal? @db.Decimal(18, 2)
+
+  @@ignore
+  @@schema("analytics")
+}
+
+/// The underlying view does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+view v_data_freshness {
+  asset_id                 String?
+  asset_version            String?
+  object_schema            String?
+  object_name              String?
+  target_freshness_minutes Int?
+  refresh_batch_id         Int?
+  batch_key                String?
+  batch_type               String?
+  started_at               DateTime? @db.Timestamptz(6)
+  completed_at             DateTime? @db.Timestamptz(6)
+  source_cutoff_at         DateTime? @db.Timestamptz(6)
+  row_count                BigInt?
+  transformation_version   String?
+  data_quality_status      String?
+  reconciliation_status    String?
+  age_minutes              Decimal?  @db.Decimal
+  freshness_state          String?
+
+  @@ignore
+  @@schema("analytics")
+}
+
+/// The underlying view does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+view v_data_quality_status {
+  rule_id       String?
+  asset_id      String?
+  asset_version String?
+  rule_name     String?
+  rule_type     String?
+  severity      String?
+  failed_rows   Decimal? @db.Decimal
+  result        String?
+
+  @@ignore
+  @@schema("analytics")
+}
+
+/// The underlying view does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+view v_identity_mapping_coverage {
+  source_asset        String?
+  mapping_type        String?
+  coverage_basis      String?
+  total_population    Decimal? @db.Decimal
+  mapped_population   Decimal? @db.Decimal
+  unmapped_population Decimal? @db.Decimal
+  coverage_pct        Decimal? @db.Decimal
+
+  @@ignore
+  @@schema("analytics")
+}
+
+/// The underlying view does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+view v_identity_mapping_status {
+  source_asset        String?
+  mapping_type        String?
+  coverage_basis      String?
+  total_population    Decimal? @db.Decimal
+  mapped_population   Decimal? @db.Decimal
+  unmapped_population Decimal? @db.Decimal
+  coverage_pct        Decimal? @db.Decimal
+  mapping_status      String?
+
+  @@ignore
+  @@schema("analytics")
+}
+
+/// The underlying view does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+view v_production_order_delay_current {
+  production_order_id         String?
+  order_state                 String?
+  required_good_qty           Decimal?  @db.Decimal(18, 4)
+  accepted_good_qty           Decimal?  @db.Decimal(18, 4)
+  approved_cancelled_qty      Decimal?  @db.Decimal(18, 4)
+  remaining_required_good_qty Decimal?  @db.Decimal(18, 4)
+  governing_finish            DateTime? @db.Timestamptz(6)
+  target_source               String?
+  as_of                       DateTime? @db.Timestamptz(6)
+  is_delayed                  Boolean?
+
+  @@ignore
+  @@schema("analytics")
+}
+
+/// The underlying view does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+view v_sales_order_delay_current {
+  sales_order_id      String?
+  sales_order_line_id String?
+  customer_id         String?
+  customer_code       String?
+  customer_name       String?
+  order_state         String?
+  open_qty            Decimal?  @db.Decimal(18, 4)
+  unit_net_price      Decimal?  @db.Decimal(18, 4)
+  currency            String?   @db.Char(3)
+  approved_commitment DateTime? @db.Date
+  remaining_net_value Decimal?  @db.Decimal(18, 2)
+  as_of               DateTime? @db.Timestamptz(6)
+  is_delayed          Boolean?
+
+  @@ignore
+  @@schema("analytics")
+}
+
+/// The underlying view does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+view v_sales_production_allocation_current {
+  allocation_id               String?
+  sales_order_line_id         String?
+  production_order_id         String?
+  allocation_weight           Decimal? @db.Decimal(18, 8)
+  sales_order_id              String?
+  customer_id                 String?
+  customer_code               String?
+  customer_name               String?
+  delayed_line_backlog_value  Decimal? @db.Decimal(18, 2)
+  allocated_backlog_value     Decimal? @db.Decimal(18, 2)
+  source_open_value_eur       Decimal? @db.Decimal(18, 2)
+  sales_line_is_delayed       Boolean?
+  production_order_is_delayed Boolean?
+
+  @@ignore
+  @@schema("analytics")
+}
+
+/// The underlying view does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+view v_sales_transaction_fact {
+  transaction_id   String?
+  posting_at       DateTime? @db.Timestamptz(6)
+  transaction_type String?
+  customer_id      String?
+  customer_code    String?
+  customer_name    String?
+  currency         String?   @db.Char(3)
+  net_amount       Decimal?  @db.Decimal(18, 2)
+  fixture_window   String?
+
+  @@ignore
+  @@schema("analytics")
+}
+
+/// The underlying view does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+view v_semantic_catalog {
+  metric_id                 String?
+  display_name              String?
+  metric_description        String?
+  metric_version            String?
+  business_definition       String?
+  grain                     String?
+  unit                      String?
+  aggregation               String?
+  time_mode                 String?
+  formula_ast               Json?
+  formula_hash              String?
+  freshness_max_age_minutes Int?
+  lineage_role              String?
+  asset_id                  String?
+  asset_version             String?
+  object_schema             String?
+  object_name               String?
+  asset_type                String?
+  asset_grain               String?
+  certification_state       String?
+  allowed_dimensions        String?
+  english_terms             String?
+  italian_terms             String?
+
+  @@ignore
+  @@schema("analytics")
+}
+
+/// The underlying view does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+view v_snapshot_access {
+  snapshot_manifest_id   Int?
+  snapshot_id            String?
+  version                String?
+  dataset_id             String?
+  dataset_version        String?
+  snapshot_at            DateTime? @db.Timestamptz(6)
+  reporting_timezone     String?
+  snapshot_type          String?
+  business_period_label  String?
+  synthetic_data         Boolean?
+  certification_state    String?
+  source_cutoff_at       DateTime? @db.Timestamptz(6)
+  data_quality_status    String?
+  reconciliation_status  String?
+  refresh_batch_key      String?
+  output_hash            String?
+  restated               Boolean?
+  supersedes_snapshot_id String?
+  supersedes_version     String?
+  is_superseded          Boolean?
+  authorization_required Boolean?
+  eligibility_state      String?
+
+  @@ignore
+  @@schema("analytics")
+}
+
+/// The underlying view does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+view v_snapshot_lineage {
+  snapshot_id           String?
+  snapshot_version      String?
+  snapshot_at           DateTime? @db.Timestamptz(6)
+  dataset_id            String?
+  dataset_version       String?
+  lineage_type          String?
+  object_id             String?
+  object_version        String?
+  analytical_object     String?
+  row_count             BigInt?
+  refresh_batch_key     String?
+  data_quality_status   String?
+  reconciliation_status String?
+
+  @@ignore
+  @@schema("analytics")
+}
+
+/// The underlying view does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+view v_supplier_transaction_fact {
+  transaction_id   String?
+  posting_at       DateTime? @db.Timestamptz(6)
+  transaction_type String?
+  supplier_id      String?
+  supplier_code    String?
+  supplier_name    String?
+  currency         String?   @db.Char(3)
+  net_amount       Decimal?  @db.Decimal(18, 2)
+
+  @@ignore
+  @@schema("analytics")
 }
