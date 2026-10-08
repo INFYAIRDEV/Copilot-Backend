@@ -73,43 +73,36 @@ export const verifyAccessToken = async (
     exp?: number;
   }
 
+  let decodedToken: JwtPayload;
   try {
-    const decodedToken = jwt.verify(token, secret) as JwtPayload;
-
-    const user = await prisma.users.findUnique({
-      where: { user_id: decodedToken.user_id },
+    decodedToken = jwt.verify(token, secret) as JwtPayload;
+  } catch (err: any) {
+    return ApiResponse.error(res, {
+      statusCode: 401,
+      messageKey:
+        err.name === "TokenExpiredError"
+          ? "user.tokenExpired"
+          : "user.invalidToken",
     });
+  }
 
-    if (!user) {
+  try {
+    // The current Prisma schema has no session model; validate the signed
+    // subject against the active user record instead of querying a phantom table.
+    const user = await prisma.users.findFirst({
+      where: { user_id: decodedToken.user_id, is_active: true },
+    });
+    if (!user)
       return ApiResponse.error(res, {
         statusCode: 401,
         messageKey: "user.notFound",
       });
-    }
-
-    if (!user.is_active) {
-      return ApiResponse.error(res, {
-        statusCode: 401,
-        messageKey: "user.userAccountInactive",
-      });
-    }
-
     req.user = user;
-
-    next();
-  } catch (err: any) {
-    console.error("[verifyAccessToken]", err);
-
-    if (err.name === "TokenExpiredError") {
-      return ApiResponse.error(res, {
-        statusCode: 401,
-        messageKey: "user.tokenExpired",
-      });
-    }
-
+    return next();
+  } catch {
     return ApiResponse.error(res, {
-      statusCode: 401,
-      messageKey: "user.invalidToken",
+      statusCode: 500,
+      messageKey: "common.serverIssue",
     });
   }
 };

@@ -11,6 +11,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
+    "prettier:check": "prettier --check .",
+    "prettier:write": "prettier --write .",
     "cron:start": "node dist/cron-runner.js",
     "test": "tsx src/modules/ai/__tests__/ai-response-handling.test.ts && tsx src/modules/ai/__tests__/ai-request-validation.test.ts && tsx src/modules/ai/__tests__/prompt-management.test.ts && tsx src/modules/ai/__tests__/ai-service.test.ts && tsx src/modules/ai/__tests__/ai-provider-abstraction.test.ts && tsx src/modules/ai/__tests__/llm-provider-integration.test.ts"
   },

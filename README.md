@@ -33,3 +33,4 @@ npx prisma generate
 
 # Run development server
 npm run dev
+```
