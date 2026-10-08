@@ -2,7 +2,7 @@ export * from "./types/ai-provider.types.js";
 export * from "./types/ai-service.types.js";
 export * from "./interfaces/ai-provider.interface.js";
 export * from "./interfaces/ai-service.interface.js";
-export * from "./validation/candidate-plan.validator.js";
+export * from "./validation/index.js";
 export * from "./services/ai.service.js";
 export * from "./resilience/circuit-breaker.js";
 export * from "./resilience/resilient-ai-provider.js";

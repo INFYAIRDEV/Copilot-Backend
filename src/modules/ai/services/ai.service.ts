@@ -19,6 +19,12 @@ import {
   PromptException,
   ManagedPrompt,
 } from "../prompts/index.js";
+import {
+  IAIRequestValidator,
+  defaultAIRequestValidator,
+  AIRequestValidationException,
+  ValidatedAIRequest,
+} from "../validation/index.js";
 import { logger } from "@/shared/utils/logger.js";
 
 /**
@@ -57,6 +63,7 @@ export class AIService implements IAIService {
   constructor(
     private readonly provider: IAIProvider,
     private readonly promptManager: IPromptManager = defaultPromptManager,
+    private readonly requestValidator: IAIRequestValidator = defaultAIRequestValidator,
   ) {}
 
   /**
@@ -69,34 +76,46 @@ export class AIService implements IAIService {
       request.correlationId || `ai-req-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
     const startTime = Date.now();
 
-    // 1. Validate incoming request parameters
-    if (!request.prompt || typeof request.prompt !== "string" || request.prompt.trim().length === 0) {
-      throw new AIServiceException(
-        "COPILOT_INVALID_RESPONSE",
-        "Request prompt cannot be empty",
-        { statusCode: 400, correlationId },
-      );
-    }
-
-    if (!request.context || typeof request.context.userId !== "number" || !request.context.roleId) {
-      throw new AIServiceException(
-        "COPILOT_INVALID_RESPONSE",
-        "Request context must contain valid userId and roleId",
-        { statusCode: 400, correlationId },
-      );
+    // 1. Validate incoming request parameters using AI Request Validation layer
+    let validatedRequest: ValidatedAIRequest;
+    try {
+      validatedRequest = this.requestValidator.validate({
+        ...request,
+        correlationId,
+      });
+    } catch (err: unknown) {
+      if (err instanceof AIRequestValidationException) {
+        logger.warn(
+          `[AIService] AI request validation error [correlationId: ${correlationId}, code: ${err.code}]: ${err.message}`,
+        );
+        const mappedCode: AIServiceErrorCode =
+          err.code === "COPILOT_TOKEN_BUDGET_EXCEEDED"
+            ? "COPILOT_TOKEN_BUDGET_EXCEEDED"
+            : "COPILOT_INVALID_RESPONSE";
+        throw new AIServiceException(
+          mappedCode,
+          err.message,
+          {
+            statusCode: err.statusCode,
+            correlationId,
+            details: err.details,
+          },
+        );
+      }
+      throw err;
     }
 
     // 2. Build provider-neutral ManagedPrompt via Prompt Management
-    const promptKey = request.promptKey || "CANDIDATE_ANALYTICAL_PLAN";
+    const promptKey = validatedRequest.promptKey;
     let managedPrompt: ManagedPrompt;
     try {
       managedPrompt = this.promptManager.buildPrompt(
         promptKey,
         {
-          userQuery: request.prompt,
-          context: request.context,
+          userQuery: validatedRequest.prompt,
+          context: validatedRequest.context,
         },
-        request.promptVersion,
+        validatedRequest.promptVersion,
       );
     } catch (err: unknown) {
       if (err instanceof PromptException) {
@@ -118,9 +137,9 @@ export class AIService implements IAIService {
 
     // 3. Token Budget Controls
     const tokenBudget = {
-      maxInputTokens: request.tokenBudget?.maxInputTokens ?? 2048,
-      maxOutputTokens: request.tokenBudget?.maxOutputTokens ?? 1024,
-      maxConversationTokens: request.tokenBudget?.maxConversationTokens ?? 4096,
+      maxInputTokens: validatedRequest.tokenBudget.maxInputTokens,
+      maxOutputTokens: validatedRequest.tokenBudget.maxOutputTokens,
+      maxConversationTokens: validatedRequest.tokenBudget.maxConversationTokens,
     };
 
     // 4. Construct Controlled AIProviderRequest
@@ -128,10 +147,12 @@ export class AIService implements IAIService {
       prompt: managedPrompt.userPrompt,
       systemInstruction: managedPrompt.systemInstruction,
       context: {
-        userId: request.context.userId,
-        roleId: request.context.roleId,
-        locale: request.context.locale || "en",
-        allowedEntities: request.context.allowedEntities,
+        userId: validatedRequest.context.userId,
+        roleId: validatedRequest.context.roleId,
+        locale: validatedRequest.context.locale || "en",
+        allowedEntities: validatedRequest.context.allowedEntities
+          ? [...validatedRequest.context.allowedEntities]
+          : undefined,
       },
       tokenBudget,
       temperature: 0.1,
