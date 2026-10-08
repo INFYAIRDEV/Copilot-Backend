@@ -1,8 +1,8 @@
 {
-    "entity": {
-      "user": "User",
-      "location": "Location",
-      "priority": "Priority",
-      "date": "Date"
-    }
+  "entity": {
+    "user": "User",
+    "location": "Location",
+    "priority": "Priority",
+    "date": "Date"
+  }
 }

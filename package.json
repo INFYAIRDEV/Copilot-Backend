@@ -11,6 +11,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
+    "prettier:check": "prettier --check .",
+    "prettier:write": "prettier --write .",
     "cron:start": "node dist/cron-runner.js"
   },
   "dependencies": {

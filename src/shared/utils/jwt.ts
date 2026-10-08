@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { ApiResponse } from "../types/response.js";
 import jwt from "jsonwebtoken";
+import { prisma } from "./prismaClient.js";
 
 export const generateAccessToken = (user: any, sessionId: string) => {
   const secret = process.env.ACCESS_TOKEN_SECRET;
@@ -74,72 +75,36 @@ export const verifyAccessToken = async (
     exp?: number;
   }
 
+  let decodedToken: JwtPayload;
   try {
-    const decodedToken = jwt.verify(token, secret) as JwtPayload;
+    decodedToken = jwt.verify(token, secret) as JwtPayload;
+  } catch (err: any) {
+    return ApiResponse.error(res, {
+      statusCode: 401,
+      messageKey:
+        err.name === "TokenExpiredError"
+          ? "user.tokenExpired"
+          : "user.invalidToken",
+    });
+  }
 
-    // Fetch user and active session in parallel
-    const [user, session] = await Promise.all([
-      // -- Find Unique user details by payload User --
-      // -- Find user session by user id and session id
-    ]);
-
-    if (!user) {
+  try {
+    // The current Prisma schema has no session model; validate the signed
+    // subject against the active user record instead of querying a phantom table.
+    const user = await prisma.users.findFirst({
+      where: { user_id: decodedToken.user_id, is_active: true },
+    });
+    if (!user)
       return ApiResponse.error(res, {
         statusCode: 401,
         messageKey: "user.notFound",
       });
-    }
-
-    // Session does not exist
-    if (!session) {
-      return ApiResponse.error(res, {
-        statusCode: 401,
-        messageKey: "user.sessionExpiredPleaseLogin",
-      });
-    }
-
-    // Session manually logged out
-    if (!session?.is_active) {
-      return ApiResponse.error(res, {
-        statusCode: 401,
-        messageKey: "user.sessionExpiredPleaseLogin",
-      });
-    }
-
-    // User logged in elsewhere
-    if (session.session_id !== decodedToken.session_id) {
-      return ApiResponse.error(res, {
-        statusCode: 401,
-        messageKey: "user.loggedInFromAnotherDevice",
-      });
-    }
-
-    // Optional: update activity timestamp
-    await prisma.userSession.update({
-      where: {
-        user_id: decodedToken.user_id,
-      },
-      data: {
-        last_activity: new Date(),
-      },
-    });
-
     req.user = user;
-
-    next();
-  } catch (err: any) {
-    console.error("[verifyAccessToken]", err);
-
-    if (err.name === "TokenExpiredError") {
-      return ApiResponse.error(res, {
-        statusCode: 401,
-        messageKey: "user.tokenExpired",
-      });
-    }
-
+    return next();
+  } catch {
     return ApiResponse.error(res, {
-      statusCode: 401,
-      messageKey: "user.invalidToken",
+      statusCode: 500,
+      messageKey: "common.serverIssue",
     });
   }
 };
