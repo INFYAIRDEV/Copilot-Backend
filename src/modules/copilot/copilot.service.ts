@@ -376,6 +376,14 @@ export class CopilotService {
 }
 
 // Factory instance: CopilotService -> AIService -> ResilientAIProvider -> LLMProviderAdapter
-export const copilotService = new CopilotService(
+export const analyticalCopilotService = new CopilotService(
   new AIService(new ResilientAIProvider(new LLMProviderAdapter())),
 );
+
+// Augment copilotService with analytical plan capability
+Object.assign(copilotService, {
+  generateCandidateAnalyticalPlan: (
+    userPrompt: string,
+    userContext: { userId: number; roleId: string; locale?: string },
+  ) => analyticalCopilotService.generateCandidateAnalyticalPlan(userPrompt, userContext),
+});

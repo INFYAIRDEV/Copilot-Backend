@@ -14,7 +14,6 @@ import { zodLocaleMiddleware } from "@/shared/middlewares/zodLocaleMiddleware.js
 import { setRequestContext } from "@/shared/utils/requestContext.js";
 import { asyncHandler } from "@/shared/middlewares/responseHandler.js";
 import { ApiResponse } from "@/shared/types/response.js";
-import copilotRoutes from "./src/modules/copilot/copilot.route.js";
 
 dotenv.config();
 

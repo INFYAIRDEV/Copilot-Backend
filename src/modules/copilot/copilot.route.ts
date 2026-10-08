@@ -8,10 +8,12 @@ router.post("/conversations", copilotController.create);
 router.post("/conversations/:id/messages", copilotController.sendMessage);
 router.get("/conversations/:id/messages", copilotController.history);
 
+import { copilotAnalyticalController } from "./copilot.controller.js";
+
 router.post(
   "/analytical-plan",
   verifyAccessToken,
-  copilotController.generateAnalyticalPlan,
+  copilotAnalyticalController.generateAnalyticalPlan,
 );
 
 export default router;

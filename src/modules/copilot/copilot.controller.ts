@@ -110,6 +110,8 @@ export const copilotController = {
   },
 };
 
+import { analyticalCopilotService } from "./copilot.service.js";
+
 const analyticalPlanSchema = z.object({
   prompt: z
     .string({ required_error: "prompt is required" })
@@ -118,7 +120,7 @@ const analyticalPlanSchema = z.object({
 });
 
 export class CopilotController {
-  constructor(private readonly service: CopilotService = copilotService) {}
+  constructor(private readonly service: CopilotService = analyticalCopilotService) {}
 
   /**
    * POST /api/v1/copilot/analytical-plan
@@ -241,4 +243,8 @@ export class CopilotController {
   };
 }
 
-export const copilotController = new CopilotController();
+export const copilotAnalyticalController = new CopilotController();
+
+Object.assign(copilotController, {
+  generateAnalyticalPlan: copilotAnalyticalController.generateAnalyticalPlan,
+});
