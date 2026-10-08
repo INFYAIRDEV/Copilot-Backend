@@ -31,6 +31,10 @@ import {
   AIResponseException,
   HandledAIResponse,
 } from "../response/index.js";
+import {
+  IAIUsageService,
+  defaultUsageService,
+} from "../usage/index.js";
 import { logger } from "@/shared/utils/logger.js";
 
 /**
@@ -59,11 +63,12 @@ const SENSITIVE_PATTERNS = [
  * 2. Prompt Management: Injected via constructor (DI), manages prompt definitions and templates.
  * 3. AI Request Validation: Injected via constructor (DI), validates request payload & context.
  * 4. AI Response Handling: Injected via constructor (DI), normalizes and validates responses.
- * 5. Data Minimization: Strictly aggregates and bounds model inputs before sending to provider.
- * 6. Candidate Plan Only: Stops at candidate typed analytical plan stage; does NOT perform
+ * 5. AI Usage Tracking: Injected via constructor (DI), tracks token metrics and model costs.
+ * 6. Data Minimization: Strictly aggregates and bounds model inputs before sending to provider.
+ * 7. Candidate Plan Only: Stops at candidate typed analytical plan stage; does NOT perform
  *    semantic/policy validation, AST compilation, or SQL execution.
- * 7. Authorization Boundary: Never expands record scopes, never overrides RBAC/ABAC decisions.
- * 8. Deterministic Boundary: Does not compute authoritative business KPIs or margins.
+ * 8. Authorization Boundary: Never expands record scopes, never overrides RBAC/ABAC decisions.
+ * 9. Deterministic Boundary: Does not compute authoritative business KPIs or margins.
  */
 export class AIService implements IAIService {
   public readonly isAIService = true;
@@ -73,6 +78,7 @@ export class AIService implements IAIService {
     private readonly promptManager: IPromptManager = defaultPromptManager,
     private readonly requestValidator: IAIRequestValidator = defaultAIRequestValidator,
     private readonly responseHandler: IAIResponseHandler = defaultAIResponseHandler,
+    private readonly usageService: IAIUsageService = defaultUsageService,
   ) {}
 
   /**
@@ -244,6 +250,22 @@ export class AIService implements IAIService {
       promptMetadata: managedPrompt.metadata,
       correlationId,
     };
+
+    // 8. Track model usage telemetry asynchronously / fail-safe in copilot.model_usage
+    this.usageService.trackUsage({
+      requestUuid: correlationId,
+      provider: handledResponse.usage.providerName,
+      model: handledResponse.usage.modelName,
+      promptVersion: managedPrompt.metadata?.version,
+      purpose: "CANDIDATE_PLAN",
+      inputTokens: handledResponse.usage.inputTokens,
+      outputTokens: handledResponse.usage.outputTokens,
+      latencyMs: handledResponse.usage.latencyMs || durationMs,
+      retryCount: handledResponse.usage.retryCount,
+      status: handledResponse.status === "FALLBACK" ? "FALLBACK" : handledResponse.isDegraded ? "DEGRADED" : "SUCCESS",
+    }).catch((err) => {
+      logger.warn(`[AIService] Background model usage tracking encountered an issue: ${err.message}`);
+    });
 
     logger.info(
       `[AIService] Candidate plan completed [correlationId: ${correlationId}, provider: ${result.usage.provider}, outcome: ${result.usage.requestOutcome}, duration: ${durationMs}ms]`,
