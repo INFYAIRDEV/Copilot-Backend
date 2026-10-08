@@ -18,6 +18,8 @@ export interface NormalizedAnalyticalContext {
   };
 }
 
+import { PromptMetadata } from "../prompts/prompt.types.js";
+
 /**
  * Application-owned request context passed into the AI Service.
  * Isolates the application workflow from provider-specific parameters.
@@ -25,6 +27,8 @@ export interface NormalizedAnalyticalContext {
 export interface AIServiceRequest {
   prompt: string;
   context: NormalizedAnalyticalContext;
+  promptKey?: string;
+  promptVersion?: string;
   tokenBudget?: {
     maxInputTokens?: number;
     maxOutputTokens?: number;
@@ -63,6 +67,7 @@ export interface AIServiceResult {
   fromFallback: boolean;
   fallbackReason?: string;
   isDegraded: boolean;
+  promptMetadata?: PromptMetadata;
   correlationId?: string;
 }
 
@@ -76,6 +81,7 @@ export type AIServiceErrorCode =
   | "COPILOT_INVALID_RESPONSE"
   | "COPILOT_TOKEN_BUDGET_EXCEEDED"
   | "COPILOT_CONFIG_ERROR"
+  | "COPILOT_PROMPT_ERROR"
   | "COPILOT_SERVICE_ERROR";
 
 /**

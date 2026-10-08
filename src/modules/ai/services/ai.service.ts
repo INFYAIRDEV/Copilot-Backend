@@ -13,6 +13,12 @@ import {
   AIErrorCategory,
 } from "../types/ai-provider.types.js";
 import { CandidatePlanValidator } from "../validation/candidate-plan.validator.js";
+import {
+  IPromptManager,
+  defaultPromptManager,
+  PromptException,
+  ManagedPrompt,
+} from "../prompts/index.js";
 import { logger } from "@/shared/utils/logger.js";
 
 /**
@@ -38,16 +44,20 @@ const SENSITIVE_PATTERNS = [
  *
  * Strict Boundaries:
  * 1. AI Provider Abstraction: Injected via constructor (DI), never calls provider SDKs directly.
- * 2. Data Minimization: Strictly aggregates and bounds model inputs before sending to provider.
- * 3. Candidate Plan Only: Stops at candidate typed analytical plan stage; does NOT perform
+ * 2. Prompt Management: Injected via constructor (DI), manages prompt definitions and templates.
+ * 3. Data Minimization: Strictly aggregates and bounds model inputs before sending to provider.
+ * 4. Candidate Plan Only: Stops at candidate typed analytical plan stage; does NOT perform
  *    semantic/policy validation, AST compilation, or SQL execution.
- * 4. Authorization Boundary: Never expands record scopes, never overrides RBAC/ABAC decisions.
- * 5. Deterministic Boundary: Does not compute authoritative business KPIs or margins.
+ * 5. Authorization Boundary: Never expands record scopes, never overrides RBAC/ABAC decisions.
+ * 6. Deterministic Boundary: Does not compute authoritative business KPIs or margins.
  */
 export class AIService implements IAIService {
   public readonly isAIService = true;
 
-  constructor(private readonly provider: IAIProvider) {}
+  constructor(
+    private readonly provider: IAIProvider,
+    private readonly promptManager: IPromptManager = defaultPromptManager,
+  ) {}
 
   /**
    * Generates a candidate typed analytical plan for normalized Copilot context.
@@ -76,8 +86,35 @@ export class AIService implements IAIService {
       );
     }
 
-    // 2. Data Minimization & Input Sanitization
-    const sanitizedPrompt = this.sanitizeInput(request.prompt);
+    // 2. Build provider-neutral ManagedPrompt via Prompt Management
+    const promptKey = request.promptKey || "CANDIDATE_ANALYTICAL_PLAN";
+    let managedPrompt: ManagedPrompt;
+    try {
+      managedPrompt = this.promptManager.buildPrompt(
+        promptKey,
+        {
+          userQuery: request.prompt,
+          context: request.context,
+        },
+        request.promptVersion,
+      );
+    } catch (err: unknown) {
+      if (err instanceof PromptException) {
+        logger.warn(
+          `[AIService] Prompt manager error [correlationId: ${correlationId}, code: ${err.code}]: ${err.message}`,
+        );
+        throw new AIServiceException(
+          "COPILOT_PROMPT_ERROR",
+          `Prompt construction failed: ${err.message}`,
+          {
+            statusCode: 400,
+            correlationId,
+            details: err.details,
+          },
+        );
+      }
+      throw err;
+    }
 
     // 3. Token Budget Controls
     const tokenBudget = {
@@ -88,7 +125,8 @@ export class AIService implements IAIService {
 
     // 4. Construct Controlled AIProviderRequest
     const providerRequest: AIProviderRequest = {
-      prompt: sanitizedPrompt,
+      prompt: managedPrompt.userPrompt,
+      systemInstruction: managedPrompt.systemInstruction,
       context: {
         userId: request.context.userId,
         roleId: request.context.roleId,
@@ -100,7 +138,7 @@ export class AIService implements IAIService {
     };
 
     logger.info(
-      `[AIService] Starting candidate plan generation [correlationId: ${correlationId}, role: ${request.context.roleId}]`,
+      `[AIService] Starting candidate plan generation [correlationId: ${correlationId}, promptKey: ${managedPrompt.metadata.promptKey}, version: ${managedPrompt.metadata.version}, role: ${request.context.roleId}]`,
     );
 
     let rawResponse: AIProviderResponse;
@@ -159,6 +197,7 @@ export class AIService implements IAIService {
       fromFallback: rawResponse.fromFallback,
       fallbackReason: rawResponse.fallbackReason,
       isDegraded: rawResponse.fromFallback,
+      promptMetadata: managedPrompt.metadata,
       correlationId,
     };
 
