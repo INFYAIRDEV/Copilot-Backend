@@ -1,0 +1,191 @@
+openapi: 3.1.0
+info:
+  title: Copilot Conversation API
+  version: 1.0.0
+servers:
+  - url: /api/v1
+paths:
+  /copilot/conversations:
+    post:
+      operationId: createCopilotConversation
+      summary: Create a conversation for the authenticated user
+      security: [{ bearerAuth: [] }]
+      description: Requires a valid access token. The owner is taken from the authenticated identity; clients cannot select an owner. Conversation creation only persists metadata and does not invoke analytical or AI processing.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                locale: { type: string, enum: [en, it] }
+      responses:
+        "201":
+          description: Conversation created
+          content:
+            application/json:
+              schema:
+                { $ref: "#/components/schemas/ConversationCreatedResponse" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "500": { $ref: "#/components/responses/ServerError" }
+  /copilot/conversations/{id}/messages:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Server-generated conversation UUID returned by create
+        schema: { type: string, format: uuid }
+    post:
+      operationId: sendCopilotMessage
+      summary: Persist a user message in an active owned conversation
+      security: [{ bearerAuth: [] }]
+      description: The server fixes role to USER. A repeated key and identical canonical body returns the original message; using the same key with a different body returns 409. This endpoint does not perform LLM, SQL, or analytical processing.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 128 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [kind, text]
+              properties:
+                kind: { type: string, enum: [QUESTION, CLARIFICATION_REPLY] }
+                text: { type: string, minLength: 1, maxLength: 20000 }
+                locale: { type: string, enum: [en, it] }
+      responses:
+        "201":
+          description: Message persisted or matching idempotent request replayed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/PermissionDenied" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+    get:
+      operationId: getCopilotConversationHistory
+      summary: Retrieve chronological messages for an owned conversation
+      security: [{ bearerAuth: [] }]
+      description: Minimal history contract selected because no existing route or OpenAPI contract is present. Ownership is verified before reading. Cursors are signed, expire after 15 minutes, and are bound to the authenticated user and conversation. Messages are ordered by created_at then id. Redacted message text is always returned as null.
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - name: cursor
+          in: query
+          required: false
+          description: Opaque signed cursor from the previous page
+          schema: { type: string, maxLength: 2048 }
+      responses:
+        "200":
+          description: Conversation metadata and one chronological page of messages
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HistoryResponse" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/PermissionDenied" }
+        "500": { $ref: "#/components/responses/ServerError" }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        success: { type: boolean, const: false }
+        message: { type: string }
+        code: { type: string }
+    Conversation:
+      type: object
+      required: [conversation_uuid, locale, state, created_at, updated_at]
+      properties:
+        conversation_uuid: { type: string, format: uuid }
+        locale: { type: string, enum: [en, it] }
+        state: { type: string, enum: [ACTIVE, ARCHIVED] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    Message:
+      type: object
+      required: [id, role, kind, text, redacted, locale, created_at]
+      properties:
+        id: { type: integer }
+        role: { type: string, enum: [USER, ASSISTANT, SYSTEM] }
+        kind:
+          {
+            type: string,
+            enum: [QUESTION, CLARIFICATION_REPLY, CLARIFICATION_REQUEST],
+          }
+        text: { type: [string, "null"] }
+        redacted: { type: boolean }
+        locale: { type: string, enum: [en, it] }
+        created_at: { type: string, format: date-time }
+    ConversationCreatedResponse:
+      type: object
+      properties:
+        success: { type: boolean, const: true }
+        message: { type: string }
+        data: { $ref: "#/components/schemas/Conversation" }
+    MessageResponse:
+      type: object
+      properties:
+        success: { type: boolean, const: true }
+        message: { type: string }
+        data: { $ref: "#/components/schemas/Message" }
+    HistoryResponse:
+      type: object
+      properties:
+        success: { type: boolean, const: true }
+        message: { type: string }
+        data:
+          type: object
+          required: [conversation, messages, page]
+          properties:
+            conversation: { $ref: "#/components/schemas/Conversation" }
+            messages:
+              { type: array, items: { $ref: "#/components/schemas/Message" } }
+            page:
+              type: object
+              required: [limit, next_cursor, has_more]
+              properties:
+                limit: { type: integer }
+                next_cursor: { type: [string, "null"] }
+                has_more: { type: boolean }
+  responses:
+    ValidationError:
+      description: Invalid body, path, header, query, or cursor
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthenticated:
+      description: Missing or invalid access token
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    PermissionDenied:
+      description: Conversation is unavailable to the authenticated user
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: Conversation is not active or idempotency key conflicts with an earlier body
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }

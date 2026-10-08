@@ -10,5 +10,5 @@ export const logger = {
   },
   debug: (message: string, ...args: any[]) => {
     console.debug(`[DEBUG] ${new Date().toISOString()} - ${message}`, ...args);
-  }
+  },
 };
