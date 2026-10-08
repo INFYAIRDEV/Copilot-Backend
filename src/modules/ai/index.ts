@@ -11,4 +11,5 @@ export * from "./adapters/base-ai-provider.adapter.js";
 export * from "./adapters/mock-ai-provider.adapter.js";
 export * from "./adapters/llm-provider.adapter.js";
 export * from "./prompts/index.js";
+export * from "./response/index.js";
 export * from "@/infrastructure/ai/llm-config.js";

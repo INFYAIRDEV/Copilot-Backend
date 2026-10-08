@@ -25,6 +25,12 @@ import {
   AIRequestValidationException,
   ValidatedAIRequest,
 } from "../validation/index.js";
+import {
+  IAIResponseHandler,
+  defaultAIResponseHandler,
+  AIResponseException,
+  HandledAIResponse,
+} from "../response/index.js";
 import { logger } from "@/shared/utils/logger.js";
 
 /**
@@ -51,11 +57,13 @@ const SENSITIVE_PATTERNS = [
  * Strict Boundaries:
  * 1. AI Provider Abstraction: Injected via constructor (DI), never calls provider SDKs directly.
  * 2. Prompt Management: Injected via constructor (DI), manages prompt definitions and templates.
- * 3. Data Minimization: Strictly aggregates and bounds model inputs before sending to provider.
- * 4. Candidate Plan Only: Stops at candidate typed analytical plan stage; does NOT perform
+ * 3. AI Request Validation: Injected via constructor (DI), validates request payload & context.
+ * 4. AI Response Handling: Injected via constructor (DI), normalizes and validates responses.
+ * 5. Data Minimization: Strictly aggregates and bounds model inputs before sending to provider.
+ * 6. Candidate Plan Only: Stops at candidate typed analytical plan stage; does NOT perform
  *    semantic/policy validation, AST compilation, or SQL execution.
- * 5. Authorization Boundary: Never expands record scopes, never overrides RBAC/ABAC decisions.
- * 6. Deterministic Boundary: Does not compute authoritative business KPIs or margins.
+ * 7. Authorization Boundary: Never expands record scopes, never overrides RBAC/ABAC decisions.
+ * 8. Deterministic Boundary: Does not compute authoritative business KPIs or margins.
  */
 export class AIService implements IAIService {
   public readonly isAIService = true;
@@ -64,6 +72,7 @@ export class AIService implements IAIService {
     private readonly provider: IAIProvider,
     private readonly promptManager: IPromptManager = defaultPromptManager,
     private readonly requestValidator: IAIRequestValidator = defaultAIRequestValidator,
+    private readonly responseHandler: IAIResponseHandler = defaultAIResponseHandler,
   ) {}
 
   /**
@@ -174,50 +183,64 @@ export class AIService implements IAIService {
 
     const durationMs = Date.now() - startTime;
 
-    // 6. Validate structural integrity of the candidate response
-    const structuralValidation = CandidatePlanValidator.validate(
-      rawResponse.candidatePlan,
-    );
-
-    if (!structuralValidation.isValid) {
-      logger.error(
-        `[AIService] Structural validation failed for candidate plan [correlationId: ${correlationId}]: ${structuralValidation.errors.join("; ")}`,
-      );
-      throw new AIServiceException(
-        "COPILOT_INVALID_RESPONSE",
-        "Candidate analytical plan failed structural integrity validation",
+    // 6. Process and validate response via AI Response Handling layer
+    let handledResponse: HandledAIResponse;
+    try {
+      handledResponse = this.responseHandler.handleResponse(
+        rawResponse,
         {
-          statusCode: 422,
           correlationId,
-          details: structuralValidation.errors,
+          promptMetadata: managedPrompt.metadata,
+          purpose: "CANDIDATE_PLAN",
+          startTime,
         },
       );
+    } catch (err: unknown) {
+      if (err instanceof AIResponseException) {
+        logger.error(
+          `[AIService] AI response handling failed [correlationId: ${correlationId}, code: ${err.code}]: ${err.message}`,
+        );
+        const mappedCode: AIServiceErrorCode =
+          err.code === "COPILOT_UNSAFE_AI_OUTPUT"
+            ? "COPILOT_INVALID_RESPONSE"
+            : err.code === "COPILOT_MALFORMED_CANDIDATE" || err.code === "COPILOT_RESPONSE_TOO_LARGE"
+            ? "COPILOT_INVALID_RESPONSE"
+            : "COPILOT_SERVICE_ERROR";
+
+        throw new AIServiceException(
+          mappedCode,
+          err.message,
+          {
+            statusCode: err.statusCode,
+            correlationId,
+            details: err.details,
+          },
+        );
+      }
+      throw err;
     }
 
-    // 7. Determine request outcome for operational telemetry
-    const requestOutcome = rawResponse.fromFallback ? "FALLBACK" : "SUCCESS";
-
-    // 8. Assemble normalized application-owned result
+    // 7. Assemble normalized application-owned result from handled response
     const result: AIServiceResult = {
-      candidatePlan: rawResponse.candidatePlan,
-      narrative: rawResponse.narrative,
+      candidatePlan: handledResponse.candidatePlan,
+      narrative: handledResponse.narrative,
       usage: {
-        provider: rawResponse.usage.providerName,
-        providerName: rawResponse.usage.providerName,
-        model: rawResponse.usage.modelName,
-        modelName: rawResponse.usage.modelName,
-        modelVersion: rawResponse.usage.modelVersion,
-        inputTokens: rawResponse.usage.inputTokens,
-        outputTokens: rawResponse.usage.outputTokens,
-        totalTokens: rawResponse.usage.totalTokens,
-        latencyMs: rawResponse.usage.latencyMs || durationMs,
-        retryCount: rawResponse.usage.retryCount,
-        requestOutcome,
-        estimatedCostUsd: rawResponse.usage.estimatedCostUsd,
+        provider: handledResponse.usage.providerName,
+        providerName: handledResponse.usage.providerName,
+        model: handledResponse.usage.modelName,
+        modelName: handledResponse.usage.modelName,
+        modelVersion: handledResponse.usage.modelVersion,
+        inputTokens: handledResponse.usage.inputTokens,
+        outputTokens: handledResponse.usage.outputTokens,
+        totalTokens: handledResponse.usage.totalTokens,
+        latencyMs: handledResponse.usage.latencyMs || durationMs,
+        retryCount: handledResponse.usage.retryCount,
+        requestOutcome: handledResponse.usage.requestOutcome,
+        estimatedCostUsd: handledResponse.usage.estimatedCostUsd,
       },
-      fromFallback: rawResponse.fromFallback,
-      fallbackReason: rawResponse.fallbackReason,
-      isDegraded: rawResponse.fromFallback,
+      fromFallback: handledResponse.fromFallback,
+      fallbackReason: handledResponse.fallbackReason,
+      isDegraded: handledResponse.isDegraded,
       promptMetadata: managedPrompt.metadata,
       correlationId,
     };
