@@ -4,6 +4,7 @@ import { CopilotError, copilotService } from "./copilot.service.js";
 import {
   createConversationSchema,
   historySchema,
+  listConversationsSchema,
   sendMessageSchema,
 } from "./conversation.validation.js";
 
@@ -26,128 +27,235 @@ function fail(res: Response, error: unknown) {
   });
 }
 
-export const copilotController = {
-  async create(req: Request, res: Response) {
-    const parsed = createConversationSchema.safeParse({ body: req.body ?? {} });
-    if (!parsed.success)
-      return ApiResponse.error(res, {
-        statusCode: 400,
-        code: "VALIDATION_ERROR",
-        message: "Invalid request body",
+export function createCopilotController(service = copilotService) {
+  return {
+    async create(req: Request, res: Response) {
+      const parsed = createConversationSchema.safeParse({
+        body: req.body ?? {},
       });
-    try {
-      const data = await copilotService.createConversation(
-        req.user!.user_id,
-        parsed.data.body.locale,
-      );
-      return ApiResponse.success(res, {
-        statusCode: 201,
-        message: "Conversation created",
-        data,
-      });
-    } catch (error) {
-      return fail(res, error);
-    }
-  },
+      if (!parsed.success)
+        return ApiResponse.error(res, {
+          statusCode: 400,
+          code: "VALIDATION_ERROR",
+          message: "Invalid request body",
+        });
+      try {
+        const data = await service.createConversation(
+          req.user!.user_id,
+          parsed.data.body.locale,
+        );
+        return ApiResponse.success(res, {
+          statusCode: 201,
+          message: "Conversation created",
+          data,
+        });
+      } catch (error) {
+        return fail(res, error);
+      }
+    },
 
-  async sendMessage(req: Request, res: Response) {
-    if (!req.user || !req.user.user_id) {
-      return ApiResponse.error(res, {
-        statusCode: 401,
-        code: "UNAUTHENTICATED",
-        message: "Authentication required",
-      });
-    }
+    async sendMessage(req: Request, res: Response) {
+      if (!req.user || !req.user.user_id) {
+        return ApiResponse.error(res, {
+          statusCode: 401,
+          code: "UNAUTHENTICATED",
+          message: "Authentication required",
+        });
+      }
 
-    const rawRequestId = req.get("X-Request-Id") || req.get("X-Request-UUID");
-    const parsed = sendMessageSchema.safeParse({
-      params: req.params,
-      headers: {
-        "idempotency-key": req.get("Idempotency-Key"),
-        ...(rawRequestId ? { "x-request-id": rawRequestId } : {}),
-      },
-      body: req.body,
-    });
-    if (!parsed.success)
-      return ApiResponse.error(res, {
-        statusCode: 400,
-        code: "VALIDATION_ERROR",
-        message: "Invalid request",
-        error: parsed.error.issues,
-      });
-
-    // Enforce copilot.ask authorization if permissions or scopes are configured on authenticated user
-    const userPermissions = (req.user as any).permissions;
-    const userScopes = (req.user as any).scopes;
-    if (
-      Array.isArray(userPermissions) &&
-      !userPermissions.includes("copilot.ask")
-    ) {
-      return ApiResponse.error(res, {
-        statusCode: 403,
-        code: "COPILOT_PERMISSION_DENIED",
-        message: "Permission denied: copilot.ask required",
-      });
-    }
-    if (Array.isArray(userScopes) && !userScopes.includes("copilot.ask")) {
-      return ApiResponse.error(res, {
-        statusCode: 403,
-        code: "COPILOT_PERMISSION_DENIED",
-        message: "Permission denied: copilot.ask required",
-      });
-    }
-
-    try {
-      const { id } = parsed.data.params;
-      const request_uuid = parsed.data.headers["x-request-id"];
-      const data = await copilotService.sendMessage(
-        req.user.user_id,
-        id,
-        parsed.data.headers["idempotency-key"],
-        {
-          ...parsed.data.body,
-          ...(request_uuid ? { request_uuid } : {}),
+      const rawRequestId = req.get("X-Request-Id") || req.get("X-Request-UUID");
+      const parsed = sendMessageSchema.safeParse({
+        params: req.params,
+        headers: {
+          "idempotency-key": req.get("Idempotency-Key"),
+          ...(rawRequestId ? { "x-request-id": rawRequestId } : {}),
         },
-      );
-      return ApiResponse.success(res, {
-        statusCode: 201,
-        message: "Message accepted",
-        data,
+        body: req.body,
       });
-    } catch (error) {
-      return fail(res, error);
-    }
-  },
+      if (!parsed.success)
+        return ApiResponse.error(res, {
+          statusCode: 400,
+          code: "VALIDATION_ERROR",
+          message: "Invalid request",
+          error: parsed.error.issues,
+        });
 
-  async history(req: Request, res: Response) {
-    const parsed = historySchema.safeParse({
-      params: req.params,
-      query: req.query,
-    });
-    if (!parsed.success)
-      return ApiResponse.error(res, {
-        statusCode: 400,
-        code: "VALIDATION_ERROR",
-        message: "Invalid history request",
+      // Enforce copilot.ask authorization if permissions or scopes are configured on authenticated user
+      const userPermissions = (req.user as any).permissions;
+      const userScopes = (req.user as any).scopes;
+      if (
+        Array.isArray(userPermissions) &&
+        !userPermissions.includes("copilot.ask")
+      ) {
+        return ApiResponse.error(res, {
+          statusCode: 403,
+          code: "COPILOT_PERMISSION_DENIED",
+          message: "Permission denied: copilot.ask required",
+        });
+      }
+      if (Array.isArray(userScopes) && !userScopes.includes("copilot.ask")) {
+        return ApiResponse.error(res, {
+          statusCode: 403,
+          code: "COPILOT_PERMISSION_DENIED",
+          message: "Permission denied: copilot.ask required",
+        });
+      }
+
+      try {
+        const { id } = parsed.data.params;
+        const request_uuid = parsed.data.headers["x-request-id"];
+        const data = await service.sendMessage(
+          req.user.user_id,
+          id,
+          parsed.data.headers["idempotency-key"],
+          {
+            ...parsed.data.body,
+            ...(request_uuid ? { request_uuid } : {}),
+          },
+        );
+        return ApiResponse.success(res, {
+          statusCode: 201,
+          message: "Message accepted",
+          data,
+        });
+      } catch (error) {
+        return fail(res, error);
+      }
+    },
+
+    async listConversations(req: Request, res: Response) {
+      if (!req.user || !req.user.user_id) {
+        return ApiResponse.error(res, {
+          statusCode: 401,
+          code: "UNAUTHENTICATED",
+          message: "Authentication required",
+        });
+      }
+
+      const userPermissions = (req.user as any).permissions;
+      const userScopes = (req.user as any).scopes;
+      if (
+        Array.isArray(userPermissions) &&
+        userPermissions.length > 0 &&
+        !userPermissions.includes("copilot.read") &&
+        !userPermissions.includes("copilot.ask")
+      ) {
+        return ApiResponse.error(res, {
+          statusCode: 403,
+          code: "COPILOT_PERMISSION_DENIED",
+          message: "Permission denied",
+        });
+      }
+      if (
+        Array.isArray(userScopes) &&
+        userScopes.length > 0 &&
+        !userScopes.includes("copilot.read") &&
+        !userScopes.includes("copilot.ask")
+      ) {
+        return ApiResponse.error(res, {
+          statusCode: 403,
+          code: "COPILOT_PERMISSION_DENIED",
+          message: "Permission denied",
+        });
+      }
+
+      const parsed = listConversationsSchema.safeParse({
+        query: req.query,
       });
-    try {
-      const { id } = parsed.data.params;
-      const { limit, cursor } = parsed.data.query;
-      const data = await copilotService.history(
-        req.user!.user_id,
-        id,
-        limit,
-        cursor,
-      );
-      return ApiResponse.success(res, {
-        message: "Conversation history",
-        data,
+      if (!parsed.success)
+        return ApiResponse.error(res, {
+          statusCode: 400,
+          code: "VALIDATION_ERROR",
+          message: "Invalid query parameters",
+        });
+
+      try {
+        const { limit, cursor } = parsed.data.query;
+        const { limit: _l, cursor: _c, ...filters } = (req.query as any) || {};
+        const data = await service.listConversations(
+          req.user.user_id,
+          limit,
+          cursor,
+          filters,
+        );
+        return ApiResponse.success(res, {
+          message: "Conversations retrieved",
+          data,
+        });
+      } catch (error) {
+        return fail(res, error);
+      }
+    },
+
+    async history(req: Request, res: Response) {
+      if (!req.user || !req.user.user_id) {
+        return ApiResponse.error(res, {
+          statusCode: 401,
+          code: "UNAUTHENTICATED",
+          message: "Authentication required",
+        });
+      }
+
+      const userPermissions = (req.user as any).permissions;
+      const userScopes = (req.user as any).scopes;
+      if (
+        Array.isArray(userPermissions) &&
+        userPermissions.length > 0 &&
+        !userPermissions.includes("copilot.read") &&
+        !userPermissions.includes("copilot.ask")
+      ) {
+        return ApiResponse.error(res, {
+          statusCode: 403,
+          code: "COPILOT_PERMISSION_DENIED",
+          message: "Permission denied",
+        });
+      }
+      if (
+        Array.isArray(userScopes) &&
+        userScopes.length > 0 &&
+        !userScopes.includes("copilot.read") &&
+        !userScopes.includes("copilot.ask")
+      ) {
+        return ApiResponse.error(res, {
+          statusCode: 403,
+          code: "COPILOT_PERMISSION_DENIED",
+          message: "Permission denied",
+        });
+      }
+
+      const parsed = historySchema.safeParse({
+        params: req.params,
+        query: req.query,
       });
-    } catch (error) {
-      return fail(res, error);
-    }
-  },
-};
+      if (!parsed.success)
+        return ApiResponse.error(res, {
+          statusCode: 400,
+          code: "VALIDATION_ERROR",
+          message: "Invalid history request",
+        });
+      try {
+        const { id } = parsed.data.params;
+        const { limit, cursor } = parsed.data.query;
+        const { limit: _l, cursor: _c, ...filters } = (req.query as any) || {};
+        const data = await service.history(
+          req.user.user_id,
+          id,
+          limit,
+          cursor,
+          filters,
+        );
+        return ApiResponse.success(res, {
+          message: "Conversation history",
+          data,
+        });
+      } catch (error) {
+        return fail(res, error);
+      }
+    },
+  };
+}
+
+export const copilotController = createCopilotController(copilotService);
 
 import { analyticalCopilotService } from "./copilot.service.js";
 

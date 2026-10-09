@@ -4,6 +4,7 @@ import { copilotController } from "./copilot.controller.js";
 
 const router = Router();
 router.use(verifyAccessToken);
+router.get("/conversations", copilotController.listConversations);
 router.post("/conversations", copilotController.create);
 router.post("/conversations/:id/messages", copilotController.sendMessage);
 router.get("/conversations/:id/messages", copilotController.history);

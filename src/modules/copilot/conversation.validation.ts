@@ -31,3 +31,10 @@ export const historySchema = z.object({
     cursor: z.string().max(2048).optional(),
   }),
 });
+
+export const listConversationsSchema = z.object({
+  query: z.object({
+    limit: z.coerce.number().int().min(1).max(100).default(50),
+    cursor: z.string().max(2048).optional(),
+  }),
+});

@@ -209,7 +209,41 @@ export const conversationRepository = {
         text: true,
         text_redacted: true,
         locale: true,
+        request_uuid: true,
         created_at: true,
+      },
+    });
+    return rows;
+  },
+
+  listUserConversations: async (
+    owner_user_id: number,
+    after?: { created_at: Date; id: number },
+    limit = 50,
+  ) => {
+    const rows = await prisma.conversation.findMany({
+      where: {
+        owner_user_id,
+        deleted_at: null,
+        state: { not: conversation_state.DELETED },
+        ...(after
+          ? {
+              OR: [
+                { created_at: { lt: after.created_at } },
+                { created_at: after.created_at, id: { lt: after.id } },
+              ],
+            }
+          : {}),
+      },
+      orderBy: [{ created_at: "desc" }, { id: "desc" }],
+      take: limit + 1,
+      select: {
+        id: true,
+        conversation_uuid: true,
+        locale: true,
+        state: true,
+        created_at: true,
+        updated_at: true,
       },
     });
     return rows;
@@ -235,13 +269,37 @@ export const conversationRepository = {
         payload: { returned_count: args.returned_count },
       });
     }),
+
+  auditConversationListRead: (args: {
+    owner_user_id: number;
+    request_uuid: string;
+    scope_hash: string;
+    query_fingerprint: string;
+    output_hash: string;
+    returned_count: number;
+  }) =>
+    auditedTransaction(async (tx) => {
+      await appendAudit(tx, {
+        request_uuid: args.request_uuid,
+        conversation_id: null,
+        event_type: "CONVERSATION_LIST_READ",
+        status: "SUCCESS",
+        scope_hash: args.scope_hash,
+        query_fingerprint: args.query_fingerprint,
+        output_hash: args.output_hash,
+        payload: {
+          owner_user_id: args.owner_user_id,
+          returned_count: args.returned_count,
+        },
+      });
+    }),
 };
 
 export async function appendAudit(
   tx: Prisma.TransactionClient,
   event: {
     request_uuid: string;
-    conversation_id: number;
+    conversation_id?: number | null;
     event_type: string;
     status: string;
     payload: Prisma.InputJsonValue;
@@ -272,7 +330,7 @@ export async function appendAudit(
       previous_hash,
       event_hash,
       request_uuid: event.request_uuid,
-      conversation_id: event.conversation_id,
+      conversation_id: event.conversation_id ?? null,
       event_type: event.event_type,
       status: event.status,
       redacted_payload,

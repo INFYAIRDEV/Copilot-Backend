@@ -11,16 +11,15 @@ import {
   message_role,
 } from "@prisma/client";
 import { conversationRepository } from "./conversation.repository.js";
+import {
+  paginationService,
+  PaginationService,
+  computeFilterHash,
+} from "./pagination.service.js";
+export { paginationService, PaginationService } from "./pagination.service.js";
 
-export class CopilotError extends Error {
-  constructor(
-    public statusCode: number,
-    public code: string,
-    message: string,
-  ) {
-    super(message);
-  }
-}
+import { CopilotError } from "./copilot.error.js";
+export { CopilotError } from "./copilot.error.js";
 
 const cursorSecret = () =>
   process.env.ACCESS_TOKEN_SECRET || process.env.JWT_SECRET;
@@ -35,62 +34,62 @@ type CursorData = {
   exp: number;
 };
 
-function encodeCursor(data: CursorData) {
-  const secret = cursorSecret();
-  if (!secret)
-    throw new CopilotError(
-      500,
-      "INTERNAL_ERROR",
-      "Service configuration error",
-    );
-  const payload = Buffer.from(JSON.stringify(data)).toString("base64url");
-  const signature = createHmac("sha256", secret)
-    .update(payload)
-    .digest("base64url");
-  return `${payload}.${signature}`;
+export function encodeCursor(data: CursorData) {
+  return paginationService.encodeMessageCursor({
+    userId: data.uid,
+    conversationId: data.cid,
+    limit: data.limit,
+    createdAt: new Date(data.created_at),
+    messageId: data.mid,
+  });
 }
 
-function decodeCursor(
+export function decodeCursor(
   cursor: string,
   uid: number,
   cid: number,
   limit: number,
+  filterHash?: string | null,
 ): { created_at: Date; id: number } {
-  const secret = cursorSecret();
-  const [payload, signature, extra] = cursor.split(".");
-  if (!secret || !payload || !signature || extra)
-    throw new CopilotError(400, "INVALID_CURSOR", "Invalid history cursor");
-  const expected = createHmac("sha256", secret).update(payload).digest();
-  let actual: Buffer;
-  try {
-    actual = Buffer.from(signature, "base64url");
-  } catch {
-    throw new CopilotError(400, "INVALID_CURSOR", "Invalid history cursor");
-  }
-  if (actual.length !== expected.length || !timingSafeEqual(actual, expected))
-    throw new CopilotError(400, "INVALID_CURSOR", "Invalid history cursor");
-  try {
-    const data = JSON.parse(
-      Buffer.from(payload, "base64url").toString("utf8"),
-    ) as CursorData;
-    if (
-      data.v !== 1 ||
-      data.uid !== uid ||
-      data.cid !== cid ||
-      data.limit !== limit ||
-      data.exp < Date.now() ||
-      !Number.isSafeInteger(data.mid) ||
-      Number.isNaN(Date.parse(data.created_at))
-    )
-      throw new Error();
-    return { created_at: new Date(data.created_at), id: data.mid };
-  } catch {
-    throw new CopilotError(
-      400,
-      "INVALID_CURSOR",
-      "Invalid or expired history cursor",
-    );
-  }
+  return paginationService.decodeMessageCursor(cursor, {
+    userId: uid,
+    conversationId: cid,
+    limit,
+    filterHash,
+  });
+}
+
+type ConvListCursorData = {
+  v: 1;
+  t?: "conv_list";
+  res?: "conv_list";
+  uid: number;
+  limit: number;
+  created_at: string;
+  cid: number;
+  exp: number;
+};
+
+export function encodeConvListCursor(data: ConvListCursorData) {
+  return paginationService.encodeConversationCursor({
+    userId: data.uid,
+    conversationId: data.cid,
+    limit: data.limit,
+    createdAt: new Date(data.created_at),
+  });
+}
+
+export function decodeConvListCursor(
+  cursor: string,
+  uid: number,
+  limit: number,
+  filterHash?: string | null,
+): { created_at: Date; id: number } {
+  return paginationService.decodeConversationCursor(cursor, {
+    userId: uid,
+    limit,
+    filterHash,
+  });
 }
 
 export const SENSITIVE_PATTERNS = [
@@ -185,7 +184,10 @@ export interface AssistantMessageInput {
   text_redacted?: boolean;
 }
 
-export function createCopilotService(repo = conversationRepository) {
+export function createCopilotService(
+  repo = conversationRepository,
+  paginator = paginationService,
+) {
   return {
     async createConversation(userId: number, locale?: string) {
       if (!Number.isSafeInteger(userId) || userId <= 0)
@@ -445,12 +447,87 @@ export function createCopilotService(repo = conversationRepository) {
       return rows.map(publicMessage);
     },
 
+    async listConversations(
+      userId: number,
+      limit: number,
+      cursor?: string,
+      filters?: Record<string, any>,
+    ) {
+      if (!Number.isSafeInteger(userId) || userId <= 0)
+        throw new CopilotError(
+          401,
+          "UNAUTHENTICATED",
+          "Authentication required",
+        );
+
+      const filterHash = computeFilterHash(filters);
+      const after = cursor
+        ? paginator.decodeConversationCursor(cursor, {
+            userId,
+            limit,
+            filterHash,
+          })
+        : undefined;
+      const rows = await repo.listUserConversations(userId, after, limit);
+      const hasMore = rows.length > limit;
+      const page = rows.slice(0, limit);
+      const last = page.at(-1);
+      const nextCursor =
+        hasMore && last
+          ? paginator.encodeConversationCursor({
+              userId,
+              conversationId: last.id,
+              limit,
+              createdAt: last.created_at,
+              filterHash,
+            })
+          : null;
+
+      await repo.auditConversationListRead({
+        owner_user_id: userId,
+        request_uuid: randomUUID(),
+        scope_hash: sha256(`user:${userId}:conversation_list:read`),
+        query_fingerprint: sha256(
+          JSON.stringify({ limit, cursor: cursor ? sha256(cursor) : null }),
+        ),
+        output_hash: sha256(
+          JSON.stringify(
+            page.map(({ conversation_uuid, state, created_at }) => ({
+              conversation_uuid,
+              state,
+              created_at,
+            })),
+          ),
+        ),
+        returned_count: page.length,
+      });
+
+      return {
+        conversations: page.map((c) => ({
+          conversation_uuid: c.conversation_uuid,
+          locale: c.locale,
+          state: c.state,
+          created_at: c.created_at,
+          updated_at: c.updated_at,
+        })),
+        page: { limit, next_cursor: nextCursor, has_more: hasMore },
+      };
+    },
+
     async history(
       userId: number,
       conversationUuid: string,
       limit: number,
       cursor?: string,
+      filters?: Record<string, any>,
     ) {
+      if (!Number.isSafeInteger(userId) || userId <= 0)
+        throw new CopilotError(
+          401,
+          "UNAUTHENTICATED",
+          "Authentication required",
+        );
+
       const conversation = await repo.findOwned(conversationUuid, userId);
       if (!conversation) {
         throw new CopilotError(
@@ -469,8 +546,14 @@ export function createCopilotService(repo = conversationRepository) {
           "Conversation access denied",
         );
       }
+      const filterHash = computeFilterHash(filters);
       const after = cursor
-        ? decodeCursor(cursor, userId, conversation.id, limit)
+        ? paginator.decodeMessageCursor(cursor, {
+            userId,
+            conversationId: conversation.id,
+            limit,
+            filterHash,
+          })
         : undefined;
       const rows = await repo.historyPage(conversation.id, after, limit);
       const hasMore = rows.length > limit;
@@ -478,14 +561,13 @@ export function createCopilotService(repo = conversationRepository) {
       const last = page.at(-1);
       const nextCursor =
         hasMore && last
-          ? encodeCursor({
-              v: 1,
-              uid: userId,
-              cid: conversation.id,
+          ? paginator.encodeMessageCursor({
+              userId,
+              conversationId: conversation.id,
               limit,
-              created_at: last.created_at.toISOString(),
-              mid: last.id,
-              exp: Date.now() + 15 * 60 * 1000,
+              createdAt: last.created_at,
+              messageId: last.id,
+              filterHash,
             })
           : null;
       await repo.auditHistoryRead({

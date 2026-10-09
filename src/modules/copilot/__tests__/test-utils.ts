@@ -261,7 +261,46 @@ export function createMockConversationRepository(initialData?: {
         text: m.text,
         text_redacted: m.text_redacted,
         locale: m.locale,
+        request_uuid: m.request_uuid,
         created_at: m.created_at,
+      }));
+    },
+
+    async listUserConversations(
+      owner_user_id: number,
+      after?: { created_at: Date; id: number },
+      limit = 50,
+    ) {
+      const filtered = conversations
+        .filter(
+          (c) =>
+            c.owner_user_id === owner_user_id &&
+            c.deleted_at === null &&
+            c.state !== conversation_state.DELETED,
+        )
+        .filter((c) => {
+          if (!after) return true;
+          if (c.created_at < after.created_at) return true;
+          if (
+            c.created_at.getTime() === after.created_at.getTime() &&
+            c.id < after.id
+          )
+            return true;
+          return false;
+        })
+        .sort((a, b) => {
+          const timeDiff = b.created_at.getTime() - a.created_at.getTime();
+          if (timeDiff !== 0) return timeDiff;
+          return b.id - a.id;
+        });
+
+      return filtered.slice(0, limit + 1).map((c) => ({
+        id: c.id,
+        conversation_uuid: c.conversation_uuid,
+        locale: c.locale,
+        state: c.state,
+        created_at: c.created_at,
+        updated_at: c.updated_at,
       }));
     },
 
@@ -273,6 +312,20 @@ export function createMockConversationRepository(initialData?: {
         event_type: "CONVERSATION_HISTORY_READ",
         status: "SUCCESS",
         payload: { returned_count: args.returned_count },
+      });
+    },
+
+    async auditConversationListRead(args: any) {
+      audits.push({
+        sequence: nextAuditSeq++,
+        request_uuid: args.request_uuid,
+        conversation_id: 0,
+        event_type: "CONVERSATION_LIST_READ",
+        status: "SUCCESS",
+        payload: {
+          owner_user_id: args.owner_user_id,
+          returned_count: args.returned_count,
+        },
       });
     },
   };

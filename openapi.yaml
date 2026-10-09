@@ -30,6 +30,30 @@ paths:
         "400": { $ref: "#/components/responses/ValidationError" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "500": { $ref: "#/components/responses/ServerError" }
+    get:
+      operationId: listCopilotConversations
+      summary: Retrieve conversations owned by the authenticated user
+      security: [{ bearerAuth: [] }]
+      description: Retrieve a paginated list of conversations owned by the authenticated user, ordered by creation date descending. Excludes deleted conversations and internal analytical data. Cursors are signed, expire after 15 minutes, and are bound to the authenticated user.
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - name: cursor
+          in: query
+          required: false
+          description: Opaque signed cursor from previous page
+          schema: { type: string, maxLength: 2048 }
+      responses:
+        "200":
+          description: List of user-owned conversations and pagination metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConversationListResponse" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "500": { $ref: "#/components/responses/ServerError" }
   /copilot/conversations/{id}/messages:
     parameters:
       - name: id
@@ -157,6 +181,25 @@ components:
         success: { type: boolean, const: true }
         message: { type: string }
         data: { $ref: "#/components/schemas/Message" }
+    ConversationListResponse:
+      type: object
+      properties:
+        success: { type: boolean, const: true }
+        message: { type: string }
+        data:
+          type: object
+          required: [conversations, page]
+          properties:
+            conversations:
+              type: array
+              items: { $ref: "#/components/schemas/Conversation" }
+            page:
+              type: object
+              required: [limit, next_cursor, has_more]
+              properties:
+                limit: { type: integer }
+                next_cursor: { type: [string, "null"] }
+                has_more: { type: boolean }
     HistoryResponse:
       type: object
       properties:

@@ -14,7 +14,7 @@
     "prettier:check": "prettier --check .",
     "prettier:write": "prettier --write .",
     "cron:start": "node dist/cron-runner.js",
-    "test:copilot": "tsx src/modules/copilot/__tests__/copilot-message-persistence.unit.test.ts && tsx src/modules/copilot/__tests__/copilot-message-persistence.integration.test.ts && tsx src/modules/copilot/__tests__/copilot-message-persistence.security.test.ts",
+    "test:copilot": "tsx src/modules/copilot/__tests__/copilot-message-persistence.unit.test.ts && tsx src/modules/copilot/__tests__/copilot-message-persistence.integration.test.ts && tsx src/modules/copilot/__tests__/copilot-message-persistence.security.test.ts && tsx src/modules/copilot/__tests__/copilot-history.unit.test.ts && tsx src/modules/copilot/__tests__/copilot-history.integration.test.ts && tsx src/modules/copilot/__tests__/copilot-history.security.test.ts && tsx src/modules/copilot/__tests__/copilot-pagination.unit.test.ts && tsx src/modules/copilot/__tests__/copilot-pagination.integration.test.ts && tsx src/modules/copilot/__tests__/copilot-pagination.security.test.ts && tsx src/modules/copilot/__tests__/copilot-pagination.performance.test.ts",
     "test": "tsx src/modules/ai/__tests__/ai-token-usage.test.ts && tsx src/modules/ai/__tests__/ai-error-retry.test.ts && tsx src/modules/ai/__tests__/ai-response-handling.test.ts && tsx src/modules/ai/__tests__/ai-request-validation.test.ts && tsx src/modules/ai/__tests__/prompt-management.test.ts && tsx src/modules/ai/__tests__/ai-service.test.ts && tsx src/modules/ai/__tests__/ai-provider-abstraction.test.ts && tsx src/modules/ai/__tests__/llm-provider-integration.test.ts && npm run test:copilot"
   },
   "dependencies": {
