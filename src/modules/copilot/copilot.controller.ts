@@ -8,7 +8,7 @@ import {
 } from "./conversation.validation.js";
 
 import { z } from "zod";
-import {  CopilotService } from "./copilot.service.js";
+import { CopilotService } from "./copilot.service.js";
 import { AIProviderException, AIServiceException } from "@/modules/ai/index.js";
 import { logger } from "@/shared/utils/logger.js";
 
@@ -51,9 +51,21 @@ export const copilotController = {
   },
 
   async sendMessage(req: Request, res: Response) {
+    if (!req.user || !req.user.user_id) {
+      return ApiResponse.error(res, {
+        statusCode: 401,
+        code: "UNAUTHENTICATED",
+        message: "Authentication required",
+      });
+    }
+
+    const rawRequestId = req.get("X-Request-Id") || req.get("X-Request-UUID");
     const parsed = sendMessageSchema.safeParse({
       params: req.params,
-      headers: { "idempotency-key": req.get("Idempotency-Key") },
+      headers: {
+        "idempotency-key": req.get("Idempotency-Key"),
+        ...(rawRequestId ? { "x-request-id": rawRequestId } : {}),
+      },
       body: req.body,
     });
     if (!parsed.success)
@@ -61,14 +73,41 @@ export const copilotController = {
         statusCode: 400,
         code: "VALIDATION_ERROR",
         message: "Invalid request",
+        error: parsed.error.issues,
       });
+
+    // Enforce copilot.ask authorization if permissions or scopes are configured on authenticated user
+    const userPermissions = (req.user as any).permissions;
+    const userScopes = (req.user as any).scopes;
+    if (
+      Array.isArray(userPermissions) &&
+      !userPermissions.includes("copilot.ask")
+    ) {
+      return ApiResponse.error(res, {
+        statusCode: 403,
+        code: "COPILOT_PERMISSION_DENIED",
+        message: "Permission denied: copilot.ask required",
+      });
+    }
+    if (Array.isArray(userScopes) && !userScopes.includes("copilot.ask")) {
+      return ApiResponse.error(res, {
+        statusCode: 403,
+        code: "COPILOT_PERMISSION_DENIED",
+        message: "Permission denied: copilot.ask required",
+      });
+    }
+
     try {
       const { id } = parsed.data.params;
+      const request_uuid = parsed.data.headers["x-request-id"];
       const data = await copilotService.sendMessage(
-        req.user!.user_id,
+        req.user.user_id,
         id,
         parsed.data.headers["idempotency-key"],
-        parsed.data.body,
+        {
+          ...parsed.data.body,
+          ...(request_uuid ? { request_uuid } : {}),
+        },
       );
       return ApiResponse.success(res, {
         statusCode: 201,
@@ -120,7 +159,9 @@ const analyticalPlanSchema = z.object({
 });
 
 export class CopilotController {
-  constructor(private readonly service: CopilotService = analyticalCopilotService) {}
+  constructor(
+    private readonly service: CopilotService = analyticalCopilotService,
+  ) {}
 
   /**
    * POST /api/v1/copilot/analytical-plan
@@ -146,7 +187,10 @@ export class CopilotController {
     // 2. Extract authenticated user context — established by verifyAccessToken middleware
     const authenticatedUser = req.user;
     if (!authenticatedUser) {
-      return ApiResponse.error(res, { statusCode: 401, message: "Unauthorized" });
+      return ApiResponse.error(res, {
+        statusCode: 401,
+        message: "Unauthorized",
+      });
     }
 
     const userContext = {
@@ -211,9 +255,13 @@ export class CopilotController {
       if (error instanceof AIProviderException) {
         // Map provider error categories to HTTP/application error codes
         const statusCode =
-          error.category === "TOKEN_BUDGET_EXCEEDED" ? 422 :
-          error.category === "CONFIG_ERROR" ? 503 :
-          error.category === "UNAVAILABLE" ? 503 : 503;
+          error.category === "TOKEN_BUDGET_EXCEEDED"
+            ? 422
+            : error.category === "CONFIG_ERROR"
+              ? 503
+              : error.category === "UNAVAILABLE"
+                ? 503
+                : 503;
 
         const clientMessage =
           error.category === "TOKEN_BUDGET_EXCEEDED"

@@ -18,9 +18,38 @@ async function auditedTransaction<T>(
       });
     } catch (error) {
       const code = (error as { code?: string })?.code;
+      const target = (error as any)?.meta?.target;
+      const isIdempotencyConflict =
+        code === "P2002" &&
+        (Array.isArray(target)
+          ? target.includes("idempotency_key")
+          : String(target || "").includes("idempotency_key"));
+      if (isIdempotencyConflict) throw error;
       if (attempt >= 2 || (code !== "P2002" && code !== "P2034")) throw error;
     }
   }
+}
+
+export interface CreateMessageArgs {
+  conversation_id: number;
+  kind: message_kind;
+  text: string | null;
+  locale: locale_code;
+  request_uuid: string;
+  idempotency_key?: string | null;
+  canonical_body_hash?: string | null;
+  question_hash?: string | null;
+  text_redacted?: boolean;
+  role?: message_role;
+}
+
+export interface CreateAssistantMessageArgs {
+  conversation_id: number;
+  kind: message_kind;
+  text: string | null;
+  locale: locale_code;
+  request_uuid?: string;
+  text_redacted?: boolean;
 }
 
 export const conversationRepository = {
@@ -58,9 +87,12 @@ export const conversationRepository = {
       where: {
         conversation_uuid,
         owner_user_id,
-        deleted_at: null,
-        state: { not: conversation_state.DELETED },
       },
+    }),
+
+  findById: (id: number) =>
+    prisma.conversation.findUnique({
+      where: { id },
     }),
 
   findIdempotentMessage: (conversation_id: number, idempotency_key: string) =>
@@ -70,19 +102,22 @@ export const conversationRepository = {
       },
     }),
 
-  createMessage: async (args: {
-    conversation_id: number;
-    kind: message_kind;
-    text: string;
-    locale: locale_code;
-    request_uuid: string;
-    idempotency_key: string;
-    canonical_body_hash: string;
-    question_hash: string;
-  }) =>
+  createMessage: async (args: CreateMessageArgs) =>
     auditedTransaction(async (tx) => {
+      const role = args.role || message_role.USER;
       const message = await tx.conversation_message.create({
-        data: { ...args, role: message_role.USER },
+        data: {
+          conversation_id: args.conversation_id,
+          role,
+          kind: args.kind,
+          text: args.text,
+          text_redacted: args.text_redacted ?? false,
+          locale: args.locale,
+          request_uuid: args.request_uuid,
+          idempotency_key: args.idempotency_key ?? null,
+          canonical_body_hash: args.canonical_body_hash ?? null,
+          question_hash: args.question_hash ?? null,
+        },
         select: {
           id: true,
           role: true,
@@ -103,15 +138,49 @@ export const conversationRepository = {
       await appendAudit(tx, {
         request_uuid: args.request_uuid,
         conversation_id: args.conversation_id,
-        event_type: "MESSAGE_CREATED",
+        event_type:
+          role === message_role.ASSISTANT
+            ? "ASSISTANT_MESSAGE_CREATED"
+            : "MESSAGE_CREATED",
         status: "SUCCESS",
         payload: {
-          role: "USER",
+          role,
           kind: args.kind,
-          question_hash: args.question_hash,
+          question_hash: args.question_hash ?? null,
         },
       });
       return message;
+    }),
+
+  createAssistantMessage: async (args: CreateAssistantMessageArgs) =>
+    conversationRepository.createMessage({
+      conversation_id: args.conversation_id,
+      role: message_role.ASSISTANT,
+      kind: args.kind,
+      text: args.text,
+      locale: args.locale,
+      request_uuid: args.request_uuid || randomUUID(),
+      text_redacted: args.text_redacted ?? false,
+      idempotency_key: null,
+      canonical_body_hash: null,
+      question_hash: null,
+    }),
+
+  findMessagesByConversationId: async (conversation_id: number) =>
+    prisma.conversation_message.findMany({
+      where: { conversation_id },
+      orderBy: [{ created_at: "asc" }, { id: "asc" }],
+      select: {
+        id: true,
+        role: true,
+        kind: true,
+        text: true,
+        text_redacted: true,
+        locale: true,
+        request_uuid: true,
+        idempotency_key: true,
+        created_at: true,
+      },
     }),
 
   historyPage: async (

@@ -41,12 +41,18 @@ paths:
       operationId: sendCopilotMessage
       summary: Persist a user message in an active owned conversation
       security: [{ bearerAuth: [] }]
-      description: The server fixes role to USER. A repeated key and identical canonical body returns the original message; using the same key with a different body returns 409. This endpoint does not perform LLM, SQL, or analytical processing.
+      description: Requires a valid access token with copilot.ask authorization. Persist a user or assistant message in an active owned conversation. Defaults role to USER, and supports ASSISTANT for assistant interactions. A repeated key and identical canonical body returns the original message; using the same key with a different body returns 409. This endpoint does not perform LLM, SQL, or analytical processing.
       parameters:
         - name: Idempotency-Key
           in: header
           required: true
+          description: Idempotency key ensuring at-most-once message creation
           schema: { type: string, minLength: 1, maxLength: 128 }
+        - name: X-Request-Id
+          in: header
+          required: false
+          description: Optional client/request UUID for distributed tracing and correlation
+          schema: { type: string, format: uuid }
       requestBody:
         required: true
         content:
@@ -56,7 +62,13 @@ paths:
               additionalProperties: false
               required: [kind, text]
               properties:
-                kind: { type: string, enum: [QUESTION, CLARIFICATION_REPLY] }
+                role: { type: string, enum: [USER, ASSISTANT], default: USER }
+                kind:
+                  {
+                    type: string,
+                    enum:
+                      [QUESTION, CLARIFICATION_REPLY, CLARIFICATION_REQUEST],
+                  }
                 text: { type: string, minLength: 1, maxLength: 20000 }
                 locale: { type: string, enum: [en, it] }
       responses:
@@ -131,6 +143,7 @@ components:
         text: { type: [string, "null"] }
         redacted: { type: boolean }
         locale: { type: string, enum: [en, it] }
+        request_uuid: { type: string, format: uuid }
         created_at: { type: string, format: date-time }
     ConversationCreatedResponse:
       type: object
