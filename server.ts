@@ -14,7 +14,6 @@ import { zodLocaleMiddleware } from "@/shared/middlewares/zodLocaleMiddleware.js
 import { setRequestContext } from "@/shared/utils/requestContext.js";
 import { asyncHandler } from "@/shared/middlewares/responseHandler.js";
 import { ApiResponse } from "@/shared/types/response.js";
-import copilotRoutes from "./src/modules/copilot/copilot.route.js";
 import { assertPasswordConfig } from "./src/shared/utils/password.js";
 import { assertJwtConfig } from "./src/shared/utils/jwt.js";
 import userRoutes from "./src/modules/user/user.route.js";
