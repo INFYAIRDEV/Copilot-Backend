@@ -15,6 +15,7 @@ import { ApiResponse } from "@/shared/types/response.js";
 import copilotRoutes from "./src/modules/copilot/copilot.route.js";
 import { assertPasswordConfig } from "./src/shared/utils/password.js";
 import { assertJwtConfig } from "./src/shared/utils/jwt.js";
+import userRoutes from "./src/modules/user/user.route.js";
 
 dotenv.config();
 
@@ -62,7 +63,7 @@ app.get(
 
 app.use("/api/v1/example", exampleRoutes);
 app.use("/api/v1/copilot", copilotRoutes);
-
+app.use("/api/v1/user", userRoutes);
 app.use((req: Request, res: Response) => {
   res.status(404).json({ status: "error", message: "Route not found" });
 });

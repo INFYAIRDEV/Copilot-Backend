@@ -16,6 +16,21 @@
     "passwordLowercase": "La password deve contenere una lettera minuscola",
     "passwordUppercase": "La password deve contenere una lettera maiuscola",
     "passwordDigit": "La password deve contenere un numero",
-    "unauthorized": "Autenticazione non riuscita. Effettua di nuovo l'accesso."
+    "unauthorized": "Autenticazione non riuscita. Effettua di nuovo l'accesso.",
+    "fullNameRequired": "Il nome completo è obbligatorio",
+    "fullNameMin": "Il nome completo deve contenere almeno 2 caratteri",
+    "fullNameMax": "Il nome completo è troppo lungo",
+    "usernameRequired": "Il nome utente è obbligatorio",
+    "usernameMin": "Il nome utente deve contenere almeno 3 caratteri",
+    "usernameMax": "Il nome utente è troppo lungo",
+    "usernameFormat": "Il nome utente può contenere solo lettere, numeri, punti, trattini e underscore",
+    "emailRequired": "L'email è obbligatoria",
+    "emailInvalid": "Inserisci un indirizzo email valido",
+    "confirmPasswordRequired": "Conferma la password",
+    "confirmPasswordMismatch": "Le password non corrispondono",
+    "invalidRequest": "Richiesta non valida",
+    "alreadyExists": "Nome utente o email già registrati",
+    "registered": "Registrazione completata",
+    "registrationFailed": "Registrazione non riuscita. Riprova più tardi."
   }
 }

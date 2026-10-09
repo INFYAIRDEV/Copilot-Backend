@@ -16,6 +16,21 @@
     "passwordLowercase": "Password must contain a lowercase letter",
     "passwordUppercase": "Password must contain an uppercase letter",
     "passwordDigit": "Password must contain a number",
-    "unauthorized": "Authentication failed. Please log in again."
+    "unauthorized": "Authentication failed. Please log in again.",
+    "fullNameRequired": "Full name is required",
+    "fullNameMin": "Full name must be at least 2 characters",
+    "fullNameMax": "Full name is too long",
+    "usernameRequired": "Username is required",
+    "usernameMin": "Username must be at least 3 characters",
+    "usernameMax": "Username is too long",
+    "usernameFormat": "Username may contain only letters, numbers, dots, dashes and underscores",
+    "emailRequired": "Email is required",
+    "emailInvalid": "Enter a valid email address",
+    "confirmPasswordRequired": "Please confirm your password",
+    "confirmPasswordMismatch": "Passwords do not match",
+    "invalidRequest": "Invalid request",
+    "alreadyExists": "Username or email is already registered",
+    "registered": "Registration successful",
+    "registrationFailed": "Registration failed. Please try again later."
   }
 }

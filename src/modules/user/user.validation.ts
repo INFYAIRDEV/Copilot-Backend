@@ -25,3 +25,42 @@ export const passwordSchema = (z: typeof base) =>
     .refine((value) => Buffer.byteLength(value, "utf8") <= MAX_PASSWORD_BYTES, {
       message: "user.passwordMax",
     });
+
+// Registration request. Unknown fields (for example role_id) are rejected,
+// so the client can never choose its own role.
+export const registerSchema = (z: typeof base) =>
+  z
+    .object({
+      full_name: z
+        .string({ message: "user.fullNameRequired" })
+        .trim()
+        .min(1, { message: "user.fullNameRequired" })
+        .min(2, { message: "user.fullNameMin" })
+        .max(100, { message: "user.fullNameMax" }),
+      username: z
+        .string({ message: "user.usernameRequired" })
+        .trim()
+        .toLowerCase()
+        .min(1, { message: "user.usernameRequired" })
+        .min(3, { message: "user.usernameMin" })
+        .max(50, { message: "user.usernameMax" })
+        .regex(/^[a-z0-9._-]+$/, { message: "user.usernameFormat" }),
+      email: z
+        .string({ message: "user.emailRequired" })
+        .trim()
+        .toLowerCase()
+        .min(1, { message: "user.emailRequired" })
+        .max(254, { message: "user.emailInvalid" })
+        .email({ message: "user.emailInvalid" }),
+      password: passwordSchema(z),
+      confirm_password: z
+        .string({ message: "user.confirmPasswordRequired" })
+        .min(1, { message: "user.confirmPasswordRequired" }),
+    })
+    .strict({ message: "user.invalidRequest" })
+    .refine((data) => data.password === data.confirm_password, {
+      message: "user.confirmPasswordMismatch",
+      path: ["confirm_password"],
+    });
+
+export type RegisterInput = ZOD.infer<ReturnType<typeof registerSchema>>;
