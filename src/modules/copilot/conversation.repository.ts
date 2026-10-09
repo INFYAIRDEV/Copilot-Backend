@@ -90,9 +90,59 @@ export const conversationRepository = {
       },
     }),
 
+  findOwnedById: (id: number, owner_user_id: number) =>
+    prisma.conversation.findFirst({
+      where: {
+        id,
+        owner_user_id,
+      },
+    }),
+
   findById: (id: number) =>
     prisma.conversation.findUnique({
       where: { id },
+    }),
+
+  updateAnalyticalContext: async (
+    conversation_id: number,
+    expected_version: number,
+    context: any,
+    auditArgs?: {
+      request_uuid?: string;
+      scope_hash?: string;
+    },
+  ) =>
+    auditedTransaction(async (tx) => {
+      const updated = await tx.conversation.updateMany({
+        where: {
+          id: conversation_id,
+          version: expected_version,
+        },
+        data: {
+          analytical_context: context,
+          version: { increment: 1 },
+          updated_at: new Date(),
+        },
+      });
+
+      if (updated.count === 0) {
+        return false;
+      }
+
+      await appendAudit(tx, {
+        request_uuid: auditArgs?.request_uuid || randomUUID(),
+        conversation_id,
+        event_type: "ANALYTICAL_CONTEXT_UPDATED",
+        status: "SUCCESS",
+        scope_hash: auditArgs?.scope_hash,
+        payload: {
+          version: expected_version + 1,
+          metric_refs: context?.metricRefs || [],
+          dimension_refs: context?.dimensionRefs || [],
+        },
+      });
+
+      return true;
     }),
 
   findIdempotentMessage: (conversation_id: number, idempotency_key: string) =>

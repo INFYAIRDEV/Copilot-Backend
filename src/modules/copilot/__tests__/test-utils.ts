@@ -16,6 +16,8 @@ export interface MockConversation {
   owner_user_id: number;
   locale: locale_code;
   state: conversation_state;
+  analytical_context?: any;
+  version?: number;
   created_at: Date;
   updated_at: Date;
   deleted_at: Date | null;
@@ -64,6 +66,9 @@ export function createMockConversationRepository(initialData?: {
   // Update IDs counter
   for (const c of conversations) {
     if (c.id >= nextConvId) nextConvId = c.id + 1;
+    if (c.version === undefined) (c as any).version = 1;
+    if (c.analytical_context === undefined)
+      (c as any).analytical_context = null;
   }
   for (const m of messages) {
     if (m.id >= nextMsgId) nextMsgId = m.id + 1;
@@ -81,6 +86,8 @@ export function createMockConversationRepository(initialData?: {
         owner_user_id,
         locale,
         state: conversation_state.ACTIVE,
+        analytical_context: null,
+        version: 1,
         created_at: new Date(),
         updated_at: new Date(),
         deleted_at: null,
@@ -108,8 +115,49 @@ export function createMockConversationRepository(initialData?: {
       );
     },
 
+    async findOwnedById(id: number, owner_user_id: number) {
+      return (
+        conversations.find(
+          (c) => c.id === id && c.owner_user_id === owner_user_id,
+        ) || null
+      );
+    },
+
     async findById(id: number) {
       return conversations.find((c) => c.id === id) || null;
+    },
+
+    async updateAnalyticalContext(
+      conversation_id: number,
+      expected_version: number,
+      context: any,
+      auditArgs?: any,
+    ) {
+      const conv = conversations.find(
+        (c) =>
+          c.id === conversation_id && (c.version ?? 1) === expected_version,
+      );
+      if (!conv) {
+        return false;
+      }
+      conv.analytical_context = context;
+      conv.version = (conv.version ?? 1) + 1;
+      conv.updated_at = new Date();
+
+      audits.push({
+        sequence: nextAuditSeq++,
+        request_uuid: auditArgs?.request_uuid || randomUUID(),
+        conversation_id,
+        event_type: "ANALYTICAL_CONTEXT_UPDATED",
+        status: "SUCCESS",
+        payload: {
+          version: conv.version,
+          metric_refs: context?.metricRefs || [],
+          dimension_refs: context?.dimensionRefs || [],
+        },
+      });
+
+      return true;
     },
 
     async findIdempotentMessage(

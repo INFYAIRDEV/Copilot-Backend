@@ -21,6 +21,22 @@ export { paginationService, PaginationService } from "./pagination.service.js";
 import { CopilotError } from "./copilot.error.js";
 export { CopilotError } from "./copilot.error.js";
 
+import {
+  contextService,
+  ContextService,
+  resolveCanonicalTerm,
+} from "./context.service.js";
+export {
+  contextService,
+  ContextService,
+  resolveCanonicalTerm,
+} from "./context.service.js";
+export * from "./context.types.js";
+import {
+  CandidateContextUpdate,
+  NormalizedAnalyticalContext,
+} from "./context.types.js";
+
 const cursorSecret = () =>
   process.env.ACCESS_TOKEN_SECRET || process.env.JWT_SECRET;
 
@@ -187,6 +203,7 @@ export interface AssistantMessageInput {
 export function createCopilotService(
   repo = conversationRepository,
   paginator = paginationService,
+  contextSvc: ContextService = new ContextService(repo),
 ) {
   return {
     async createConversation(userId: number, locale?: string) {
@@ -603,9 +620,61 @@ export function createCopilotService(
     },
 
     /**
+     * Retrieves the current normalized analytical context for a conversation.
+     */
+    async getAnalyticalContext(userId: number, conversationUuid: string) {
+      return contextSvc.retrieveContext(conversationUuid, userId);
+    },
+
+    /**
+     * Validates and persists an analytical context update using optimistic concurrency.
+     */
+    async updateAnalyticalContext(
+      userId: number,
+      conversationUuid: string,
+      expectedVersion: number,
+      candidateUpdate: CandidateContextUpdate,
+      userContext?: {
+        roleId?: string;
+        requestUuid?: string;
+        scopeHash?: string;
+      },
+    ) {
+      const current = await contextSvc.retrieveContext(
+        conversationUuid,
+        userId,
+      );
+      const merged = contextSvc.mergeContext(current.context, candidateUpdate);
+      const validation = contextSvc.validateContext(merged, {
+        userId,
+        roleId: userContext?.roleId || "user",
+      });
+      if (!validation.isValid) {
+        throw new CopilotError(
+          400,
+          "INVALID_ANALYTICAL_CONTEXT",
+          validation.errors?.join("; ") || "Context validation failed",
+        );
+      }
+      return contextSvc.persistContext(
+        current.conversationId,
+        expectedVersion,
+        merged,
+        {
+          requestUuid: userContext?.requestUuid,
+          scopeHash: userContext?.scopeHash,
+        },
+      );
+    },
+
+    /**
      * Orchestrates the standard Copilot interaction flow:
      * User Request -> Conversation Authorization -> User Message Persistence
-     * -> AI Processing -> Response Validation -> Assistant Message Persistence
+     * -> Retrieve Current Normalized Context
+     * -> AI Processing / Candidate Plan
+     * -> Response Validation / Clarification Handling
+     * -> Persist Updated Normalized Context (Optimistic Concurrency)
+     * -> Assistant Message Persistence
      */
     async processConversationTurn(args: {
       userId: number;
@@ -617,10 +686,16 @@ export function createCopilotService(
         locale?: string;
         request_uuid?: string;
       };
-      aiProcessor?: (userMsg: ReturnType<typeof publicMessage>) => Promise<{
+      aiProcessor?: (
+        userMsg: ReturnType<typeof publicMessage>,
+        currentContext: NormalizedAnalyticalContext,
+      ) => Promise<{
         kind?: message_kind;
         text: string;
+        candidateContextUpdate?: CandidateContextUpdate;
       }>;
+      candidateContextUpdate?: CandidateContextUpdate;
+      roleId?: string;
     }) {
       const userMessage = await this.sendMessage(
         args.userId,
@@ -629,9 +704,26 @@ export function createCopilotService(
         args.message,
       );
 
+      const currentContextData = await contextSvc.retrieveContext(
+        args.conversationUuid,
+        args.userId,
+      );
+
       let assistantMessage = null;
+      let candidateUpdate = args.candidateContextUpdate;
+      let isClarification = false;
+
       if (args.aiProcessor) {
-        const aiResponse = await args.aiProcessor(userMessage);
+        const aiResponse = await args.aiProcessor(
+          userMessage,
+          currentContextData.context,
+        );
+        if (aiResponse.candidateContextUpdate) {
+          candidateUpdate = aiResponse.candidateContextUpdate;
+        }
+        if (aiResponse.kind === message_kind.CLARIFICATION_REQUEST) {
+          isClarification = true;
+        }
         assistantMessage = await this.storeAssistantMessage(
           args.userId,
           args.conversationUuid,
@@ -644,7 +736,50 @@ export function createCopilotService(
         );
       }
 
-      return { userMessage, assistantMessage };
+      let analyticalContext = currentContextData.context;
+
+      const isClarificationTurn =
+        !candidateUpdate &&
+        (isClarification ||
+          assistantMessage?.kind === message_kind.CLARIFICATION_REQUEST ||
+          args.message.kind === message_kind.CLARIFICATION_REPLY);
+
+      if (isClarificationTurn) {
+        // AI-010: Clarification handling keeps existing context untouched until ambiguity resolved
+        analyticalContext = contextSvc.handleClarification(
+          currentContextData.context,
+          message_kind.CLARIFICATION_REQUEST,
+        );
+      } else if (candidateUpdate) {
+        // Merge & Validate candidate plan
+        const merged = contextSvc.mergeContext(
+          currentContextData.context,
+          candidateUpdate,
+        );
+        const validation = contextSvc.validateContext(merged, {
+          userId: args.userId,
+          roleId: args.roleId || "user",
+        });
+
+        if (!validation.isValid) {
+          throw new CopilotError(
+            400,
+            "INVALID_ANALYTICAL_CONTEXT",
+            validation.errors?.join("; ") || "Context validation failed",
+          );
+        }
+
+        analyticalContext = await contextSvc.persistContext(
+          currentContextData.conversationId,
+          currentContextData.version,
+          merged,
+          {
+            requestUuid: userMessage.request_uuid,
+          },
+        );
+      }
+
+      return { userMessage, assistantMessage, analyticalContext };
     },
   };
 }
