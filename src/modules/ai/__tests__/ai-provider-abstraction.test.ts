@@ -39,18 +39,41 @@ async function runAIAbstractionTests() {
 
     const response = await resilientProvider.generateCandidatePlan(request);
 
-    assertTest(response.candidatePlan !== undefined, "Returns candidate typed analytical plan");
-    assertTest(response.candidatePlan.planId.startsWith("plan-"), "Plan contains valid candidate planId");
-    assertTest(response.candidatePlan.candidateIntents.length > 0, "Plan contains query intents");
-    assertTest(response.candidatePlan.isFallback === false, "Success response is not fallback");
+    assertTest(
+      response.candidatePlan !== undefined,
+      "Returns candidate typed analytical plan",
+    );
+    assertTest(
+      response.candidatePlan.planId.startsWith("plan-"),
+      "Plan contains valid candidate planId",
+    );
+    assertTest(
+      response.candidatePlan.candidateIntents.length > 0,
+      "Plan contains query intents",
+    );
+    assertTest(
+      response.candidatePlan.isFallback === false,
+      "Success response is not fallback",
+    );
     assertTest(response.fromFallback === false, "fromFallback flag is false");
-    assertTest(response.usage.inputTokens > 0, "Usage telemetry captures input tokens");
-    assertTest(response.usage.outputTokens > 0, "Usage telemetry captures output tokens");
-    assertTest(response.usage.providerName === "TEST_PROVIDER", "Telemetry records application provider name");
+    assertTest(
+      response.usage.inputTokens > 0,
+      "Usage telemetry captures input tokens",
+    );
+    assertTest(
+      response.usage.outputTokens > 0,
+      "Usage telemetry captures output tokens",
+    );
+    assertTest(
+      response.usage.providerName === "TEST_PROVIDER",
+      "Telemetry records application provider name",
+    );
   }
 
   // 2. Single Retry Policy Test for Transient Failures
-  console.log("\n--- Test Group 2: Single Retry Policy (Transient vs Non-Transient) ---");
+  console.log(
+    "\n--- Test Group 2: Single Retry Policy (Transient vs Non-Transient) ---",
+  );
   {
     const mockAdapter = new MockAIProviderAdapter("RETRY_PROVIDER");
     mockAdapter.setSimulateTransientError(true);
@@ -63,9 +86,18 @@ async function runAIAbstractionTests() {
 
     // Transient failure should attempt 1 retry, fail again, then route to Structured Fallback
     const response = await resilientProvider.generateCandidatePlan(request);
-    assertTest(response.fromFallback === true, "Transient failure after retry routes to Structured Fallback");
-    assertTest(response.candidatePlan.isFallback === true, "Candidate plan marked as fallback");
-    assertTest(response.fallbackReason !== undefined, "Fallback reason is captured");
+    assertTest(
+      response.fromFallback === true,
+      "Transient failure after retry routes to Structured Fallback",
+    );
+    assertTest(
+      response.candidatePlan.isFallback === true,
+      "Candidate plan marked as fallback",
+    );
+    assertTest(
+      response.fallbackReason !== undefined,
+      "Fallback reason is captured",
+    );
   }
 
   // 3. Non-Transient Failure Test (No Retry)
@@ -78,11 +110,23 @@ async function runAIAbstractionTests() {
 
     try {
       await resilientProvider.generateCandidatePlan(request);
-      assertTest(false, "Non-transient failure should throw exception immediately");
+      assertTest(
+        false,
+        "Non-transient failure should throw exception immediately",
+      );
     } catch (err: any) {
-      assertTest(err instanceof AIProviderException, "Throws normalized AIProviderException");
-      assertTest(err.category === "REJECTED", "Error category classified as REJECTED");
-      assertTest(err.isTransient === false, "Non-transient error marked with isTransient=false");
+      assertTest(
+        err instanceof AIProviderException,
+        "Throws normalized AIProviderException",
+      );
+      assertTest(
+        err.category === "REJECTED",
+        "Error category classified as REJECTED",
+      );
+      assertTest(
+        err.isTransient === false,
+        "Non-transient error marked with isTransient=false",
+      );
     }
   }
 
@@ -100,10 +144,19 @@ async function runAIAbstractionTests() {
 
     try {
       await resilientProvider.generateCandidatePlan(request);
-      assertTest(false, "Token budget violation should throw exception before API call");
+      assertTest(
+        false,
+        "Token budget violation should throw exception before API call",
+      );
     } catch (err: any) {
-      assertTest(err instanceof AIProviderException, "Throws AIProviderException");
-      assertTest(err.category === "TOKEN_BUDGET_EXCEEDED", "Category is TOKEN_BUDGET_EXCEEDED");
+      assertTest(
+        err instanceof AIProviderException,
+        "Throws AIProviderException",
+      );
+      assertTest(
+        err.category === "TOKEN_BUDGET_EXCEEDED",
+        "Category is TOKEN_BUDGET_EXCEEDED",
+      );
     }
   }
 
@@ -129,8 +182,14 @@ async function runAIAbstractionTests() {
 
     // Request 3: Circuit is OPEN -> Bypasses external provider -> Immediate Structured Fallback
     const response3 = await resilientProvider.generateCandidatePlan(request);
-    assertTest(response3.fromFallback === true, "Circuit OPEN routes directly to Structured Fallback");
-    assertTest(response3.fallbackReason?.includes("Circuit breaker is OPEN") || false, "Fallback reason cites Circuit Breaker");
+    assertTest(
+      response3.fromFallback === true,
+      "Circuit OPEN routes directly to Structured Fallback",
+    );
+    assertTest(
+      response3.fallbackReason?.includes("Circuit breaker is OPEN") || false,
+      "Fallback reason cites Circuit Breaker",
+    );
 
     // Wait for resetTimeoutMs to test HALF_OPEN recovery
     await new Promise((resolve) => setTimeout(resolve, 1100));
@@ -140,7 +199,10 @@ async function runAIAbstractionTests() {
 
     // Request 4: HALF_OPEN probe -> Primary provider succeeds -> Circuit closes
     const response4 = await resilientProvider.generateCandidatePlan(request);
-    assertTest(response4.fromFallback === false, "Circuit recovers and resumes primary provider path");
+    assertTest(
+      response4.fromFallback === false,
+      "Circuit recovers and resumes primary provider path",
+    );
   }
 
   // 6. Direct Structured Fallback Isolation Test
@@ -151,13 +213,27 @@ async function runAIAbstractionTests() {
       prompt: "Show standard KPI metrics",
     });
 
-    assertTest(response.candidatePlan.isFallback === true, "Fallback returns valid candidate plan");
-    assertTest(response.candidatePlan.candidateIntents[0].primaryEntity === "analytics_summary", "Fallback candidate intent is certified standard report");
-    assertTest(response.narrative?.includes("narrative generation is currently degraded") || false, "Narrative degradation is explicitly messaged without failing analytics");
+    assertTest(
+      response.candidatePlan.isFallback === true,
+      "Fallback returns valid candidate plan",
+    );
+    assertTest(
+      response.candidatePlan.candidateIntents[0].primaryEntity ===
+        "analytics_summary",
+      "Fallback candidate intent is certified standard report",
+    );
+    assertTest(
+      response.narrative?.includes(
+        "narrative generation is currently degraded",
+      ) || false,
+      "Narrative degradation is explicitly messaged without failing analytics",
+    );
   }
 
   console.log("\n==================================================");
-  console.log(` RESULTS: ${passedTests}/${totalTests} Tests Passed Successfully!`);
+  console.log(
+    ` RESULTS: ${passedTests}/${totalTests} Tests Passed Successfully!`,
+  );
   console.log("==================================================");
 }
 

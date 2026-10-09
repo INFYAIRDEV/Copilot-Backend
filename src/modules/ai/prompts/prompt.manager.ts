@@ -79,12 +79,19 @@ export class PromptManager implements IPromptManager {
     }
 
     // 2. Validate context variables against definition requirements
-    const contextValidation = PromptValidator.validateContext(definition, context);
+    const contextValidation = PromptValidator.validateContext(
+      definition,
+      context,
+    );
     if (!contextValidation.isValid) {
       throw new PromptException(
         "PROMPT_MISSING_VARIABLES",
         `Context validation failed for prompt '${promptKey}': ${contextValidation.errors.join("; ")}`,
-        { promptKey, version: definition.version, details: contextValidation.errors },
+        {
+          promptKey,
+          version: definition.version,
+          details: contextValidation.errors,
+        },
       );
     }
 
@@ -92,9 +99,12 @@ export class PromptManager implements IPromptManager {
     const managedPrompt = PromptRenderer.render(definition, context);
 
     // 4. Validate rendered output (no unresolved placeholders, no sensitive data)
-    const renderValidation = PromptValidator.validateRenderedPrompt(managedPrompt);
+    const renderValidation =
+      PromptValidator.validateRenderedPrompt(managedPrompt);
     if (!renderValidation.isValid) {
-      const isUnresolved = renderValidation.errors.some((e) => e.includes("Unresolved"));
+      const isUnresolved = renderValidation.errors.some((e) =>
+        e.includes("Unresolved"),
+      );
       const errorCode = isUnresolved
         ? "PROMPT_UNRESOLVED_PLACEHOLDERS"
         : "PROMPT_SENSITIVE_DATA_DETECTED";
@@ -102,7 +112,11 @@ export class PromptManager implements IPromptManager {
       throw new PromptException(
         errorCode,
         `Rendered prompt validation failed for '${promptKey}': ${renderValidation.errors.join("; ")}`,
-        { promptKey, version: definition.version, details: renderValidation.errors },
+        {
+          promptKey,
+          version: definition.version,
+          details: renderValidation.errors,
+        },
       );
     }
 

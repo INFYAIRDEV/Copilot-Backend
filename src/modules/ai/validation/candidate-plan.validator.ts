@@ -60,7 +60,11 @@ export class CandidatePlanValidator {
   public static validate(candidate: unknown): CandidatePlanValidationResult {
     const errors: string[] = [];
 
-    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
+    if (
+      !candidate ||
+      typeof candidate !== "object" ||
+      Array.isArray(candidate)
+    ) {
       return {
         isValid: false,
         errors: ["Candidate plan must be a non-null object"],
@@ -110,8 +114,13 @@ export class CandidatePlanValidator {
     }
 
     // 6. Validate candidateIntents
-    if (!Array.isArray(plan.candidateIntents) || plan.candidateIntents.length === 0) {
-      errors.push("Missing or empty 'candidateIntents': must contain at least one intent");
+    if (
+      !Array.isArray(plan.candidateIntents) ||
+      plan.candidateIntents.length === 0
+    ) {
+      errors.push(
+        "Missing or empty 'candidateIntents': must contain at least one intent",
+      );
     } else {
       plan.candidateIntents.forEach((intent, index) => {
         const intentErrors = this.validateIntent(intent, index);
@@ -125,10 +134,7 @@ export class CandidatePlanValidator {
     };
   }
 
-  private static validateIntent(
-    intent: unknown,
-    index: number,
-  ): string[] {
+  private static validateIntent(intent: unknown, index: number): string[] {
     const errors: string[] = [];
     const prefix = `Intent[${index}]`;
 
@@ -181,11 +187,21 @@ export class CandidatePlanValidator {
           if (!filter || typeof filter !== "object") {
             errors.push(`${prefix}.filters[${fIndex}]: must be an object`);
           } else {
-            if (typeof filter.field !== "string" || filter.field.trim().length === 0) {
-              errors.push(`${prefix}.filters[${fIndex}]: missing or invalid 'field'`);
+            if (
+              typeof filter.field !== "string" ||
+              filter.field.trim().length === 0
+            ) {
+              errors.push(
+                `${prefix}.filters[${fIndex}]: missing or invalid 'field'`,
+              );
             }
-            if (typeof filter.operator !== "string" || !VALID_OPERATORS.has(filter.operator)) {
-              errors.push(`${prefix}.filters[${fIndex}]: invalid 'operator' ('${filter.operator}')`);
+            if (
+              typeof filter.operator !== "string" ||
+              !VALID_OPERATORS.has(filter.operator)
+            ) {
+              errors.push(
+                `${prefix}.filters[${fIndex}]: invalid 'operator' ('${filter.operator}')`,
+              );
             }
             if (filter.value === undefined) {
               errors.push(`${prefix}.filters[${fIndex}]: missing 'value'`);
@@ -197,11 +213,17 @@ export class CandidatePlanValidator {
 
     // timeRange (optional)
     if (queryIntent.timeRange !== undefined) {
-      if (typeof queryIntent.timeRange !== "object" || queryIntent.timeRange === null) {
+      if (
+        typeof queryIntent.timeRange !== "object" ||
+        queryIntent.timeRange === null
+      ) {
         errors.push(`${prefix}: 'timeRange' must be an object`);
       } else {
         const tr = queryIntent.timeRange;
-        if (tr.granularity !== undefined && !VALID_GRANULARITIES.has(tr.granularity)) {
+        if (
+          tr.granularity !== undefined &&
+          !VALID_GRANULARITIES.has(tr.granularity)
+        ) {
           errors.push(
             `${prefix}.timeRange: invalid 'granularity' ('${tr.granularity}')`,
           );

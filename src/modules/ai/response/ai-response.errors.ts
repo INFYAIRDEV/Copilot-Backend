@@ -80,7 +80,8 @@ export class AIResponseException extends Error {
       this.isTransient = options.isTransient;
     } else {
       this.isTransient =
-        code === "COPILOT_MODEL_UNAVAILABLE" || code === "COPILOT_MODEL_DEGRADED";
+        code === "COPILOT_MODEL_UNAVAILABLE" ||
+        code === "COPILOT_MODEL_DEGRADED";
     }
 
     Object.setPrototypeOf(this, AIResponseException.prototype);

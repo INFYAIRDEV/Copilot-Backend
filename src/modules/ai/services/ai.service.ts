@@ -31,10 +31,7 @@ import {
   AIResponseException,
   HandledAIResponse,
 } from "../response/index.js";
-import {
-  IAIUsageService,
-  defaultUsageService,
-} from "../usage/index.js";
+import { IAIUsageService, defaultUsageService } from "../usage/index.js";
 import { logger } from "@/shared/utils/logger.js";
 
 /**
@@ -88,7 +85,8 @@ export class AIService implements IAIService {
     request: AIServiceRequest,
   ): Promise<AIServiceResult> {
     const correlationId =
-      request.correlationId || `ai-req-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+      request.correlationId ||
+      `ai-req-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
     const startTime = Date.now();
 
     // 1. Validate incoming request parameters using AI Request Validation layer
@@ -107,15 +105,11 @@ export class AIService implements IAIService {
           err.code === "COPILOT_TOKEN_BUDGET_EXCEEDED"
             ? "COPILOT_TOKEN_BUDGET_EXCEEDED"
             : "COPILOT_INVALID_RESPONSE";
-        throw new AIServiceException(
-          mappedCode,
-          err.message,
-          {
-            statusCode: err.statusCode,
-            correlationId,
-            details: err.details,
-          },
-        );
+        throw new AIServiceException(mappedCode, err.message, {
+          statusCode: err.statusCode,
+          correlationId,
+          details: err.details,
+        });
       }
       throw err;
     }
@@ -192,15 +186,12 @@ export class AIService implements IAIService {
     // 6. Process and validate response via AI Response Handling layer
     let handledResponse: HandledAIResponse;
     try {
-      handledResponse = this.responseHandler.handleResponse(
-        rawResponse,
-        {
-          correlationId,
-          promptMetadata: managedPrompt.metadata,
-          purpose: "CANDIDATE_PLAN",
-          startTime,
-        },
-      );
+      handledResponse = this.responseHandler.handleResponse(rawResponse, {
+        correlationId,
+        promptMetadata: managedPrompt.metadata,
+        purpose: "CANDIDATE_PLAN",
+        startTime,
+      });
     } catch (err: unknown) {
       if (err instanceof AIResponseException) {
         logger.error(
@@ -209,19 +200,16 @@ export class AIService implements IAIService {
         const mappedCode: AIServiceErrorCode =
           err.code === "COPILOT_UNSAFE_AI_OUTPUT"
             ? "COPILOT_INVALID_RESPONSE"
-            : err.code === "COPILOT_MALFORMED_CANDIDATE" || err.code === "COPILOT_RESPONSE_TOO_LARGE"
-            ? "COPILOT_INVALID_RESPONSE"
-            : "COPILOT_SERVICE_ERROR";
+            : err.code === "COPILOT_MALFORMED_CANDIDATE" ||
+                err.code === "COPILOT_RESPONSE_TOO_LARGE"
+              ? "COPILOT_INVALID_RESPONSE"
+              : "COPILOT_SERVICE_ERROR";
 
-        throw new AIServiceException(
-          mappedCode,
-          err.message,
-          {
-            statusCode: err.statusCode,
-            correlationId,
-            details: err.details,
-          },
-        );
+        throw new AIServiceException(mappedCode, err.message, {
+          statusCode: err.statusCode,
+          correlationId,
+          details: err.details,
+        });
       }
       throw err;
     }
@@ -252,24 +240,195 @@ export class AIService implements IAIService {
     };
 
     // 8. Track model usage telemetry asynchronously / fail-safe in copilot.model_usage
-    this.usageService.trackUsage({
-      requestUuid: correlationId,
-      provider: handledResponse.usage.providerName,
-      model: handledResponse.usage.modelName,
-      promptVersion: managedPrompt.metadata?.version,
-      purpose: "CANDIDATE_PLAN",
-      inputTokens: handledResponse.usage.inputTokens,
-      outputTokens: handledResponse.usage.outputTokens,
-      latencyMs: handledResponse.usage.latencyMs || durationMs,
-      retryCount: handledResponse.usage.retryCount,
-      status: handledResponse.status === "FALLBACK" ? "FALLBACK" : handledResponse.isDegraded ? "DEGRADED" : "SUCCESS",
-    }).catch((err) => {
-      logger.warn(`[AIService] Background model usage tracking encountered an issue: ${err.message}`);
-    });
+    this.usageService
+      .trackUsage({
+        requestUuid: correlationId,
+        provider: handledResponse.usage.providerName,
+        model: handledResponse.usage.modelName,
+        promptVersion: managedPrompt.metadata?.version,
+        purpose: "CANDIDATE_PLAN",
+        inputTokens: handledResponse.usage.inputTokens,
+        outputTokens: handledResponse.usage.outputTokens,
+        latencyMs: handledResponse.usage.latencyMs || durationMs,
+        retryCount: handledResponse.usage.retryCount,
+        status:
+          handledResponse.status === "FALLBACK"
+            ? "FALLBACK"
+            : handledResponse.isDegraded
+              ? "DEGRADED"
+              : "SUCCESS",
+      })
+      .catch((err) => {
+        logger.warn(
+          `[AIService] Background model usage tracking encountered an issue: ${err.message}`,
+        );
+      });
 
     logger.info(
       `[AIService] Candidate plan completed [correlationId: ${correlationId}, provider: ${result.usage.provider}, outcome: ${result.usage.requestOutcome}, duration: ${durationMs}ms]`,
     );
+
+    return result;
+  }
+
+  /**
+   * Generates a candidate analytical plan while streaming narrative content incrementally.
+   */
+  public async generateCandidatePlanStream(
+    request: AIServiceRequest,
+    onChunk: (delta: string) => void,
+    signal?: AbortSignal,
+  ): Promise<AIServiceResult> {
+    const correlationId =
+      request.correlationId ||
+      `ai-req-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    const startTime = Date.now();
+
+    if (signal?.aborted) {
+      throw new AIServiceException(
+        "COPILOT_MODEL_TIMEOUT",
+        "Request aborted by client",
+        {
+          correlationId,
+        },
+      );
+    }
+
+    // 1. Validate incoming request parameters
+    const validatedRequest = this.requestValidator.validate({
+      ...request,
+      correlationId,
+    });
+
+    // 2. Build provider-neutral ManagedPrompt
+    const managedPrompt = this.promptManager.buildPrompt(
+      validatedRequest.promptKey,
+      {
+        userQuery: validatedRequest.prompt,
+        context: validatedRequest.context,
+      },
+      validatedRequest.promptVersion,
+    );
+
+    // 3. Token Budget Controls
+    const tokenBudget = {
+      maxInputTokens: validatedRequest.tokenBudget.maxInputTokens,
+      maxOutputTokens: validatedRequest.tokenBudget.maxOutputTokens,
+      maxConversationTokens: validatedRequest.tokenBudget.maxConversationTokens,
+    };
+
+    // 4. Construct Controlled AIProviderRequest
+    const providerRequest: AIProviderRequest = {
+      prompt: managedPrompt.userPrompt,
+      systemInstruction: managedPrompt.systemInstruction,
+      context: {
+        userId: validatedRequest.context.userId,
+        roleId: validatedRequest.context.roleId,
+        locale: validatedRequest.context.locale || "en",
+        allowedEntities: validatedRequest.context.allowedEntities
+          ? [...validatedRequest.context.allowedEntities]
+          : undefined,
+      },
+      tokenBudget,
+      temperature: 0.1,
+    };
+
+    logger.info(
+      `[AIService] Starting streaming candidate plan generation [correlationId: ${correlationId}, role: ${request.context.roleId}]`,
+    );
+
+    let rawResponse: AIProviderResponse;
+
+    try {
+      if (this.provider.generateCandidatePlanStream) {
+        rawResponse = await this.provider.generateCandidatePlanStream(
+          providerRequest,
+          onChunk,
+          signal,
+        );
+      } else {
+        rawResponse =
+          await this.provider.generateCandidatePlan(providerRequest);
+        const text =
+          rawResponse.narrative ||
+          rawResponse.candidatePlan?.reasoningSummary ||
+          "Candidate plan generated.";
+        const words = text.split(" ");
+        for (let i = 0; i < words.length; i++) {
+          if (signal?.aborted) break;
+          onChunk((i === 0 ? "" : " ") + words[i]);
+        }
+      }
+    } catch (error: unknown) {
+      const durationMs = Date.now() - startTime;
+      throw this.handleProviderFailure(error, correlationId, durationMs);
+    }
+
+    if (signal?.aborted) {
+      throw new AIServiceException(
+        "COPILOT_MODEL_TIMEOUT",
+        "Request aborted by client",
+        {
+          correlationId,
+        },
+      );
+    }
+
+    const durationMs = Date.now() - startTime;
+
+    // 5. Process and validate response
+    const handledResponse = this.responseHandler.handleResponse(rawResponse, {
+      correlationId,
+      promptMetadata: managedPrompt.metadata,
+      purpose: "CANDIDATE_PLAN",
+      startTime,
+    });
+
+    const result: AIServiceResult = {
+      candidatePlan: handledResponse.candidatePlan,
+      narrative: handledResponse.narrative,
+      usage: {
+        provider: handledResponse.usage.providerName,
+        model: handledResponse.usage.modelName,
+        modelVersion: handledResponse.usage.modelVersion,
+        inputTokens: handledResponse.usage.inputTokens,
+        outputTokens: handledResponse.usage.outputTokens,
+        totalTokens: handledResponse.usage.totalTokens,
+        latencyMs: handledResponse.usage.latencyMs || durationMs,
+        retryCount: handledResponse.usage.retryCount,
+        requestOutcome: handledResponse.usage.requestOutcome,
+        estimatedCostUsd: handledResponse.usage.estimatedCostUsd,
+      },
+      fromFallback: handledResponse.fromFallback,
+      fallbackReason: handledResponse.fallbackReason,
+      isDegraded: handledResponse.isDegraded,
+      promptMetadata: managedPrompt.metadata,
+      correlationId,
+    };
+
+    this.usageService
+      .trackUsage({
+        requestUuid: correlationId,
+        provider: handledResponse.usage.providerName,
+        model: handledResponse.usage.modelName,
+        promptVersion: managedPrompt.metadata?.version,
+        purpose: "CANDIDATE_PLAN",
+        inputTokens: handledResponse.usage.inputTokens,
+        outputTokens: handledResponse.usage.outputTokens,
+        latencyMs: handledResponse.usage.latencyMs || durationMs,
+        retryCount: handledResponse.usage.retryCount,
+        status:
+          handledResponse.status === "FALLBACK"
+            ? "FALLBACK"
+            : handledResponse.isDegraded
+              ? "DEGRADED"
+              : "SUCCESS",
+      })
+      .catch((err) => {
+        logger.warn(
+          `[AIService] Background model usage tracking encountered an issue: ${err.message}`,
+        );
+      });
 
     return result;
   }
@@ -302,17 +461,20 @@ export class AIService implements IAIService {
       const mappedCode = this.mapCategoryToErrorCode(error.category);
       const isTransient = error.isTransient;
       const statusCode =
-        error.category === "TOKEN_BUDGET_EXCEEDED" ? 422 :
-        error.category === "INVALID_RESPONSE" ? 422 : 503;
+        error.category === "TOKEN_BUDGET_EXCEEDED"
+          ? 422
+          : error.category === "INVALID_RESPONSE"
+            ? 422
+            : 503;
 
       const clientMessage =
         error.category === "TOKEN_BUDGET_EXCEEDED"
           ? "Request exceeds the configured token budget limits"
           : error.category === "TIMEOUT"
-          ? "AI provider timed out while generating candidate plan"
-          : error.category === "INVALID_RESPONSE"
-          ? "Malformed response received from AI provider"
-          : "The AI service is temporarily unavailable. Certified reports remain available.";
+            ? "AI provider timed out while generating candidate plan"
+            : error.category === "INVALID_RESPONSE"
+              ? "Malformed response received from AI provider"
+              : "The AI service is temporarily unavailable. Certified reports remain available.";
 
       return new AIServiceException(mappedCode, clientMessage, {
         statusCode,
@@ -326,7 +488,8 @@ export class AIService implements IAIService {
     }
 
     // Unhandled / unexpected exception
-    const errMessage = error instanceof Error ? error.message : "Internal AI service failure";
+    const errMessage =
+      error instanceof Error ? error.message : "Internal AI service failure";
     logger.error(
       `[AIService] Unexpected error in AI Service [correlationId: ${correlationId}, duration: ${durationMs}ms]: ${errMessage}`,
     );
@@ -345,7 +508,9 @@ export class AIService implements IAIService {
   /**
    * Maps AIErrorCategory to normalized application-level AIServiceErrorCode.
    */
-  private mapCategoryToErrorCode(category: AIErrorCategory): AIServiceErrorCode {
+  private mapCategoryToErrorCode(
+    category: AIErrorCategory,
+  ): AIServiceErrorCode {
     switch (category) {
       case "TIMEOUT":
         return "COPILOT_MODEL_TIMEOUT";

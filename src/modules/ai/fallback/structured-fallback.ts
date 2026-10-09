@@ -1,4 +1,7 @@
-import { IAIProvider, AIProviderMetadata } from "../interfaces/ai-provider.interface.js";
+import {
+  IAIProvider,
+  AIProviderMetadata,
+} from "../interfaces/ai-provider.interface.js";
 import {
   AIProviderRequest,
   AIProviderResponse,
@@ -51,7 +54,8 @@ export class StructuredFallbackProvider implements IAIProvider {
       narrative:
         "AI narrative generation is currently degraded. Certified structured reports remain fully available.",
       fromFallback: true,
-      fallbackReason: "Primary AI provider is unavailable or circuit breaker triggered.",
+      fallbackReason:
+        "Primary AI provider is unavailable or circuit breaker triggered.",
       usage: {
         inputTokens: 0,
         outputTokens: 0,

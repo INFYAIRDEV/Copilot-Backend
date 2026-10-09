@@ -7,6 +7,11 @@ router.use(verifyAccessToken);
 router.get("/conversations", copilotController.listConversations);
 router.post("/conversations", copilotController.create);
 router.post("/conversations/:id/messages", copilotController.sendMessage);
+router.post(
+  "/conversations/:id/messages/stream",
+  copilotController.streamMessage,
+);
+router.post("/conversations/:id/stream", copilotController.streamMessage);
 router.get("/conversations/:id/messages", copilotController.history);
 
 import { copilotAnalyticalController } from "./copilot.controller.js";

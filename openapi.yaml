@@ -131,6 +131,73 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/PermissionDenied" }
         "500": { $ref: "#/components/responses/ServerError" }
+  /copilot/conversations/{id}/messages/stream:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Server-generated conversation UUID returned by create
+        schema: { type: string, format: uuid }
+    post:
+      operationId: streamCopilotMessage
+      summary: Incrementally stream an AI chat response for an owned conversation
+      security: [{ bearerAuth: [] }]
+      description: >
+        Requires a valid access token with copilot.ask authorization. Validates conversation ownership and active state,
+        persists the user message idempotently, executes the AI analytical and narrative generation pipeline,
+        and streams approved response events incrementally using Server-Sent Events (SSE).
+        Emits events: response_started, content_chunk, result_available, degraded_response, response_completed, and error.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Idempotency key ensuring at-most-once message creation
+          schema: { type: string, minLength: 1, maxLength: 128 }
+        - name: X-Request-Id
+          in: header
+          required: false
+          description: Optional client/request UUID for distributed tracing and correlation
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [kind, text]
+              properties:
+                role: { type: string, enum: [USER], default: USER }
+                kind:
+                  {
+                    type: string,
+                    enum:
+                      [QUESTION, CLARIFICATION_REPLY, CLARIFICATION_REQUEST],
+                  }
+                text: { type: string, minLength: 1, maxLength: 20000 }
+                locale: { type: string, enum: [en, it] }
+      responses:
+        "200":
+          description: Server-Sent Events (SSE) incremental chat response stream
+          headers:
+            Content-Type:
+              schema: { type: string, example: "text/event-stream" }
+            Cache-Control:
+              schema: { type: string, example: "no-cache, no-transform" }
+            Connection:
+              schema: { type: string, example: "keep-alive" }
+            X-Accel-Buffering:
+              schema: { type: string, example: "no" }
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: Chunked SSE stream formatted as event and data JSON blocks
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/PermissionDenied" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
 components:
   securitySchemes:
     bearerAuth:
@@ -219,6 +286,57 @@ components:
                 limit: { type: integer }
                 next_cursor: { type: [string, "null"] }
                 has_more: { type: boolean }
+    StreamResponseStartedData:
+      type: object
+      required: [conversation_uuid, request_uuid, created_at]
+      properties:
+        conversation_uuid: { type: string, format: uuid }
+        request_uuid: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+    StreamContentChunkData:
+      type: object
+      required: [delta, index]
+      properties:
+        delta: { type: string }
+        index: { type: integer, minimum: 0 }
+    StreamResultAvailableData:
+      type: object
+      required: [plan_id, confidence_score]
+      properties:
+        plan_id: { type: string }
+        confidence_score: { type: number }
+        suggested_visualization: { type: string }
+        primary_entity: { type: string }
+    StreamDegradedResponseData:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string }
+    StreamResponseCompletedData:
+      type: object
+      required: [message_id, role, kind, text, conversation_uuid, created_at, usage]
+      properties:
+        message_id: { type: integer }
+        role: { type: string, enum: [ASSISTANT] }
+        kind: { type: string }
+        text: { type: string }
+        conversation_uuid: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        usage:
+          type: object
+          required: [input_tokens, output_tokens, total_tokens, latency_ms]
+          properties:
+            input_tokens: { type: integer }
+            output_tokens: { type: integer }
+            total_tokens: { type: integer }
+            latency_ms: { type: integer }
+    StreamErrorData:
+      type: object
+      required: [code, message, status_code]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        status_code: { type: integer }
   responses:
     ValidationError:
       description: Invalid body, path, header, query, or cursor

@@ -25,7 +25,10 @@ const SENSITIVE_PATTERNS = [
   { pattern: /secret\s*=\s*['"][^'"]+['"]/i, name: "secret credential" },
   { pattern: /postgres:\/\/[^'"]+/i, name: "database connection URI" },
   { pattern: /mysql:\/\/[^'"]+/i, name: "database connection URI" },
-  { pattern: /-----BEGIN\s+([A-Z\s]+)?PRIVATE\s+KEY-----/i, name: "private key" },
+  {
+    pattern: /-----BEGIN\s+([A-Z\s]+)?PRIVATE\s+KEY-----/i,
+    name: "private key",
+  },
 ];
 
 /**
@@ -49,12 +52,18 @@ export interface IAIRequestValidator {
    * Validates an incoming AI request and returns a normalized, validated representation.
    * Throws AIRequestValidationException if validation fails.
    */
-  validate(request: unknown, options?: AIRequestValidationOptions): ValidatedAIRequest;
+  validate(
+    request: unknown,
+    options?: AIRequestValidationOptions,
+  ): ValidatedAIRequest;
 
   /**
    * Safe validation method returning validation status and collected errors without throwing.
    */
-  validateSafe(request: unknown, options?: AIRequestValidationOptions): AIRequestValidationResult;
+  validateSafe(
+    request: unknown,
+    options?: AIRequestValidationOptions,
+  ): AIRequestValidationResult;
 }
 
 /**
@@ -68,7 +77,9 @@ export interface IAIRequestValidator {
  * Controller → Copilot Orchestration → AI Request Validation → Prompt Management → AI Service
  */
 export class AIRequestValidator implements IAIRequestValidator {
-  constructor(private readonly defaultOptions: AIRequestValidationOptions = {}) {}
+  constructor(
+    private readonly defaultOptions: AIRequestValidationOptions = {},
+  ) {}
 
   /**
    * Validates incoming AI request envelope and returns a frozen ValidatedAIRequest.
@@ -111,9 +122,10 @@ export class AIRequestValidator implements IAIRequestValidator {
         errorCode = "COPILOT_PROMPT_TOO_LONG";
         statusCode = 422;
       } else if (errorPath.startsWith("context")) {
-        errorCode = issue.code === "invalid_type" && issue.received === "undefined"
-          ? "COPILOT_MISSING_CONTEXT"
-          : "COPILOT_INVALID_CONTEXT";
+        errorCode =
+          issue.code === "invalid_type" && issue.received === "undefined"
+            ? "COPILOT_MISSING_CONTEXT"
+            : "COPILOT_INVALID_CONTEXT";
       }
 
       const allDetails = parseResult.error.issues.map(
@@ -150,7 +162,9 @@ export class AIRequestValidator implements IAIRequestValidator {
     const validatedOperation = operationCheck.data as AIOperationType;
 
     // 3. Validate Locale
-    const locale: SupportedLocale = (data.locale || data.context.locale || "en") as SupportedLocale;
+    const locale: SupportedLocale = (data.locale ||
+      data.context.locale ||
+      "en") as SupportedLocale;
     if (!SUPPORTED_LOCALES.includes(locale)) {
       throw new AIRequestValidationException(
         "COPILOT_INVALID_LOCALE",
@@ -164,14 +178,25 @@ export class AIRequestValidator implements IAIRequestValidator {
     }
 
     // 4. Validate Token Budgets against optional custom limits
-    const maxInputTokens = data.tokenBudget.maxInputTokens || AI_REQUEST_LIMITS.DEFAULT_MAX_INPUT_TOKENS;
-    const maxOutputTokens = data.tokenBudget.maxOutputTokens || AI_REQUEST_LIMITS.DEFAULT_MAX_OUTPUT_TOKENS;
+    const maxInputTokens =
+      data.tokenBudget.maxInputTokens ||
+      AI_REQUEST_LIMITS.DEFAULT_MAX_INPUT_TOKENS;
+    const maxOutputTokens =
+      data.tokenBudget.maxOutputTokens ||
+      AI_REQUEST_LIMITS.DEFAULT_MAX_OUTPUT_TOKENS;
     const maxConversationTokens =
-      data.tokenBudget.maxConversationTokens || AI_REQUEST_LIMITS.DEFAULT_MAX_CONVERSATION_TOKENS;
+      data.tokenBudget.maxConversationTokens ||
+      AI_REQUEST_LIMITS.DEFAULT_MAX_CONVERSATION_TOKENS;
 
-    const inputLimit = options.maxInputTokensLimit ?? AI_REQUEST_LIMITS.ABSOLUTE_MAX_INPUT_TOKENS;
-    const outputLimit = options.maxOutputTokensLimit ?? AI_REQUEST_LIMITS.ABSOLUTE_MAX_OUTPUT_TOKENS;
-    const convLimit = options.maxConversationTokensLimit ?? AI_REQUEST_LIMITS.ABSOLUTE_MAX_CONVERSATION_TOKENS;
+    const inputLimit =
+      options.maxInputTokensLimit ??
+      AI_REQUEST_LIMITS.ABSOLUTE_MAX_INPUT_TOKENS;
+    const outputLimit =
+      options.maxOutputTokensLimit ??
+      AI_REQUEST_LIMITS.ABSOLUTE_MAX_OUTPUT_TOKENS;
+    const convLimit =
+      options.maxConversationTokensLimit ??
+      AI_REQUEST_LIMITS.ABSOLUTE_MAX_CONVERSATION_TOKENS;
 
     if (maxInputTokens > inputLimit) {
       throw new AIRequestValidationException(
@@ -263,7 +288,10 @@ export class AIRequestValidator implements IAIRequestValidator {
     }
 
     // 7. Conversation Reference Structure Check (if provided)
-    if (data.conversationId !== undefined && data.conversationId.trim().length === 0) {
+    if (
+      data.conversationId !== undefined &&
+      data.conversationId.trim().length === 0
+    ) {
       throw new AIRequestValidationException(
         "COPILOT_INVALID_REQUEST",
         "conversationId cannot be an empty string if provided",
@@ -297,7 +325,8 @@ export class AIRequestValidator implements IAIRequestValidator {
               availableMetrics: data.context.datasetContext.availableMetrics
                 ? [...data.context.datasetContext.availableMetrics]
                 : undefined,
-              availableDimensions: data.context.datasetContext.availableDimensions
+              availableDimensions: data.context.datasetContext
+                .availableDimensions
                 ? [...data.context.datasetContext.availableDimensions]
                 : undefined,
             }
@@ -344,7 +373,9 @@ export class AIRequestValidator implements IAIRequestValidator {
       }
       return {
         isValid: false,
-        errors: [err instanceof Error ? err.message : "Unknown validation failure"],
+        errors: [
+          err instanceof Error ? err.message : "Unknown validation failure",
+        ],
       };
     }
   }

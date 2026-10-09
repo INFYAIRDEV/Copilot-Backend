@@ -40,7 +40,9 @@ export class AIResponseNormalizer {
       return JSON.stringify(obj);
     }
     if (Array.isArray(obj)) {
-      return "[" + obj.map((item) => this.stableStringify(item)).join(",") + "]";
+      return (
+        "[" + obj.map((item) => this.stableStringify(item)).join(",") + "]"
+      );
     }
     const keys = Object.keys(obj as Record<string, unknown>).sort();
     const pairs = keys.map(
@@ -67,7 +69,8 @@ export class AIResponseNormalizer {
     const retryCount = rawUsage?.retryCount ?? 0;
     const estimatedCostUsd = rawUsage?.estimatedCostUsd;
 
-    let requestOutcome: "SUCCESS" | "FALLBACK" | "DEGRADED" | "FAILED" = "SUCCESS";
+    let requestOutcome: "SUCCESS" | "FALLBACK" | "DEGRADED" | "FAILED" =
+      "SUCCESS";
     if (status === "FALLBACK") {
       requestOutcome = "FALLBACK";
     } else if (status === "DEGRADED") {
@@ -123,17 +126,15 @@ export class AIResponseNormalizer {
   /**
    * Creates audit event metadata matching the copilot.audit_event contract.
    */
-  public static createAuditMetadata(
-    context: {
-      correlationId: string;
-      providerName: string;
-      modelName: string;
-      status: AIResponseStatus;
-      planHash?: string;
-      outputHash?: string;
-      warningCodes?: string[];
-    },
-  ): AIResponseAuditMetadata {
+  public static createAuditMetadata(context: {
+    correlationId: string;
+    providerName: string;
+    modelName: string;
+    status: AIResponseStatus;
+    planHash?: string;
+    outputHash?: string;
+    warningCodes?: string[];
+  }): AIResponseAuditMetadata {
     return {
       requestUuid: context.correlationId,
       planHash: context.planHash,

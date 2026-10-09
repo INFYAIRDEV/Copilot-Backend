@@ -8,7 +8,10 @@ import {
 } from "../validation/index.js";
 import { AIService } from "../services/ai.service.js";
 import { MockAIProviderAdapter } from "../adapters/mock-ai-provider.adapter.js";
-import { AIProviderRequest, AIProviderResponse } from "../types/ai-provider.types.js";
+import {
+  AIProviderRequest,
+  AIProviderResponse,
+} from "../types/ai-provider.types.js";
 
 async function runAIRequestValidationTests() {
   console.log("==================================================");
@@ -34,7 +37,9 @@ async function runAIRequestValidationTests() {
   // -------------------------------------------------------------------
   // TEST GROUP 1: Unit Tests - Request Structure, Required Fields, Types
   // -------------------------------------------------------------------
-  console.log("\n--- Test Group 1: Structure, Required Fields & Data Types ---");
+  console.log(
+    "\n--- Test Group 1: Structure, Required Fields & Data Types ---",
+  );
   {
     // 1a. Valid full AI request
     const validRequest: AIRequestInput = {
@@ -68,10 +73,19 @@ async function runAIRequestValidationTests() {
     assert(validated.prompt === validRequest.prompt, "Preserves valid prompt");
     assert(validated.operation === "CANDIDATE_PLAN", "Preserves operation");
     assert(validated.context.userId === 101, "Preserves valid context userId");
-    assert(validated.context.roleId === "analyst", "Preserves valid context roleId");
+    assert(
+      validated.context.roleId === "analyst",
+      "Preserves valid context roleId",
+    );
     assert(validated.locale === "en", "Resolves valid locale");
-    assert(validated.tokenBudget.maxInputTokens === 2048, "Applies input token budget");
-    assert(Object.isFrozen(validated), "Returns immutable/frozen ValidatedAIRequest");
+    assert(
+      validated.tokenBudget.maxInputTokens === 2048,
+      "Applies input token budget",
+    );
+    assert(
+      Object.isFrozen(validated),
+      "Returns immutable/frozen ValidatedAIRequest",
+    );
     assert(Object.isFrozen(validated.context), "Freezes normalized context");
 
     // 1b. Reject non-object request
@@ -79,8 +93,14 @@ async function runAIRequestValidationTests() {
       validator.validate(null as any);
       assert(false, "Should throw for null request");
     } catch (err: any) {
-      assert(err instanceof AIRequestValidationException, "Throws AIRequestValidationException");
-      assert(err.code === "COPILOT_INVALID_REQUEST", "Error code is COPILOT_INVALID_REQUEST");
+      assert(
+        err instanceof AIRequestValidationException,
+        "Throws AIRequestValidationException",
+      );
+      assert(
+        err.code === "COPILOT_INVALID_REQUEST",
+        "Error code is COPILOT_INVALID_REQUEST",
+      );
     }
 
     // 1c. Missing prompt
@@ -90,7 +110,10 @@ async function runAIRequestValidationTests() {
       } as any);
       assert(false, "Should throw for missing prompt");
     } catch (err: any) {
-      assert(err instanceof AIRequestValidationException, "Throws AIRequestValidationException");
+      assert(
+        err instanceof AIRequestValidationException,
+        "Throws AIRequestValidationException",
+      );
       assert(err.code === "COPILOT_INVALID_REQUEST", "Rejects missing prompt");
     }
 
@@ -102,8 +125,14 @@ async function runAIRequestValidationTests() {
       });
       assert(false, "Should throw for prompt less than 3 characters");
     } catch (err: any) {
-      assert(err instanceof AIRequestValidationException, "Throws for too short prompt");
-      assert(err.code === "COPILOT_INVALID_REQUEST", "Error code is COPILOT_INVALID_REQUEST");
+      assert(
+        err instanceof AIRequestValidationException,
+        "Throws for too short prompt",
+      );
+      assert(
+        err.code === "COPILOT_INVALID_REQUEST",
+        "Error code is COPILOT_INVALID_REQUEST",
+      );
     }
 
     // 1e. Missing context
@@ -113,8 +142,14 @@ async function runAIRequestValidationTests() {
       } as any);
       assert(false, "Should throw for missing context");
     } catch (err: any) {
-      assert(err instanceof AIRequestValidationException, "Throws for missing context");
-      assert(err.code === "COPILOT_MISSING_CONTEXT", "Error code is COPILOT_MISSING_CONTEXT");
+      assert(
+        err instanceof AIRequestValidationException,
+        "Throws for missing context",
+      );
+      assert(
+        err.code === "COPILOT_MISSING_CONTEXT",
+        "Error code is COPILOT_MISSING_CONTEXT",
+      );
     }
 
     // 1f. Invalid userId type (string instead of number)
@@ -125,8 +160,14 @@ async function runAIRequestValidationTests() {
       });
       assert(false, "Should throw for invalid userId type");
     } catch (err: any) {
-      assert(err instanceof AIRequestValidationException, "Throws for invalid userId type");
-      assert(err.code === "COPILOT_INVALID_CONTEXT", "Error code is COPILOT_INVALID_CONTEXT");
+      assert(
+        err instanceof AIRequestValidationException,
+        "Throws for invalid userId type",
+      );
+      assert(
+        err.code === "COPILOT_INVALID_CONTEXT",
+        "Error code is COPILOT_INVALID_CONTEXT",
+      );
     }
 
     // 1g. Negative or zero userId
@@ -137,7 +178,10 @@ async function runAIRequestValidationTests() {
       });
       assert(false, "Should throw for non-positive userId");
     } catch (err: any) {
-      assert(err instanceof AIRequestValidationException, "Throws for negative userId");
+      assert(
+        err instanceof AIRequestValidationException,
+        "Throws for negative userId",
+      );
       assert(err.code === "COPILOT_INVALID_CONTEXT", "Rejects negative userId");
     }
 
@@ -149,7 +193,10 @@ async function runAIRequestValidationTests() {
       });
       assert(false, "Should throw for empty roleId");
     } catch (err: any) {
-      assert(err instanceof AIRequestValidationException, "Throws for empty roleId");
+      assert(
+        err instanceof AIRequestValidationException,
+        "Throws for empty roleId",
+      );
       assert(err.code === "COPILOT_INVALID_CONTEXT", "Rejects empty roleId");
     }
   }
@@ -178,11 +225,20 @@ async function runAIRequestValidationTests() {
 
     // 2b. Unsupported operation
     try {
-      validator.validate({ ...baseRequest, operation: "EXECUTE_ARBITRARY_SQL" });
+      validator.validate({
+        ...baseRequest,
+        operation: "EXECUTE_ARBITRARY_SQL",
+      });
       assert(false, "Should reject unsupported operation");
     } catch (err: any) {
-      assert(err instanceof AIRequestValidationException, "Throws AIRequestValidationException");
-      assert(err.code === "COPILOT_UNSUPPORTED_OPERATION", "Error code is COPILOT_UNSUPPORTED_OPERATION");
+      assert(
+        err instanceof AIRequestValidationException,
+        "Throws AIRequestValidationException",
+      );
+      assert(
+        err.code === "COPILOT_UNSUPPORTED_OPERATION",
+        "Error code is COPILOT_UNSUPPORTED_OPERATION",
+      );
     }
 
     // 2c. Supported locales: 'en' and 'it'
@@ -196,8 +252,14 @@ async function runAIRequestValidationTests() {
       validator.validate({ ...baseRequest, locale: "fr" });
       assert(false, "Should reject unsupported locale 'fr'");
     } catch (err: any) {
-      assert(err instanceof AIRequestValidationException, "Throws AIRequestValidationException");
-      assert(err.code === "COPILOT_INVALID_LOCALE", "Error code is COPILOT_INVALID_LOCALE");
+      assert(
+        err instanceof AIRequestValidationException,
+        "Throws AIRequestValidationException",
+      );
+      assert(
+        err.code === "COPILOT_INVALID_LOCALE",
+        "Error code is COPILOT_INVALID_LOCALE",
+      );
     }
   }
 
@@ -211,13 +273,21 @@ async function runAIRequestValidationTests() {
     };
 
     // 3a. Oversized prompt
-    const oversizedPrompt = "A".repeat(AI_REQUEST_LIMITS.MAX_PROMPT_LENGTH + 10);
+    const oversizedPrompt = "A".repeat(
+      AI_REQUEST_LIMITS.MAX_PROMPT_LENGTH + 10,
+    );
     try {
       validator.validate({ ...baseRequest, prompt: oversizedPrompt });
       assert(false, "Should reject prompt exceeding max length");
     } catch (err: any) {
-      assert(err instanceof AIRequestValidationException, "Throws AIRequestValidationException");
-      assert(err.code === "COPILOT_PROMPT_TOO_LONG", "Error code is COPILOT_PROMPT_TOO_LONG");
+      assert(
+        err instanceof AIRequestValidationException,
+        "Throws AIRequestValidationException",
+      );
+      assert(
+        err.code === "COPILOT_PROMPT_TOO_LONG",
+        "Error code is COPILOT_PROMPT_TOO_LONG",
+      );
       assert(err.statusCode === 422, "Returns HTTP 422 for oversized prompt");
     }
 
@@ -232,9 +302,18 @@ async function runAIRequestValidationTests() {
       });
       assert(false, "Should reject maxInputTokens exceeding absolute limit");
     } catch (err: any) {
-      assert(err instanceof AIRequestValidationException, "Throws AIRequestValidationException");
-      assert(err.code === "COPILOT_TOKEN_BUDGET_EXCEEDED", "Error code is COPILOT_TOKEN_BUDGET_EXCEEDED");
-      assert(err.statusCode === 422, "Returns HTTP 422 for token budget limit exceeded");
+      assert(
+        err instanceof AIRequestValidationException,
+        "Throws AIRequestValidationException",
+      );
+      assert(
+        err.code === "COPILOT_TOKEN_BUDGET_EXCEEDED",
+        "Error code is COPILOT_TOKEN_BUDGET_EXCEEDED",
+      );
+      assert(
+        err.statusCode === 422,
+        "Returns HTTP 422 for token budget limit exceeded",
+      );
     }
 
     // 3c. Negative token budget
@@ -248,8 +327,14 @@ async function runAIRequestValidationTests() {
       });
       assert(false, "Should reject negative token budget");
     } catch (err: any) {
-      assert(err instanceof AIRequestValidationException, "Throws AIRequestValidationException");
-      assert(err.code === "COPILOT_TOKEN_BUDGET_EXCEEDED", "Rejects negative token budget");
+      assert(
+        err instanceof AIRequestValidationException,
+        "Throws AIRequestValidationException",
+      );
+      assert(
+        err.code === "COPILOT_TOKEN_BUDGET_EXCEEDED",
+        "Rejects negative token budget",
+      );
     }
 
     // 3d. Custom stricter validator options
@@ -264,14 +349,19 @@ async function runAIRequestValidationTests() {
       });
       assert(false, "Should enforce custom stricter maxInputTokensLimit");
     } catch (err: any) {
-      assert(err.code === "COPILOT_TOKEN_BUDGET_EXCEEDED", "Enforces custom token limit");
+      assert(
+        err.code === "COPILOT_TOKEN_BUDGET_EXCEEDED",
+        "Enforces custom token limit",
+      );
     }
   }
 
   // -------------------------------------------------------------------
   // TEST GROUP 4: Security, Secrets, Injection & Data Minimization
   // -------------------------------------------------------------------
-  console.log("\n--- Test Group 4: Security Boundaries & Data Minimization ---");
+  console.log(
+    "\n--- Test Group 4: Security Boundaries & Data Minimization ---",
+  );
   {
     // 4a. Credentials in Context are strictly rejected
     try {
@@ -287,8 +377,14 @@ async function runAIRequestValidationTests() {
       });
       assert(false, "Should reject credentials inside context");
     } catch (err: any) {
-      assert(err instanceof AIRequestValidationException, "Throws AIRequestValidationException");
-      assert(err.code === "COPILOT_SECURITY_VIOLATION", "Error code is COPILOT_SECURITY_VIOLATION");
+      assert(
+        err instanceof AIRequestValidationException,
+        "Throws AIRequestValidationException",
+      );
+      assert(
+        err.code === "COPILOT_SECURITY_VIOLATION",
+        "Error code is COPILOT_SECURITY_VIOLATION",
+      );
     }
 
     // 4b. Credentials in Metadata are strictly rejected
@@ -302,8 +398,14 @@ async function runAIRequestValidationTests() {
       });
       assert(false, "Should reject credentials inside metadata");
     } catch (err: any) {
-      assert(err instanceof AIRequestValidationException, "Throws AIRequestValidationException");
-      assert(err.code === "COPILOT_SECURITY_VIOLATION", "Detects credentials in metadata");
+      assert(
+        err instanceof AIRequestValidationException,
+        "Throws AIRequestValidationException",
+      );
+      assert(
+        err.code === "COPILOT_SECURITY_VIOLATION",
+        "Detects credentials in metadata",
+      );
     }
 
     // 4c. Reject credentials in prompt when rejectOnSensitivePatterns: true
@@ -317,17 +419,30 @@ async function runAIRequestValidationTests() {
       );
       assert(false, "Should reject password in prompt when configured");
     } catch (err: any) {
-      assert(err.code === "COPILOT_SECURITY_VIOLATION", "Rejects sensitive password in prompt");
+      assert(
+        err.code === "COPILOT_SECURITY_VIOLATION",
+        "Rejects sensitive password in prompt",
+      );
     }
 
     // 4d. Default behavior sanitizes credentials in prompt so they are NOT propagated
     const sanitized = validator.validate({
-      prompt: "Show sales with password='SecretPassword123!' and bearer token_abc_999",
+      prompt:
+        "Show sales with password='SecretPassword123!' and bearer token_abc_999",
       context: { userId: 1, roleId: "analyst" },
     });
-    assert(!sanitized.prompt.includes("SecretPassword123!"), "Password credential is redacted");
-    assert(!sanitized.prompt.includes("token_abc_999"), "Bearer token is redacted");
-    assert(sanitized.prompt.includes("[REDACTED]"), "Substitutes [REDACTED] marker");
+    assert(
+      !sanitized.prompt.includes("SecretPassword123!"),
+      "Password credential is redacted",
+    );
+    assert(
+      !sanitized.prompt.includes("token_abc_999"),
+      "Bearer token is redacted",
+    );
+    assert(
+      sanitized.prompt.includes("[REDACTED]"),
+      "Substitutes [REDACTED] marker",
+    );
 
     // 4e. Prompt injection override attempts are strictly rejected
     const injectionQueries = [
@@ -343,7 +458,10 @@ async function runAIRequestValidationTests() {
         });
         assert(false, `Should reject prompt injection: ${injection}`);
       } catch (err: any) {
-        assert(err instanceof AIRequestValidationException, "Throws AIRequestValidationException");
+        assert(
+          err instanceof AIRequestValidationException,
+          "Throws AIRequestValidationException",
+        );
         assert(
           err.code === "COPILOT_PROMPT_INJECTION_DETECTED",
           `Detects COPILOT_PROMPT_INJECTION_DETECTED for: ${injection.substring(0, 20)}...`,
@@ -360,9 +478,13 @@ async function runAIRequestValidationTests() {
         allowedEntities: ["orders"],
       },
     });
-    assert(validatedReq.context.roleId === "operator", "Maintains exact authorized roleId");
     assert(
-      JSON.stringify(validatedReq.context.allowedEntities) === JSON.stringify(["orders"]),
+      validatedReq.context.roleId === "operator",
+      "Maintains exact authorized roleId",
+    );
+    assert(
+      JSON.stringify(validatedReq.context.allowedEntities) ===
+        JSON.stringify(["orders"]),
       "Preserves exact allowedEntities without expansion",
     );
   }
@@ -370,29 +492,52 @@ async function runAIRequestValidationTests() {
   // -------------------------------------------------------------------
   // TEST GROUP 5: Safe Validation & Boundary Isolation
   // -------------------------------------------------------------------
-  console.log("\n--- Test Group 5: Safe Validation & Architectural Boundaries ---");
+  console.log(
+    "\n--- Test Group 5: Safe Validation & Architectural Boundaries ---",
+  );
   {
     // 5a. validateSafe() returns result object without throwing
     const safePass = validator.validateSafe({
       prompt: "Show top customers",
       context: { userId: 1, roleId: "executive" },
     });
-    assert(safePass.isValid === true, "validateSafe returns isValid: true for valid request");
-    assert(safePass.validatedRequest !== undefined, "validateSafe includes validatedRequest");
+    assert(
+      safePass.isValid === true,
+      "validateSafe returns isValid: true for valid request",
+    );
+    assert(
+      safePass.validatedRequest !== undefined,
+      "validateSafe includes validatedRequest",
+    );
     assert(safePass.errors.length === 0, "validateSafe has empty errors array");
 
     const safeFail = validator.validateSafe({
       prompt: "ab", // too short
       context: { userId: 1, roleId: "executive" },
     });
-    assert(safeFail.isValid === false, "validateSafe returns isValid: false for invalid request");
+    assert(
+      safeFail.isValid === false,
+      "validateSafe returns isValid: false for invalid request",
+    );
     assert(safeFail.errors.length > 0, "validateSafe returns error details");
 
     // 5b. Boundary Isolation: Validator does not contain provider SDK or SQL execution
-    assert((validator as any).openAi === undefined, "Contains NO OpenAI SDK reference");
-    assert((validator as any).anthropic === undefined, "Contains NO Anthropic SDK reference");
-    assert((validator as any).gemini === undefined, "Contains NO Gemini SDK reference");
-    assert((validator as any).executeSql === undefined, "Contains NO SQL execution method");
+    assert(
+      (validator as any).openAi === undefined,
+      "Contains NO OpenAI SDK reference",
+    );
+    assert(
+      (validator as any).anthropic === undefined,
+      "Contains NO Anthropic SDK reference",
+    );
+    assert(
+      (validator as any).gemini === undefined,
+      "Contains NO Gemini SDK reference",
+    );
+    assert(
+      (validator as any).executeSql === undefined,
+      "Contains NO SQL execution method",
+    );
   }
 
   // -------------------------------------------------------------------
@@ -402,14 +547,20 @@ async function runAIRequestValidationTests() {
   {
     let providerCalls = 0;
     class SpyingProvider extends MockAIProviderAdapter {
-      public async generateCandidatePlan(req: AIProviderRequest): Promise<AIProviderResponse> {
+      public async generateCandidatePlan(
+        req: AIProviderRequest,
+      ): Promise<AIProviderResponse> {
         providerCalls++;
         return super.generateCandidatePlan(req);
       }
     }
 
     const spyingProvider = new SpyingProvider();
-    const service = new AIService(spyingProvider, undefined, defaultAIRequestValidator);
+    const service = new AIService(
+      spyingProvider,
+      undefined,
+      defaultAIRequestValidator,
+    );
 
     // 6a. Valid request passes validation and reaches provider
     const validResult = await service.generateCandidatePlan({
@@ -418,8 +569,14 @@ async function runAIRequestValidationTests() {
       correlationId: "int-test-1",
     });
 
-    assert(validResult !== null, "Valid request successfully processed by AIService");
-    assert(providerCalls === 1, "Provider invoked exactly once for valid request");
+    assert(
+      validResult !== null,
+      "Valid request successfully processed by AIService",
+    );
+    assert(
+      providerCalls === 1,
+      "Provider invoked exactly once for valid request",
+    );
 
     // 6b. Invalid request stops AT THE VALIDATION LAYER before prompt construction and provider invocation
     try {
@@ -438,7 +595,9 @@ async function runAIRequestValidationTests() {
   }
 
   console.log("\n==================================================");
-  console.log(` RESULTS: ${passed}/${total} AI Request Validation Tests Passed!`);
+  console.log(
+    ` RESULTS: ${passed}/${total} AI Request Validation Tests Passed!`,
+  );
   console.log("==================================================");
 }
 

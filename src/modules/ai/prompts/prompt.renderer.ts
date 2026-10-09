@@ -48,7 +48,9 @@ export class PromptRenderer {
         ? [...context.context.datasetContext.availableMetrics].sort().join(", ")
         : "standard_metrics",
       availableDimensions: context.context.datasetContext?.availableDimensions
-        ? [...context.context.datasetContext.availableDimensions].sort().join(", ")
+        ? [...context.context.datasetContext.availableDimensions]
+            .sort()
+            .join(", ")
         : "standard_dimensions",
       datasetId: context.context.datasetContext?.datasetId || "default",
     };

@@ -20,7 +20,18 @@ export interface IAIProvider {
   /**
    * Generates a Candidate Typed Analytical Plan from normalized request context.
    */
-  generateCandidatePlan(request: AIProviderRequest): Promise<AIProviderResponse>;
+  generateCandidatePlan(
+    request: AIProviderRequest,
+  ): Promise<AIProviderResponse>;
+
+  /**
+   * Optionally streams candidate response content incrementally via onChunk callback.
+   */
+  generateCandidatePlanStream?(
+    request: AIProviderRequest,
+    onChunk: (delta: string) => void,
+    signal?: AbortSignal,
+  ): Promise<AIProviderResponse>;
 
   /**
    * Returns metadata about the current AI provider instance.

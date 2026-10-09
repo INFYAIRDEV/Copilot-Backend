@@ -34,7 +34,8 @@ export class AIUsageRepository implements IAIUsageRepository {
         output_tokens: record.outputTokens,
         latency_ms: record.latencyMs,
         estimated_cost:
-          record.estimatedCostUsd !== undefined && record.estimatedCostUsd !== null
+          record.estimatedCostUsd !== undefined &&
+          record.estimatedCostUsd !== null
             ? new Prisma.Decimal(record.estimatedCostUsd)
             : null,
         retry_count: record.retryCount,
@@ -57,7 +58,9 @@ export class AIUsageRepository implements IAIUsageRepository {
         outputTokens: created.output_tokens ?? 0,
         totalTokens: (created.input_tokens ?? 0) + (created.output_tokens ?? 0),
         latencyMs: created.latency_ms ?? 0,
-        estimatedCostUsd: created.estimated_cost ? Number(created.estimated_cost) : null,
+        estimatedCostUsd: created.estimated_cost
+          ? Number(created.estimated_cost)
+          : null,
         retryCount: created.retry_count,
         status: created.status as any,
         createdAt: created.created_at,
@@ -73,7 +76,9 @@ export class AIUsageRepository implements IAIUsageRepository {
   /**
    * Retrieves usage records associated with a specific request UUID.
    */
-  public async findByRequestUuid(requestUuid: string): Promise<AIUsageRecord[]> {
+  public async findByRequestUuid(
+    requestUuid: string,
+  ): Promise<AIUsageRecord[]> {
     try {
       const records = await this.prisma.model_usage.findMany({
         where: { request_uuid: requestUuid },
@@ -92,7 +97,9 @@ export class AIUsageRepository implements IAIUsageRepository {
   /**
    * Queries usage records based on filtering parameters.
    */
-  public async findMany(filters: AIUsageQueryFilters = {}): Promise<AIUsageRecord[]> {
+  public async findMany(
+    filters: AIUsageQueryFilters = {},
+  ): Promise<AIUsageRecord[]> {
     try {
       const where: any = {};
       if (filters.requestUuid) where.request_uuid = filters.requestUuid;
@@ -114,7 +121,9 @@ export class AIUsageRepository implements IAIUsageRepository {
 
       return records.map((r: any) => this.mapRecord(r));
     } catch (err: any) {
-      logger.error(`[AIUsageRepository] Failed to query model usage records: ${err.message}`);
+      logger.error(
+        `[AIUsageRepository] Failed to query model usage records: ${err.message}`,
+      );
       return [];
     }
   }

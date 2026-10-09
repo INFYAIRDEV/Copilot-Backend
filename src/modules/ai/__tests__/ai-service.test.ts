@@ -34,7 +34,9 @@ async function runAIServiceTestSuite() {
   // ----------------------------------------------------
   // TEST GROUP 1: Unit Tests & Provider Invocations
   // ----------------------------------------------------
-  console.log("\n--- Test Group 1: Unit Tests - Request Handling & Normalization ---");
+  console.log(
+    "\n--- Test Group 1: Unit Tests - Request Handling & Normalization ---",
+  );
   {
     const mockAdapter = new MockAIProviderAdapter("UNIT_TEST_PROVIDER");
     const aiService = new AIService(mockAdapter);
@@ -56,14 +58,32 @@ async function runAIServiceTestSuite() {
 
     const result = await aiService.generateCandidatePlan(request);
 
-    assert(result.candidatePlan !== undefined, "Returns candidate typed analytical plan");
-    assert(result.candidatePlan.planId.startsWith("plan-"), "Candidate plan contains valid planId");
-    assert(result.candidatePlan.candidateIntents.length > 0, "Candidate plan has non-empty intents");
-    assert(result.usage.provider === "UNIT_TEST_PROVIDER", "Normalized usage records provider name");
+    assert(
+      result.candidatePlan !== undefined,
+      "Returns candidate typed analytical plan",
+    );
+    assert(
+      result.candidatePlan.planId.startsWith("plan-"),
+      "Candidate plan contains valid planId",
+    );
+    assert(
+      result.candidatePlan.candidateIntents.length > 0,
+      "Candidate plan has non-empty intents",
+    );
+    assert(
+      result.usage.provider === "UNIT_TEST_PROVIDER",
+      "Normalized usage records provider name",
+    );
     assert(result.usage.inputTokens > 0, "Usage captures input tokens");
     assert(result.usage.outputTokens > 0, "Usage captures output tokens");
-    assert(result.usage.requestOutcome === "SUCCESS", "Request outcome is SUCCESS");
-    assert(result.correlationId === "corr-unit-test-1", "Preserves correlation ID");
+    assert(
+      result.usage.requestOutcome === "SUCCESS",
+      "Request outcome is SUCCESS",
+    );
+    assert(
+      result.correlationId === "corr-unit-test-1",
+      "Preserves correlation ID",
+    );
     assert(result.isDegraded === false, "Success plan is not degraded");
     assert(result.fromFallback === false, "Success plan is not from fallback");
   }
@@ -71,7 +91,9 @@ async function runAIServiceTestSuite() {
   // ----------------------------------------------------
   // TEST GROUP 2: Candidate Plan Structural Validation
   // ----------------------------------------------------
-  console.log("\n--- Test Group 2: Structural Validation of Candidate Plans ---");
+  console.log(
+    "\n--- Test Group 2: Structural Validation of Candidate Plans ---",
+  );
   {
     // 2a. Valid candidate plan passes validation
     const validPlan = {
@@ -89,8 +111,14 @@ async function runAIServiceTestSuite() {
       isFallback: false,
     };
     const validResult = CandidatePlanValidator.validate(validPlan);
-    assert(validResult.isValid === true, "Valid candidate plan passes structural validation");
-    assert(validResult.errors.length === 0, "Valid candidate plan has zero validation errors");
+    assert(
+      validResult.isValid === true,
+      "Valid candidate plan passes structural validation",
+    );
+    assert(
+      validResult.errors.length === 0,
+      "Valid candidate plan has zero validation errors",
+    );
 
     // 2b. Missing planId fails
     const missingPlanId = { ...validPlan, planId: "" };
@@ -103,13 +131,20 @@ async function runAIServiceTestSuite() {
 
     // 2c. Invalid confidenceScore fails
     const invalidConfidence = { ...validPlan, confidenceScore: 1.5 };
-    const invalidConfidenceResult = CandidatePlanValidator.validate(invalidConfidence);
-    assert(invalidConfidenceResult.isValid === false, "Rejects confidenceScore > 1.0");
+    const invalidConfidenceResult =
+      CandidatePlanValidator.validate(invalidConfidence);
+    assert(
+      invalidConfidenceResult.isValid === false,
+      "Rejects confidenceScore > 1.0",
+    );
 
     // 2d. Empty candidateIntents array fails
     const emptyIntents = { ...validPlan, candidateIntents: [] };
     const emptyIntentsResult = CandidatePlanValidator.validate(emptyIntents);
-    assert(emptyIntentsResult.isValid === false, "Rejects empty candidateIntents array");
+    assert(
+      emptyIntentsResult.isValid === false,
+      "Rejects empty candidateIntents array",
+    );
 
     // 2e. Invalid intentType fails
     const invalidIntentType = {
@@ -123,12 +158,18 @@ async function runAIServiceTestSuite() {
         },
       ],
     };
-    const invalidIntentResult = CandidatePlanValidator.validate(invalidIntentType);
-    assert(invalidIntentResult.isValid === false, "Rejects unsupported intentType");
+    const invalidIntentResult =
+      CandidatePlanValidator.validate(invalidIntentType);
+    assert(
+      invalidIntentResult.isValid === false,
+      "Rejects unsupported intentType",
+    );
 
     // 2f. AI Service rejects structurally invalid model response
     class MalformedProvider implements IAIProvider {
-      public async generateCandidatePlan(_req: AIProviderRequest): Promise<AIProviderResponse> {
+      public async generateCandidatePlan(
+        _req: AIProviderRequest,
+      ): Promise<AIProviderResponse> {
         return {
           candidatePlan: {
             planId: "", // invalid empty planId
@@ -165,10 +206,19 @@ async function runAIServiceTestSuite() {
       });
       assert(false, "Should throw AIServiceException for malformed plan");
     } catch (err: any) {
-      assert(err instanceof AIServiceException, "Throws AIServiceException for malformed plan");
-      assert(err.code === "COPILOT_INVALID_RESPONSE", "Error code is COPILOT_INVALID_RESPONSE");
+      assert(
+        err instanceof AIServiceException,
+        "Throws AIServiceException for malformed plan",
+      );
+      assert(
+        err.code === "COPILOT_INVALID_RESPONSE",
+        "Error code is COPILOT_INVALID_RESPONSE",
+      );
       assert(err.statusCode === 422, "Status code is 422 Unprocessable Entity");
-      assert(err.details && err.details.length > 0, "Details contain specific structural errors");
+      assert(
+        err.details && err.details.length > 0,
+        "Details contain specific structural errors",
+      );
     }
   }
 
@@ -179,7 +229,9 @@ async function runAIServiceTestSuite() {
   {
     let capturedProviderRequest: AIProviderRequest | null = null;
     class CapturingProvider implements IAIProvider {
-      public async generateCandidatePlan(req: AIProviderRequest): Promise<AIProviderResponse> {
+      public async generateCandidatePlan(
+        req: AIProviderRequest,
+      ): Promise<AIProviderResponse> {
         capturedProviderRequest = req;
         return {
           candidatePlan: {
@@ -220,7 +272,8 @@ async function runAIServiceTestSuite() {
 
     // 3a. Input minimization & credential redaction
     await capturingService.generateCandidatePlan({
-      prompt: "Show sales with password='SuperSecretPassword!' and bearer token_abc123 and postgres://user:pass@db:5432/db",
+      prompt:
+        "Show sales with password='SuperSecretPassword!' and bearer token_abc123 and postgres://user:pass@db:5432/db",
       context: { userId: 42, roleId: "operator" },
     });
 
@@ -257,20 +310,34 @@ async function runAIServiceTestSuite() {
       });
       assert(false, "Should reject empty prompt");
     } catch (err: any) {
-      assert(err instanceof AIServiceException, "Rejects empty prompt with AIServiceException");
-      assert(err.statusCode === 400, "Returns 400 Bad Request for empty prompt");
+      assert(
+        err instanceof AIServiceException,
+        "Rejects empty prompt with AIServiceException",
+      );
+      assert(
+        err.statusCode === 400,
+        "Returns 400 Bad Request for empty prompt",
+      );
     }
   }
 
   // ----------------------------------------------------
   // TEST GROUP 4: Resilience, Errors & Structured Fallback
   // ----------------------------------------------------
-  console.log("\n--- Test Group 4: Resilience, Error Normalization & Structured Fallback ---");
+  console.log(
+    "\n--- Test Group 4: Resilience, Error Normalization & Structured Fallback ---",
+  );
   {
     // 4a. Timeout error normalization
     class TimeoutProvider implements IAIProvider {
-      public async generateCandidatePlan(_req: AIProviderRequest): Promise<AIProviderResponse> {
-        throw new AIProviderException("TIMEOUT", "Read timeout after 15000ms", "TIMEOUT_PROVIDER");
+      public async generateCandidatePlan(
+        _req: AIProviderRequest,
+      ): Promise<AIProviderResponse> {
+        throw new AIProviderException(
+          "TIMEOUT",
+          "Read timeout after 15000ms",
+          "TIMEOUT_PROVIDER",
+        );
       }
       public getProviderMetadata() {
         return {
@@ -289,17 +356,32 @@ async function runAIServiceTestSuite() {
       });
       assert(false, "Should throw on timeout");
     } catch (err: any) {
-      assert(err instanceof AIServiceException, "Translates to AIServiceException");
-      assert(err.code === "COPILOT_MODEL_TIMEOUT", "Maps to COPILOT_MODEL_TIMEOUT");
+      assert(
+        err instanceof AIServiceException,
+        "Translates to AIServiceException",
+      );
+      assert(
+        err.code === "COPILOT_MODEL_TIMEOUT",
+        "Maps to COPILOT_MODEL_TIMEOUT",
+      );
       assert(err.statusCode === 503, "Status code is 503 Service Unavailable");
       assert(err.isTransient === true, "Marked as transient error");
-      assert(!err.message.includes("Read timeout after 15000ms"), "Masks internal timeout exception details");
+      assert(
+        !err.message.includes("Read timeout after 15000ms"),
+        "Masks internal timeout exception details",
+      );
     }
 
     // 4b. Provider unavailable error normalization
     class UnavailableProvider implements IAIProvider {
-      public async generateCandidatePlan(_req: AIProviderRequest): Promise<AIProviderResponse> {
-        throw new AIProviderException("UNAVAILABLE", "503 Service Unavailable from upstream", "UNAVAILABLE_PROVIDER");
+      public async generateCandidatePlan(
+        _req: AIProviderRequest,
+      ): Promise<AIProviderResponse> {
+        throw new AIProviderException(
+          "UNAVAILABLE",
+          "503 Service Unavailable from upstream",
+          "UNAVAILABLE_PROVIDER",
+        );
       }
       public getProviderMetadata() {
         return {
@@ -318,16 +400,31 @@ async function runAIServiceTestSuite() {
       });
       assert(false, "Should throw on unavailable");
     } catch (err: any) {
-      assert(err instanceof AIServiceException, "Translates to AIServiceException");
-      assert(err.code === "COPILOT_MODEL_UNAVAILABLE", "Maps to COPILOT_MODEL_UNAVAILABLE");
+      assert(
+        err instanceof AIServiceException,
+        "Translates to AIServiceException",
+      );
+      assert(
+        err.code === "COPILOT_MODEL_UNAVAILABLE",
+        "Maps to COPILOT_MODEL_UNAVAILABLE",
+      );
       assert(err.statusCode === 503, "Status code is 503");
-      assert(err.isTransient === false, "UNAVAILABLE outage marked as non-transient to prevent immediate retry loop");
+      assert(
+        err.isTransient === false,
+        "UNAVAILABLE outage marked as non-transient to prevent immediate retry loop",
+      );
     }
 
     // 4c. Token budget exceeded error normalization
     class TokenExceededProvider implements IAIProvider {
-      public async generateCandidatePlan(_req: AIProviderRequest): Promise<AIProviderResponse> {
-        throw new AIProviderException("TOKEN_BUDGET_EXCEEDED", "Input exceeds 2048 tokens", "BUDGET_PROVIDER");
+      public async generateCandidatePlan(
+        _req: AIProviderRequest,
+      ): Promise<AIProviderResponse> {
+        throw new AIProviderException(
+          "TOKEN_BUDGET_EXCEEDED",
+          "Input exceeds 2048 tokens",
+          "BUDGET_PROVIDER",
+        );
       }
       public getProviderMetadata() {
         return {
@@ -346,8 +443,14 @@ async function runAIServiceTestSuite() {
       });
       assert(false, "Should throw on budget exceeded");
     } catch (err: any) {
-      assert(err instanceof AIServiceException, "Translates to AIServiceException");
-      assert(err.code === "COPILOT_TOKEN_BUDGET_EXCEEDED", "Maps to COPILOT_TOKEN_BUDGET_EXCEEDED");
+      assert(
+        err instanceof AIServiceException,
+        "Translates to AIServiceException",
+      );
+      assert(
+        err.code === "COPILOT_TOKEN_BUDGET_EXCEEDED",
+        "Maps to COPILOT_TOKEN_BUDGET_EXCEEDED",
+      );
       assert(err.statusCode === 422, "Status code is 422 Unprocessable Entity");
       assert(err.isTransient === false, "Budget exceeded is non-transient");
     }
@@ -363,17 +466,34 @@ async function runAIServiceTestSuite() {
       context: { userId: 10, roleId: "manager" },
     });
 
-    assert(fallbackResult.fromFallback === true, "AIService consumes structured fallback");
-    assert(fallbackResult.isDegraded === true, "Marks result as degraded state");
-    assert(fallbackResult.usage.requestOutcome === "FALLBACK", "Usage telemetry records FALLBACK outcome");
-    assert(fallbackResult.candidatePlan.isFallback === true, "Candidate plan isFallback flag set");
-    assert(fallbackResult.fallbackReason !== undefined, "Captures structured fallback reason");
+    assert(
+      fallbackResult.fromFallback === true,
+      "AIService consumes structured fallback",
+    );
+    assert(
+      fallbackResult.isDegraded === true,
+      "Marks result as degraded state",
+    );
+    assert(
+      fallbackResult.usage.requestOutcome === "FALLBACK",
+      "Usage telemetry records FALLBACK outcome",
+    );
+    assert(
+      fallbackResult.candidatePlan.isFallback === true,
+      "Candidate plan isFallback flag set",
+    );
+    assert(
+      fallbackResult.fallbackReason !== undefined,
+      "Captures structured fallback reason",
+    );
   }
 
   // ----------------------------------------------------
   // TEST GROUP 5: Boundary & Architectural Separation Tests
   // ----------------------------------------------------
-  console.log("\n--- Test Group 5: Architectural Boundaries & Dependency Isolation ---");
+  console.log(
+    "\n--- Test Group 5: Architectural Boundaries & Dependency Isolation ---",
+  );
   {
     const mockAdapter = new MockAIProviderAdapter("BOUNDARY_PROVIDER");
     const aiService = new AIService(mockAdapter);

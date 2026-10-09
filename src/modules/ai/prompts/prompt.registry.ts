@@ -54,7 +54,8 @@ const DEFAULT_PROMPT_CATALOG: PromptDefinition[] = [
     promptKey: "CANDIDATE_ANALYTICAL_PLAN",
     version: "1.0.0",
     operation: "CANDIDATE_PLAN",
-    description: "Standard production prompt for generating candidate typed analytical plans",
+    description:
+      "Standard production prompt for generating candidate typed analytical plans",
     systemInstruction: CANDIDATE_PLAN_SYSTEM_INSTRUCTION,
     userTemplate: CANDIDATE_PLAN_USER_TEMPLATE,
     requiredVariables: ["userQuery", "roleId", "userId"],
@@ -68,7 +69,8 @@ const DEFAULT_PROMPT_CATALOG: PromptDefinition[] = [
     promptKey: "CANDIDATE_ANALYTICAL_PLAN",
     version: "1.1.0",
     operation: "CANDIDATE_PLAN",
-    description: "Enhanced prompt definition with enriched reasoning heuristics for evaluation runs",
+    description:
+      "Enhanced prompt definition with enriched reasoning heuristics for evaluation runs",
     systemInstruction: `${CANDIDATE_PLAN_SYSTEM_INSTRUCTION}\n6. REASONING ENRICHMENT: Ensure reasoningSummary concisely explains dimension-metric alignment.`,
     userTemplate: CANDIDATE_PLAN_USER_TEMPLATE,
     requiredVariables: ["userQuery", "roleId", "userId"],
@@ -82,7 +84,8 @@ const DEFAULT_PROMPT_CATALOG: PromptDefinition[] = [
     promptKey: "ANALYTICAL_INTENT",
     version: "1.0.0",
     operation: "ANALYTICAL_INTENT",
-    description: "Classifies high-level user analytical intent and identifies primary business entities",
+    description:
+      "Classifies high-level user analytical intent and identifies primary business entities",
     systemInstruction: `You are the Copilot Intent Classifier.
 Classify the user intent into AGGREGATION, FILTER, TREND, COMPARISON, or UNKNOWN.
 Do not execute queries or make authorization decisions.`,
@@ -96,7 +99,8 @@ Do not execute queries or make authorization decisions.`,
     promptKey: "CLARIFICATION",
     version: "1.0.0",
     operation: "CLARIFICATION",
-    description: "Generates clarifying questions when the analytical intent is ambiguous",
+    description:
+      "Generates clarifying questions when the analytical intent is ambiguous",
     systemInstruction: `You are the Copilot Clarification Assistant.
 If an analytical query is underspecified or ambiguous, provide clear, concise clarifying questions.
 Never reveal backend database schemas, secrets, or implementation details.`,
@@ -113,7 +117,8 @@ User Role: {{roleId}}
     promptKey: "NARRATIVE_INTERPRETATION",
     version: "1.0.0",
     operation: "NARRATIVE_INTERPRETATION",
-    description: "Narrates and explains structured analytical results without performing deterministic calculations",
+    description:
+      "Narrates and explains structured analytical results without performing deterministic calculations",
     systemInstruction: `You are the Copilot Analytical Narrator.
 Your job is to provide clear narrative insights on validated calculation results.
 DO NOT recalculate metrics or alter numbers. Rely strictly on the provided calculation outputs.`,
@@ -162,7 +167,10 @@ export class PromptRegistry {
    * Retrieves a prompt definition by key and optional version.
    * If version is omitted, returns the latest active version.
    */
-  public get(promptKey: string, version?: string): PromptDefinition | undefined {
+  public get(
+    promptKey: string,
+    version?: string,
+  ): PromptDefinition | undefined {
     if (version) {
       return this.definitions.get(this.buildRegistryKey(promptKey, version));
     }

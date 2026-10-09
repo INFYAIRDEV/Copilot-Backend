@@ -13,6 +13,16 @@ import { CopilotService } from "./copilot.service.js";
 import { AIProviderException, AIServiceException } from "@/modules/ai/index.js";
 import { logger } from "@/shared/utils/logger.js";
 
+import {
+  CopilotStreamingService,
+  copilotStreamingService,
+} from "./copilot-streaming.service.js";
+import {
+  ChatStreamEmitter,
+  STREAM_EVENT_TYPES,
+  formatSseEvent,
+} from "./streaming.types.js";
+
 function fail(res: Response, error: unknown) {
   if (error instanceof CopilotError)
     return ApiResponse.error(res, {
@@ -27,7 +37,10 @@ function fail(res: Response, error: unknown) {
   });
 }
 
-export function createCopilotController(service = copilotService) {
+export function createCopilotController(
+  service = copilotService,
+  streamingSvc = copilotStreamingService,
+) {
   return {
     async create(req: Request, res: Response) {
       const parsed = createConversationSchema.safeParse({
@@ -120,6 +133,129 @@ export function createCopilotController(service = copilotService) {
         });
       } catch (error) {
         return fail(res, error);
+      }
+    },
+
+    async streamMessage(req: Request, res: Response) {
+      if (!req.user || !req.user.user_id) {
+        return ApiResponse.error(res, {
+          statusCode: 401,
+          code: "UNAUTHENTICATED",
+          message: "Authentication required",
+        });
+      }
+
+      const rawRequestId = req.get("X-Request-Id") || req.get("X-Request-UUID");
+      const parsed = sendMessageSchema.safeParse({
+        params: req.params,
+        headers: {
+          "idempotency-key": req.get("Idempotency-Key"),
+          ...(rawRequestId ? { "x-request-id": rawRequestId } : {}),
+        },
+        body: req.body,
+      });
+      if (!parsed.success) {
+        return ApiResponse.error(res, {
+          statusCode: 400,
+          code: "VALIDATION_ERROR",
+          message: "Invalid request",
+          error: parsed.error.issues,
+        });
+      }
+
+      const userPermissions = (req.user as any).permissions;
+      const userScopes = (req.user as any).scopes;
+      if (
+        Array.isArray(userPermissions) &&
+        !userPermissions.includes("copilot.ask")
+      ) {
+        return ApiResponse.error(res, {
+          statusCode: 403,
+          code: "COPILOT_PERMISSION_DENIED",
+          message: "Permission denied: copilot.ask required",
+        });
+      }
+      if (Array.isArray(userScopes) && !userScopes.includes("copilot.ask")) {
+        return ApiResponse.error(res, {
+          statusCode: 403,
+          code: "COPILOT_PERMISSION_DENIED",
+          message: "Permission denied: copilot.ask required",
+        });
+      }
+
+      const { id: conversationUuid } = parsed.data.params;
+      const idempotencyKey = parsed.data.headers["idempotency-key"];
+      const requestUuid = parsed.data.headers["x-request-id"];
+
+      // Pre-flight conversation check before opening SSE stream
+      try {
+        await streamingSvc.validateUserAndConversation(
+          req.user.user_id,
+          conversationUuid,
+          userPermissions,
+          userScopes,
+        );
+      } catch (err: any) {
+        return fail(res, err);
+      }
+
+      // Establish SSE Response Headers (HTTP 200 OK)
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache, no-transform");
+      res.setHeader("Connection", "keep-alive");
+      res.setHeader("X-Accel-Buffering", "no");
+      res.flushHeaders?.();
+
+      let aborted = false;
+      req.on("close", () => {
+        aborted = true;
+      });
+
+      const emitter: ChatStreamEmitter = {
+        emitStart: (data) =>
+          res.write(formatSseEvent(STREAM_EVENT_TYPES.RESPONSE_STARTED, data)),
+        emitChunk: (data) =>
+          res.write(formatSseEvent(STREAM_EVENT_TYPES.CONTENT_CHUNK, data)),
+        emitResult: (data) =>
+          res.write(formatSseEvent(STREAM_EVENT_TYPES.RESULT_AVAILABLE, data)),
+        emitDegraded: (data) =>
+          res.write(formatSseEvent(STREAM_EVENT_TYPES.DEGRADED_RESPONSE, data)),
+        emitComplete: (data) =>
+          res.write(
+            formatSseEvent(STREAM_EVENT_TYPES.RESPONSE_COMPLETED, data),
+          ),
+        emitError: (data) =>
+          res.write(formatSseEvent(STREAM_EVENT_TYPES.ERROR, data)),
+        isAborted: () => aborted,
+        abort: () => {
+          aborted = true;
+        },
+      };
+
+      try {
+        await streamingSvc.streamChatResponse({
+          userId: req.user.user_id,
+          userRoleId: (req.user as any).role_id || "user",
+          userPermissions,
+          userScopes,
+          conversationUuid,
+          idempotencyKey,
+          requestUuid,
+          message: parsed.data.body,
+          emitter,
+        });
+      } catch (error: any) {
+        if (!aborted) {
+          emitter.emitError({
+            code: (error as any).code || "COPILOT_SERVICE_ERROR",
+            message: (error as any).message || "Streaming failed",
+            status_code: (error as any).statusCode || 500,
+          });
+        }
+      } finally {
+        if (!res.writableEnded) {
+          res.end();
+        }
       }
     },
 

@@ -1,6 +1,9 @@
 import { AIProviderException } from "../types/ai-provider.types.js";
 import { logger } from "@/shared/utils/logger.js";
-import { defaultResilienceMetrics, AIResilienceMetrics } from "./resilience-metrics.js";
+import {
+  defaultResilienceMetrics,
+  AIResilienceMetrics,
+} from "./resilience-metrics.js";
 
 export type CircuitState = "CLOSED" | "OPEN" | "HALF_OPEN";
 
@@ -82,7 +85,8 @@ export class CircuitBreaker {
       config?.failureThreshold ?? config?.failureThresholdInWindow ?? 5;
     this.config = {
       failureThreshold: defaultThreshold,
-      failureThresholdInWindow: config?.failureThresholdInWindow ?? defaultThreshold,
+      failureThresholdInWindow:
+        config?.failureThresholdInWindow ?? defaultThreshold,
       windowMs: config?.windowMs ?? 60_000, // 60 seconds
       slidingWindowSize: config?.slidingWindowSize ?? 20,
       slidingWindowFailureRate: config?.slidingWindowFailureRate ?? 0.5, // 50%
@@ -167,7 +171,9 @@ export class CircuitBreaker {
       this.tripOpen("Probe failure in HALF_OPEN recovery state");
     } else if (this.state === "CLOSED") {
       // Check Blueprint Trigger 1: >= 5 failures in 60 seconds
-      if (this.failureTimestamps.length >= this.config.failureThresholdInWindow) {
+      if (
+        this.failureTimestamps.length >= this.config.failureThresholdInWindow
+      ) {
         this.tripOpen(
           `Triggered threshold: ${this.failureTimestamps.length} failures in ${this.config.windowMs}ms window`,
         );

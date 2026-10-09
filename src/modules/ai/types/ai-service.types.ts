@@ -109,14 +109,16 @@ export class AIServiceException extends Error {
     super(message);
     this.name = "AIServiceException";
     this.code = code;
-    this.statusCode = options.statusCode ?? (
-      code === "COPILOT_TOKEN_BUDGET_EXCEEDED" || code === "COPILOT_INVALID_RESPONSE"
+    this.statusCode =
+      options.statusCode ??
+      (code === "COPILOT_TOKEN_BUDGET_EXCEEDED" ||
+      code === "COPILOT_INVALID_RESPONSE"
         ? 422
-        : 503
-    );
-    this.isTransient = options.isTransient ?? (
-      code === "COPILOT_MODEL_TIMEOUT" || code === "COPILOT_MODEL_UNAVAILABLE"
-    );
+        : 503);
+    this.isTransient =
+      options.isTransient ??
+      (code === "COPILOT_MODEL_TIMEOUT" ||
+        code === "COPILOT_MODEL_UNAVAILABLE");
     this.correlationId = options.correlationId;
     this.details = options.details;
 

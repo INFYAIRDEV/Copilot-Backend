@@ -76,7 +76,10 @@ export interface PromptRenderContext {
   /** Normalized application-owned analytical context */
   context: NormalizedAnalyticalContext;
   /** Additional approved dynamic variables if required */
-  additionalVariables?: Record<string, string | number | boolean | string[] | undefined>;
+  additionalVariables?: Record<
+    string,
+    string | number | boolean | string[] | undefined
+  >;
 }
 
 /**

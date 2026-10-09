@@ -128,7 +128,10 @@ export const aiRequestSchema = z.object({
   context: normalizedContextSchema,
   operation: z.string().optional().default("CANDIDATE_PLAN"),
   promptKey: z.string().optional().default("CANDIDATE_ANALYTICAL_PLAN"),
-  promptVersion: z.string().regex(/^\d+\.\d+\.\d+$/, "promptVersion must be semver").optional(),
+  promptVersion: z
+    .string()
+    .regex(/^\d+\.\d+\.\d+$/, "promptVersion must be semver")
+    .optional(),
   locale: supportedLocaleSchema.optional(),
   tokenBudget: tokenBudgetSchema,
   correlationId: z.string().optional(),

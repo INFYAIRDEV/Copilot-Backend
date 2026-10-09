@@ -35,9 +35,9 @@ export class AIRequestValidationException extends Error {
     super(message);
     this.name = "AIRequestValidationException";
     this.code = code;
-    this.statusCode = options.statusCode ?? (
-      code === "COPILOT_TOKEN_BUDGET_EXCEEDED" ? 422 : 400
-    );
+    this.statusCode =
+      options.statusCode ??
+      (code === "COPILOT_TOKEN_BUDGET_EXCEEDED" ? 422 : 400);
     this.details = options.details || [message];
     this.correlationId = options.correlationId;
 

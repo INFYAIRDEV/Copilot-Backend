@@ -39,7 +39,9 @@ export class MockAIProviderAdapter extends BaseAIProviderAdapter {
       }
 
       if (this.simulateNonTransientError) {
-        throw new Error("400 Bad Request: Invalid prompt payload rejected by provider");
+        throw new Error(
+          "400 Bad Request: Invalid prompt payload rejected by provider",
+        );
       }
 
       // Simulate model latency

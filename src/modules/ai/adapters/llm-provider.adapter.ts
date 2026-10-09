@@ -5,7 +5,10 @@ import {
   ModelCandidatePlan,
   AIProviderException,
 } from "../types/ai-provider.types.js";
-import { LLMConfigManager, LLMProviderConfig } from "@/infrastructure/ai/llm-config.js";
+import {
+  LLMConfigManager,
+  LLMProviderConfig,
+} from "@/infrastructure/ai/llm-config.js";
 import { logger } from "@/shared/utils/logger.js";
 
 export class LLMProviderAdapter extends BaseAIProviderAdapter {
@@ -38,7 +41,10 @@ export class LLMProviderAdapter extends BaseAIProviderAdapter {
 
     // 2. Timeout Bounded Execution Setup
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.config.timeoutMs);
+    const timeoutId = setTimeout(
+      () => controller.abort(),
+      this.config.timeoutMs,
+    );
 
     try {
       // 3. Provider Request Construction
@@ -47,7 +53,9 @@ export class LLMProviderAdapter extends BaseAIProviderAdapter {
         contents: [
           {
             role: "user",
-            parts: [{ text: `${systemPrompt}\n\nUser Input: ${minimizedPrompt}` }],
+            parts: [
+              { text: `${systemPrompt}\n\nUser Input: ${minimizedPrompt}` },
+            ],
           },
         ],
         generationConfig: {
@@ -80,7 +88,8 @@ export class LLMProviderAdapter extends BaseAIProviderAdapter {
             },
           ],
           confidenceScore: 0.92,
-          reasoningSummary: "Candidate plan generated for regional sales analysis",
+          reasoningSummary:
+            "Candidate plan generated for regional sales analysis",
           suggestedVisualization: "BAR_CHART",
           isFallback: false,
         });
@@ -103,8 +112,7 @@ export class LLMProviderAdapter extends BaseAIProviderAdapter {
         }
 
         const data: any = await res.json();
-        responseText =
-          data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
       }
 
       clearTimeout(timeoutId);
@@ -130,7 +138,7 @@ export class LLMProviderAdapter extends BaseAIProviderAdapter {
           modelName: this.config.modelIdentifier,
           region: this.config.region,
           estimatedCostUsd: Number(
-            ((inputTokens * 0.000001) + (outputTokens * 0.000002)).toFixed(6),
+            (inputTokens * 0.000001 + outputTokens * 0.000002).toFixed(6),
           ),
           retryCount: 0,
         },
@@ -149,6 +157,50 @@ export class LLMProviderAdapter extends BaseAIProviderAdapter {
 
       throw this.normalizeError(error);
     }
+  }
+
+  public async generateCandidatePlanStream(
+    request: AIProviderRequest,
+    onChunk: (delta: string) => void,
+    signal?: AbortSignal,
+  ): Promise<AIProviderResponse> {
+    if (signal?.aborted) {
+      throw new AIProviderException(
+        "TIMEOUT",
+        "Stream request aborted by client",
+        this.metadata.providerName,
+      );
+    }
+
+    const response = await this.generateCandidatePlan(request);
+
+    if (signal?.aborted) {
+      throw new AIProviderException(
+        "TIMEOUT",
+        "Stream request aborted by client",
+        this.metadata.providerName,
+      );
+    }
+
+    const narrative =
+      response.narrative ||
+      response.candidatePlan.reasoningSummary ||
+      "Generated candidate analytical plan.";
+
+    const words = narrative.split(" ");
+    for (let i = 0; i < words.length; i++) {
+      if (signal?.aborted) {
+        throw new AIProviderException(
+          "TIMEOUT",
+          "Stream request aborted by client",
+          this.metadata.providerName,
+        );
+      }
+      const chunk = (i === 0 ? "" : " ") + words[i];
+      onChunk(chunk);
+    }
+
+    return response;
   }
 
   /**
@@ -211,7 +263,9 @@ JSON Schema format required:
       }
 
       if (!parsed.planId || !Array.isArray(parsed.candidateIntents)) {
-        throw new Error("Missing required candidate plan fields (planId or candidateIntents)");
+        throw new Error(
+          "Missing required candidate plan fields (planId or candidateIntents)",
+        );
       }
 
       return {
@@ -224,7 +278,10 @@ JSON Schema format required:
           filters: Array.isArray(intent.filters) ? intent.filters : undefined,
           limit: typeof intent.limit === "number" ? intent.limit : undefined,
         })),
-        confidenceScore: typeof parsed.confidenceScore === "number" ? parsed.confidenceScore : 0.8,
+        confidenceScore:
+          typeof parsed.confidenceScore === "number"
+            ? parsed.confidenceScore
+            : 0.8,
         reasoningSummary: parsed.reasoningSummary || "Generated candidate plan",
         suggestedVisualization: parsed.suggestedVisualization || "TABLE",
         isFallback: false,

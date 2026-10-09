@@ -26,4 +26,13 @@ export interface IAIService {
    * integrity, and returns an application-owned result.
    */
   generateCandidatePlan(request: AIServiceRequest): Promise<AIServiceResult>;
+
+  /**
+   * Optionally streams candidate response content incrementally via onChunk callback.
+   */
+  generateCandidatePlanStream?(
+    request: AIServiceRequest,
+    onChunk: (delta: string) => void,
+    signal?: AbortSignal,
+  ): Promise<AIServiceResult>;
 }

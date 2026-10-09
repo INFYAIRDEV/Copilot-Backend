@@ -1,4 +1,7 @@
-import { IAIProvider, AIProviderMetadata } from "../interfaces/ai-provider.interface.js";
+import {
+  IAIProvider,
+  AIProviderMetadata,
+} from "../interfaces/ai-provider.interface.js";
 import {
   AIProviderRequest,
   AIProviderResponse,
@@ -8,7 +11,10 @@ import {
 import { CircuitBreaker, CircuitBreakerConfig } from "./circuit-breaker.js";
 import { structuredFallbackProvider } from "../fallback/structured-fallback.js";
 import { AIErrorClassifier } from "./error-classifier.js";
-import { defaultResilienceMetrics, AIResilienceMetrics } from "./resilience-metrics.js";
+import {
+  defaultResilienceMetrics,
+  AIResilienceMetrics,
+} from "./resilience-metrics.js";
 import { logger } from "@/shared/utils/logger.js";
 
 export interface ResilientAIProviderOptions {
@@ -49,7 +55,9 @@ export class ResilientAIProvider implements IAIProvider {
       this.metrics,
     );
     this.fallbackProvider =
-      options?.fallbackProvider || fallbackProvider || structuredFallbackProvider;
+      options?.fallbackProvider ||
+      fallbackProvider ||
+      structuredFallbackProvider;
     this.retryBackoffMs = options?.retryBackoffMs ?? 50; // Bounded backoff
   }
 
@@ -94,7 +102,8 @@ export class ResilientAIProvider implements IAIProvider {
     // 3. Execute Primary Provider with Circuit Breaker and STRICT SINGLE RETRY policy
     let retryCount = 0;
     const startTime = Date.now();
-    const providerName = this.primaryProvider.getProviderMetadata().providerName;
+    const providerName =
+      this.primaryProvider.getProviderMetadata().providerName;
 
     try {
       const response = await this.circuitBreaker.execute(async () => {
@@ -113,12 +122,15 @@ export class ResilientAIProvider implements IAIProvider {
 
             // Bounded backoff
             if (this.retryBackoffMs > 0) {
-              await new Promise((resolve) => setTimeout(resolve, this.retryBackoffMs));
+              await new Promise((resolve) =>
+                setTimeout(resolve, this.retryBackoffMs),
+              );
             }
 
             try {
               // Attempt 2: The single permitted retry
-              const retryResponse = await this.primaryProvider.generateCandidatePlan(request);
+              const retryResponse =
+                await this.primaryProvider.generateCandidatePlan(request);
               this.metrics.recordRetry(true);
               return retryResponse;
             } catch (retryError: any) {
@@ -174,6 +186,138 @@ export class ResilientAIProvider implements IAIProvider {
     }
   }
 
+  public async generateCandidatePlanStream(
+    request: AIProviderRequest,
+    onChunk: (delta: string) => void,
+    signal?: AbortSignal,
+  ): Promise<AIProviderResponse> {
+    this.metrics.recordRequest();
+    this.enforceTokenBudget(request);
+
+    if (signal?.aborted) {
+      throw new AIProviderException(
+        "TIMEOUT",
+        "Stream request aborted by client",
+        this.primaryProvider.getProviderMetadata().providerName,
+      );
+    }
+
+    const circuitState = this.circuitBreaker.getState();
+    if (circuitState === "OPEN") {
+      logger.warn(
+        `[ResilientAIProvider:${this.primaryProvider.getProviderMetadata().providerName}] Circuit is OPEN. Executing fallback with streaming.`,
+      );
+      const fallbackRes = await this.executeFallback(
+        request,
+        "Circuit breaker is OPEN due to repeated provider failures",
+      );
+      if (fallbackRes.narrative) {
+        onChunk(fallbackRes.narrative);
+      }
+      return fallbackRes;
+    }
+
+    let retryCount = 0;
+    const startTime = Date.now();
+    const providerName =
+      this.primaryProvider.getProviderMetadata().providerName;
+
+    try {
+      const response = await this.circuitBreaker.execute(async () => {
+        try {
+          if (this.primaryProvider.generateCandidatePlanStream) {
+            return await this.primaryProvider.generateCandidatePlanStream(
+              request,
+              onChunk,
+              signal,
+            );
+          }
+          const res = await this.primaryProvider.generateCandidatePlan(request);
+          if (res.narrative) {
+            onChunk(res.narrative);
+          }
+          return res;
+        } catch (error: any) {
+          const classified = AIErrorClassifier.classify(error);
+          if (classified.isRetryable && retryCount < 1) {
+            retryCount++;
+            logger.warn(
+              `[ResilientAIProvider:${providerName}] Transient stream failure. Retrying (Attempt ${retryCount}/1)...`,
+            );
+            if (this.retryBackoffMs > 0) {
+              await new Promise((resolve) =>
+                setTimeout(resolve, this.retryBackoffMs),
+              );
+            }
+            try {
+              if (this.primaryProvider.generateCandidatePlanStream) {
+                const retryRes =
+                  await this.primaryProvider.generateCandidatePlanStream(
+                    request,
+                    onChunk,
+                    signal,
+                  );
+                this.metrics.recordRetry(true);
+                return retryRes;
+              }
+              const retryRes =
+                await this.primaryProvider.generateCandidatePlan(request);
+              if (retryRes.narrative) {
+                onChunk(retryRes.narrative);
+              }
+              this.metrics.recordRetry(true);
+              return retryRes;
+            } catch (retryError: any) {
+              this.metrics.recordRetry(false);
+              throw this.normalizeError(retryError, providerName);
+            }
+          }
+          throw this.normalizeError(error, providerName);
+        }
+      });
+
+      const latencyMs = Date.now() - startTime;
+      this.metrics.recordSuccess(latencyMs);
+
+      const updatedUsage: AIUsageTelemetry = {
+        ...response.usage,
+        retryCount,
+        latencyMs,
+      };
+
+      this.logTelemetry(updatedUsage);
+
+      return {
+        ...response,
+        usage: updatedUsage,
+      };
+    } catch (error: any) {
+      const latencyMs = Date.now() - startTime;
+      const normalizedError = this.normalizeError(error, providerName);
+      const isTransient = normalizedError.isTransient;
+
+      this.metrics.recordFailure(isTransient);
+
+      if (
+        normalizedError.category === "UNAVAILABLE" ||
+        normalizedError.category === "TIMEOUT" ||
+        normalizedError.category === "TRANSIENT_FAILURE" ||
+        normalizedError.category === "RATE_LIMITED"
+      ) {
+        const fallbackRes = await this.executeFallback(
+          request,
+          normalizedError.message,
+        );
+        if (fallbackRes.narrative) {
+          onChunk(fallbackRes.narrative);
+        }
+        return fallbackRes;
+      }
+
+      throw normalizedError;
+    }
+  }
+
   /**
    * Pre-validates token budget limits before outbound API call.
    */
@@ -202,7 +346,8 @@ export class ResilientAIProvider implements IAIProvider {
     reason: string,
   ): Promise<AIProviderResponse> {
     this.metrics.recordFallback();
-    const fallbackResponse = await this.fallbackProvider.generateCandidatePlan(request);
+    const fallbackResponse =
+      await this.fallbackProvider.generateCandidatePlan(request);
     return {
       ...fallbackResponse,
       fromFallback: true,
@@ -210,7 +355,10 @@ export class ResilientAIProvider implements IAIProvider {
     };
   }
 
-  private normalizeError(error: any, providerName: string): AIProviderException {
+  private normalizeError(
+    error: any,
+    providerName: string,
+  ): AIProviderException {
     if (error instanceof AIProviderException) {
       return error;
     }

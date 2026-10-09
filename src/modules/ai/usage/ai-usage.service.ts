@@ -5,7 +5,10 @@ import {
   AIUsageStatus,
   AIUsageQueryFilters,
 } from "./ai-usage.types.js";
-import { AIUsageCalculator, defaultUsageCalculator } from "./ai-usage.calculator.js";
+import {
+  AIUsageCalculator,
+  defaultUsageCalculator,
+} from "./ai-usage.calculator.js";
 import {
   IAIUsageRepository,
   defaultUsageRepository,
@@ -177,7 +180,9 @@ export class AIUsageService implements IAIUsageService {
   /**
    * Computes an operational usage and cost summary across filtered usage records.
    */
-  public async getUsageSummary(filters: AIUsageQueryFilters = {}): Promise<AIUsageSummary> {
+  public async getUsageSummary(
+    filters: AIUsageQueryFilters = {},
+  ): Promise<AIUsageSummary> {
     const records = await this.repository.findMany(filters);
     return this.calculator.calculateSummary(records);
   }
@@ -185,7 +190,9 @@ export class AIUsageService implements IAIUsageService {
   /**
    * Retrieves all usage records for a specific request UUID.
    */
-  public async getUsageByRequestUuid(requestUuid: string): Promise<AIUsageRecord[]> {
+  public async getUsageByRequestUuid(
+    requestUuid: string,
+  ): Promise<AIUsageRecord[]> {
     return this.repository.findByRequestUuid(requestUuid);
   }
 }

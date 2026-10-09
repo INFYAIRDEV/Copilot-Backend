@@ -1,4 +1,7 @@
-import { IAIProvider, AIProviderMetadata } from "../interfaces/ai-provider.interface.js";
+import {
+  IAIProvider,
+  AIProviderMetadata,
+} from "../interfaces/ai-provider.interface.js";
 import {
   AIProviderRequest,
   AIProviderResponse,
@@ -26,19 +29,42 @@ export abstract class BaseAIProviderAdapter implements IAIProvider {
     }
 
     const message = error?.message || "Unknown external AI provider error";
-    const fullErrorStr = `${message} ${error?.code || ""} ${error?.status || ""} ${error?.name || ""}`.toLowerCase();
+    const fullErrorStr =
+      `${message} ${error?.code || ""} ${error?.status || ""} ${error?.name || ""}`.toLowerCase();
 
     let category: AIErrorCategory = "TRANSIENT_FAILURE";
 
-    if (fullErrorStr.includes("timeout") || fullErrorStr.includes("etimedout") || fullErrorStr.includes("abort")) {
+    if (
+      fullErrorStr.includes("timeout") ||
+      fullErrorStr.includes("etimedout") ||
+      fullErrorStr.includes("abort")
+    ) {
       category = "TIMEOUT";
-    } else if (fullErrorStr.includes("429") || fullErrorStr.includes("rate") || fullErrorStr.includes("quota")) {
+    } else if (
+      fullErrorStr.includes("429") ||
+      fullErrorStr.includes("rate") ||
+      fullErrorStr.includes("quota")
+    ) {
       category = "RATE_LIMITED";
-    } else if (fullErrorStr.includes("503") || fullErrorStr.includes("502") || fullErrorStr.includes("unavailable")) {
+    } else if (
+      fullErrorStr.includes("503") ||
+      fullErrorStr.includes("502") ||
+      fullErrorStr.includes("unavailable")
+    ) {
       category = "UNAVAILABLE";
-    } else if (fullErrorStr.includes("401") || fullErrorStr.includes("403") || fullErrorStr.includes("auth") || fullErrorStr.includes("key")) {
+    } else if (
+      fullErrorStr.includes("401") ||
+      fullErrorStr.includes("403") ||
+      fullErrorStr.includes("auth") ||
+      fullErrorStr.includes("key")
+    ) {
       category = "CONFIG_ERROR";
-    } else if (fullErrorStr.includes("400") || fullErrorStr.includes("invalid") || fullErrorStr.includes("reject") || fullErrorStr.includes("bad request")) {
+    } else if (
+      fullErrorStr.includes("400") ||
+      fullErrorStr.includes("invalid") ||
+      fullErrorStr.includes("reject") ||
+      fullErrorStr.includes("bad request")
+    ) {
       category = "REJECTED";
     }
 

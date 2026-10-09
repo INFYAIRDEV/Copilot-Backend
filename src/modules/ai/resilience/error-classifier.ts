@@ -1,4 +1,7 @@
-import { AIProviderException, AIErrorCategory } from "../types/ai-provider.types.js";
+import {
+  AIProviderException,
+  AIErrorCategory,
+} from "../types/ai-provider.types.js";
 
 /**
  * Normalized application-level AI failure classifications.
@@ -133,7 +136,8 @@ export class AIErrorClassifier {
         classification: "TRANSIENT_PROVIDER_FAILURE",
         isRetryable: true,
         category: "TRANSIENT_FAILURE",
-        sanitizedMessage: "Transient network failure during AI provider invocation",
+        sanitizedMessage:
+          "Transient network failure during AI provider invocation",
         statusCode: 504,
       };
     }

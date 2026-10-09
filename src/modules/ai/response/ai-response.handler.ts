@@ -138,18 +138,23 @@ export class AIResponseHandler implements IAIResponseHandler {
     );
 
     // 4. Generate Cryptographic Plan and Output Hashes
-    const planHash = AIResponseNormalizer.hashObject(providerResponse.candidatePlan);
+    const planHash = AIResponseNormalizer.hashObject(
+      providerResponse.candidatePlan,
+    );
     const outputHash = AIResponseNormalizer.hashObject({
       candidatePlan: providerResponse.candidatePlan,
       narrative: providerResponse.narrative,
     });
 
     // 5. Generate Response Metadata
-    const metadata = AIResponseNormalizer.createResponseMetadata(correlationId, {
-      promptMetadata: context.promptMetadata,
-      planHash,
-      outputHash,
-    });
+    const metadata = AIResponseNormalizer.createResponseMetadata(
+      correlationId,
+      {
+        promptMetadata: context.promptMetadata,
+        planHash,
+        outputHash,
+      },
+    );
 
     // 6. Generate Telemetry Record for copilot.model_usage
     const telemetryRecord = AIResponseNormalizer.createTelemetryRecord(
@@ -241,7 +246,8 @@ export class AIResponseHandler implements IAIResponseHandler {
         narrative: "Standard analytical calculation results generated.",
         isValidated: false,
         isFallbackNarrative: true,
-        warningCode: validationResult.warningCode || "COPILOT_NARRATIVE_VALIDATION_FAILED",
+        warningCode:
+          validationResult.warningCode || "COPILOT_NARRATIVE_VALIDATION_FAILED",
       };
     }
 
@@ -311,7 +317,8 @@ export class AIResponseHandler implements IAIResponseHandler {
     }
 
     // Generic error
-    const msg = error instanceof Error ? error.message : "Internal AI response failure";
+    const msg =
+      error instanceof Error ? error.message : "Internal AI response failure";
     logger.error(
       `[AIResponseHandler] Unexpected response handling error [correlationId: ${correlationId}]: ${msg}`,
     );

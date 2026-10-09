@@ -1,4 +1,8 @@
-import { ModelPricingConfig, AIUsageRecord, AIUsageSummary } from "./ai-usage.types.js";
+import {
+  ModelPricingConfig,
+  AIUsageRecord,
+  AIUsageSummary,
+} from "./ai-usage.types.js";
 
 /**
  * Standard default model pricing configuration table (USD per 1,000,000 tokens).
@@ -68,14 +72,20 @@ export class AIUsageCalculator {
 
     // Load defaults
     for (const [key, config] of Object.entries(DEFAULT_MODEL_PRICING)) {
-      this.pricingTable.set(this.normalizeKey(config.provider, config.model), config);
+      this.pricingTable.set(
+        this.normalizeKey(config.provider, config.model),
+        config,
+      );
       this.pricingTable.set(config.model.toLowerCase(), config);
     }
 
     // Merge custom overrides
     if (customPricing) {
       for (const [key, config] of Object.entries(customPricing)) {
-        this.pricingTable.set(this.normalizeKey(config.provider, config.model), config);
+        this.pricingTable.set(
+          this.normalizeKey(config.provider, config.model),
+          config,
+        );
         this.pricingTable.set(config.model.toLowerCase(), config);
       }
     }
@@ -85,7 +95,10 @@ export class AIUsageCalculator {
    * Registers or updates pricing configuration for a specific provider and model.
    */
   public registerPricing(config: ModelPricingConfig): void {
-    this.pricingTable.set(this.normalizeKey(config.provider, config.model), config);
+    this.pricingTable.set(
+      this.normalizeKey(config.provider, config.model),
+      config,
+    );
     this.pricingTable.set(config.model.toLowerCase(), config);
   }
 
@@ -109,7 +122,8 @@ export class AIUsageCalculator {
     }
 
     const inputCost = (validInputs / 1_000_000) * pricing.inputCostPerMillion;
-    const outputCost = (validOutputs / 1_000_000) * pricing.outputCostPerMillion;
+    const outputCost =
+      (validOutputs / 1_000_000) * pricing.outputCostPerMillion;
     const totalCost = inputCost + outputCost;
 
     // Round to 6 decimal places to match db.Decimal(12, 6) precision
@@ -151,7 +165,8 @@ export class AIUsageCalculator {
     // Cost Per Successful Answer calculation
     const costPerSuccessfulAnswerUsd =
       successfulRequests > 0
-        ? Math.round((totalEstimatedCostUsd / successfulRequests) * 1_000_000) / 1_000_000
+        ? Math.round((totalEstimatedCostUsd / successfulRequests) * 1_000_000) /
+          1_000_000
         : 0;
 
     return {
@@ -162,13 +177,17 @@ export class AIUsageCalculator {
       totalInputTokens,
       totalOutputTokens,
       totalTokens,
-      totalEstimatedCostUsd: Math.round(totalEstimatedCostUsd * 1_000_000) / 1_000_000,
+      totalEstimatedCostUsd:
+        Math.round(totalEstimatedCostUsd * 1_000_000) / 1_000_000,
       averageLatencyMs,
       costPerSuccessfulAnswerUsd,
     };
   }
 
-  private getPricing(provider: string, model: string): ModelPricingConfig | undefined {
+  private getPricing(
+    provider: string,
+    model: string,
+  ): ModelPricingConfig | undefined {
     const key = this.normalizeKey(provider, model);
     if (this.pricingTable.has(key)) {
       return this.pricingTable.get(key);

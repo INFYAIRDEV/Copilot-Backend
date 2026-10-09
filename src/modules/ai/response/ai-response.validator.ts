@@ -84,7 +84,10 @@ export class AIResponseValidator {
       throw new AIResponseException(
         "COPILOT_RESPONSE_TOO_LARGE",
         `Response size (${serialized.length} bytes) exceeds limit of ${maxBytes} bytes`,
-        { correlationId, details: [`Payload size ${serialized.length} > ${maxBytes}`] },
+        {
+          correlationId,
+          details: [`Payload size ${serialized.length} > ${maxBytes}`],
+        },
       );
     }
 
@@ -106,7 +109,8 @@ export class AIResponseValidator {
 
     // 5. Complexity bounds on candidate plan
     const maxIntents =
-      options.maxCandidateIntents || DEFAULT_RESPONSE_LIMITS.maxCandidateIntents;
+      options.maxCandidateIntents ||
+      DEFAULT_RESPONSE_LIMITS.maxCandidateIntents;
     if (
       res.candidatePlan.candidateIntents &&
       res.candidatePlan.candidateIntents.length > maxIntents
@@ -135,14 +139,20 @@ export class AIResponseValidator {
     // 7. Validate Narrative if present
     if (res.narrative !== undefined) {
       const maxNarrative =
-        options.maxNarrativeLength || DEFAULT_RESPONSE_LIMITS.maxNarrativeLength;
+        options.maxNarrativeLength ||
+        DEFAULT_RESPONSE_LIMITS.maxNarrativeLength;
       if (typeof res.narrative !== "string") {
         errors.push("Response 'narrative' must be a string");
       } else if (res.narrative.length > maxNarrative) {
         throw new AIResponseException(
           "COPILOT_RESPONSE_TOO_LARGE",
           `Narrative length (${res.narrative.length}) exceeds maximum allowed (${maxNarrative})`,
-          { correlationId, details: [`Narrative length ${res.narrative.length} > ${maxNarrative}`] },
+          {
+            correlationId,
+            details: [
+              `Narrative length ${res.narrative.length} > ${maxNarrative}`,
+            ],
+          },
         );
       } else if (disallowSql && this.containsProhibitedSql(res.narrative)) {
         throw new AIResponseException(
@@ -161,17 +171,37 @@ export class AIResponseValidator {
       if (typeof res.usage !== "object") {
         errors.push("Response 'usage' must be an object");
       } else {
-        if (typeof res.usage.inputTokens !== "number" || res.usage.inputTokens < 0) {
-          errors.push("Response 'usage.inputTokens' must be a non-negative number");
+        if (
+          typeof res.usage.inputTokens !== "number" ||
+          res.usage.inputTokens < 0
+        ) {
+          errors.push(
+            "Response 'usage.inputTokens' must be a non-negative number",
+          );
         }
-        if (typeof res.usage.outputTokens !== "number" || res.usage.outputTokens < 0) {
-          errors.push("Response 'usage.outputTokens' must be a non-negative number");
+        if (
+          typeof res.usage.outputTokens !== "number" ||
+          res.usage.outputTokens < 0
+        ) {
+          errors.push(
+            "Response 'usage.outputTokens' must be a non-negative number",
+          );
         }
-        if (typeof res.usage.totalTokens !== "number" || res.usage.totalTokens < 0) {
-          errors.push("Response 'usage.totalTokens' must be a non-negative number");
+        if (
+          typeof res.usage.totalTokens !== "number" ||
+          res.usage.totalTokens < 0
+        ) {
+          errors.push(
+            "Response 'usage.totalTokens' must be a non-negative number",
+          );
         }
-        if (typeof res.usage.latencyMs !== "number" || res.usage.latencyMs < 0) {
-          errors.push("Response 'usage.latencyMs' must be a non-negative number");
+        if (
+          typeof res.usage.latencyMs !== "number" ||
+          res.usage.latencyMs < 0
+        ) {
+          errors.push(
+            "Response 'usage.latencyMs' must be a non-negative number",
+          );
         }
       }
     }
@@ -223,7 +253,10 @@ export class AIResponseValidator {
       throw new AIResponseException(
         "COPILOT_RESPONSE_TOO_LARGE",
         `Narrative length exceeds maximum allowed limit (${trimmed.length} > ${maxNarrative})`,
-        { correlationId, details: [`Length ${trimmed.length} > ${maxNarrative}`] },
+        {
+          correlationId,
+          details: [`Length ${trimmed.length} > ${maxNarrative}`],
+        },
       );
     }
 
@@ -241,7 +274,10 @@ export class AIResponseValidator {
     // If authoritative calculation data is provided, check for numeric fidelity
     let warningCode: string | undefined;
     if (authoritativeData) {
-      const numericCheck = this.verifyNumericFidelity(trimmed, authoritativeData);
+      const numericCheck = this.verifyNumericFidelity(
+        trimmed,
+        authoritativeData,
+      );
       if (!numericCheck.isValid) {
         warningCode = "COPILOT_NARRATIVE_VALIDATION_FAILED";
         errors.push(
@@ -263,7 +299,10 @@ export class AIResponseValidator {
   private static detectSqlInPlan(plan: ModelCandidatePlan): string[] {
     const violations: string[] = [];
 
-    if (plan.reasoningSummary && this.containsProhibitedSql(plan.reasoningSummary)) {
+    if (
+      plan.reasoningSummary &&
+      this.containsProhibitedSql(plan.reasoningSummary)
+    ) {
       violations.push("Prohibited SQL command found in reasoningSummary");
     }
 
@@ -272,12 +311,16 @@ export class AIResponseValidator {
       const prefix = `Intent[${i}]`;
 
       if (this.containsProhibitedSql(intent.primaryEntity)) {
-        violations.push(`${prefix}: primaryEntity contains SQL syntax ('${intent.primaryEntity}')`);
+        violations.push(
+          `${prefix}: primaryEntity contains SQL syntax ('${intent.primaryEntity}')`,
+        );
       }
 
       for (const dim of intent.dimensions) {
         if (this.containsProhibitedSql(dim)) {
-          violations.push(`${prefix}: dimension contains SQL syntax ('${dim}')`);
+          violations.push(
+            `${prefix}: dimension contains SQL syntax ('${dim}')`,
+          );
         }
       }
 
@@ -291,10 +334,17 @@ export class AIResponseValidator {
         for (let f = 0; f < intent.filters.length; f++) {
           const filter = intent.filters[f];
           if (this.containsProhibitedSql(filter.field)) {
-            violations.push(`${prefix}.filters[${f}]: field contains SQL syntax ('${filter.field}')`);
+            violations.push(
+              `${prefix}.filters[${f}]: field contains SQL syntax ('${filter.field}')`,
+            );
           }
-          if (typeof filter.value === "string" && this.containsProhibitedSql(filter.value)) {
-            violations.push(`${prefix}.filters[${f}]: filter value contains SQL syntax`);
+          if (
+            typeof filter.value === "string" &&
+            this.containsProhibitedSql(filter.value)
+          ) {
+            violations.push(
+              `${prefix}.filters[${f}]: filter value contains SQL syntax`,
+            );
           }
         }
       }

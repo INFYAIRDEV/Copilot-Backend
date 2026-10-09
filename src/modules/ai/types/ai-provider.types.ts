@@ -27,7 +27,8 @@ export interface ModelCandidatePlan {
   candidateIntents: CandidateQueryIntent[];
   confidenceScore: number;
   reasoningSummary?: string;
-  suggestedVisualization?: "TABLE" | "BAR_CHART" | "LINE_CHART" | "KPI_CARD" | "PIE_CHART";
+  suggestedVisualization?:
+    "TABLE" | "BAR_CHART" | "LINE_CHART" | "KPI_CARD" | "PIE_CHART";
   isFallback: boolean;
 }
 

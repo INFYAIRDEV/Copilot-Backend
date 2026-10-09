@@ -27,13 +27,18 @@ async function runLLMIntegrationTestSuite() {
   }
 
   // 1. Startup & Configuration Validation Test
-  console.log("\n--- Test Group 1: Configuration & Initialization Validation ---");
+  console.log(
+    "\n--- Test Group 1: Configuration & Initialization Validation ---",
+  );
   {
     LLMConfigManager.clearCache();
     const config = LLMConfigManager.getConfig();
     assert(config.timeoutMs > 0, "Externalized timeout configuration loaded");
     assert(config.maxInputTokens > 0, "Input token limit configuration loaded");
-    assert(config.maxOutputTokens > 0, "Output token limit configuration loaded");
+    assert(
+      config.maxOutputTokens > 0,
+      "Output token limit configuration loaded",
+    );
   }
 
   // 2. Data Minimization & Prompt Sanitization Test
@@ -41,11 +46,15 @@ async function runLLMIntegrationTestSuite() {
   {
     const adapter = new LLMProviderAdapter();
     const requestWithSecrets: AIProviderRequest = {
-      prompt: "Show sales data for user password='Secret123!' and bearer bearer_token_xyz",
+      prompt:
+        "Show sales data for user password='Secret123!' and bearer bearer_token_xyz",
     };
 
     const response = await adapter.generateCandidatePlan(requestWithSecrets);
-    assert(response.candidatePlan !== undefined, "Generates normalized candidate plan");
+    assert(
+      response.candidatePlan !== undefined,
+      "Generates normalized candidate plan",
+    );
     assert(
       !response.rawResponseText?.includes("Secret123!"),
       "Sensitive credentials redacted during data minimization",
@@ -60,8 +69,14 @@ async function runLLMIntegrationTestSuite() {
       prompt: "Show total sales by category",
     });
 
-    assert(response.candidatePlan.planId !== undefined, "Candidate plan contains planId");
-    assert(response.candidatePlan.candidateIntents.length > 0, "Contains candidate intents");
+    assert(
+      response.candidatePlan.planId !== undefined,
+      "Candidate plan contains planId",
+    );
+    assert(
+      response.candidatePlan.candidateIntents.length > 0,
+      "Contains candidate intents",
+    );
     assert(response.usage.inputTokens > 0, "Input tokens telemetry recorded");
     assert(response.usage.outputTokens > 0, "Output tokens telemetry recorded");
     assert(response.usage.latencyMs >= 0, "Latency telemetry recorded");
@@ -71,7 +86,9 @@ async function runLLMIntegrationTestSuite() {
   console.log("\n--- Test Group 4: Malformed LLM Output Normalization ---");
   {
     class MalformedLLMAdapter extends LLMProviderAdapter {
-      public async generateCandidatePlan(_request: AIProviderRequest): Promise<any> {
+      public async generateCandidatePlan(
+        _request: AIProviderRequest,
+      ): Promise<any> {
         // Return malformed non-JSON output
         throw (this as any).normalizeError(
           new Error("SyntaxError: Unexpected token in JSON at position 0"),
@@ -85,7 +102,11 @@ async function runLLMIntegrationTestSuite() {
       assert(false, "Should throw AIProviderException for malformed response");
     } catch (err: any) {
       assert(err instanceof AIProviderException, "Throws AIProviderException");
-      assert(err.category === "TRANSIENT_FAILURE" || err.category === "INVALID_RESPONSE", "Error classified properly");
+      assert(
+        err.category === "TRANSIENT_FAILURE" ||
+          err.category === "INVALID_RESPONSE",
+        "Error classified properly",
+      );
     }
   }
 
@@ -116,18 +137,27 @@ async function runLLMIntegrationTestSuite() {
   }
 
   // 6. Copilot Domain Service & Security Isolation Test
-  console.log("\n--- Test Group 6: Copilot Domain Service & Security Boundary ---");
+  console.log(
+    "\n--- Test Group 6: Copilot Domain Service & Security Boundary ---",
+  );
   {
     const resilientProvider = new ResilientAIProvider(new LLMProviderAdapter());
     const copilotService = new CopilotService(resilientProvider);
 
-    const { response, validation } = await copilotService.generateCandidateAnalyticalPlan(
-      "Analyze monthly revenue",
-      { userId: 55, roleId: "analyst" },
-    );
+    const { response, validation } =
+      await copilotService.generateCandidateAnalyticalPlan(
+        "Analyze monthly revenue",
+        { userId: 55, roleId: "analyst" },
+      );
 
-    assert(response.candidatePlan !== undefined, "Copilot service gets candidate plan via IAIProvider");
-    assert(validation.isValid === true, "Semantic & policy validation succeeds for analyst role");
+    assert(
+      response.candidatePlan !== undefined,
+      "Copilot service gets candidate plan via IAIProvider",
+    );
+    assert(
+      validation.isValid === true,
+      "Semantic & policy validation succeeds for analyst role",
+    );
 
     // Test unauthorized metric rejection by policy validation
     const mockPlanWithRestrictedMetric = {
@@ -142,20 +172,29 @@ async function runLLMIntegrationTestSuite() {
       ],
     };
 
-    const operatorValidation = (copilotService as any).performSemanticAndPolicyValidation(
-      mockPlanWithRestrictedMetric,
-      { userId: 99, roleId: "operator" },
-    );
+    const operatorValidation = (
+      copilotService as any
+    ).performSemanticAndPolicyValidation(mockPlanWithRestrictedMetric, {
+      userId: 99,
+      roleId: "operator",
+    });
 
-    assert(operatorValidation.isValid === false, "Policy validation rejects unauthorized metric for operator role");
     assert(
-      operatorValidation.validationErrors?.[0].includes("Unauthorized metric access") || false,
+      operatorValidation.isValid === false,
+      "Policy validation rejects unauthorized metric for operator role",
+    );
+    assert(
+      operatorValidation.validationErrors?.[0].includes(
+        "Unauthorized metric access",
+      ) || false,
       "Policy validation provides explicit security error message",
     );
   }
 
   console.log("\n==================================================");
-  console.log(` INTEGRATION RESULTS: ${passed}/${total} Tests Passed Successfully!`);
+  console.log(
+    ` INTEGRATION RESULTS: ${passed}/${total} Tests Passed Successfully!`,
+  );
   console.log("==================================================");
 }
 
