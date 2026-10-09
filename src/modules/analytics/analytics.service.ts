@@ -14,8 +14,8 @@ import {
   PipelineExecutionResult,
 } from "./analytics.types.js";
 import { LLMConfigManager } from "@/infrastructure/ai/llm-config.js";
-import { logger } from "@/shared/utils/logger.js";
-import { prisma } from "@/shared/utils/prismaClient.js";
+import { logger } from "../../shared/utils/logger.js";
+import { prisma } from "../../shared/utils/prismaClient.js";
 import { appendAudit } from "@/modules/copilot/conversation.repository.js";
 
 const t = (text: string): SummaryPart => ({ text });

@@ -30,7 +30,7 @@ import {
   IAIUsageService,
 } from "@/modules/ai/usage/index.js";
 import { CandidateContextUpdate } from "./context.types.js";
-import { logger } from "@/shared/utils/logger.js";
+import { logger } from "../../shared/utils/logger.js";
 
 export interface StreamChatRequest {
   userId: number;

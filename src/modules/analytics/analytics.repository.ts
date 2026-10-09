@@ -1,5 +1,5 @@
-import { prisma } from "@/shared/utils/prismaClient.js";
-import { logger } from "@/shared/utils/logger.js";
+import { prisma } from "../../shared/utils/prismaClient.js";
+import { logger } from "../../shared/utils/logger.js";
 import type {
   SalesTransactionFact,
   SupplierTransactionFact,

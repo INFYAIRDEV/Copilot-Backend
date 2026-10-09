@@ -12,7 +12,7 @@ import {
 import { AIResponseValidator } from "./ai-response.validator.js";
 import { AIResponseNormalizer } from "./ai-response.normalizer.js";
 import { AIResponseException } from "./ai-response.errors.js";
-import { logger } from "@/shared/utils/logger.js";
+import { logger } from "../../../shared/utils/logger.js";
 
 /**
  * Interface contract for AI Response Handling component.

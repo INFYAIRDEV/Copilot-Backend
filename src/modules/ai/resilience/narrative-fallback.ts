@@ -2,7 +2,7 @@ import {
   defaultResilienceMetrics,
   AIResilienceMetrics,
 } from "./resilience-metrics.js";
-import { logger } from "@/shared/utils/logger.js";
+import { logger } from "../../../shared/utils/logger.js";
 
 export interface DegradedNarrativeResult {
   narrative: string;

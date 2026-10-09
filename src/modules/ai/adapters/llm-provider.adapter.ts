@@ -11,7 +11,7 @@ import {
   LLMConfigManager,
   LLMProviderConfig,
 } from "@/infrastructure/ai/llm-config.js";
-import { logger } from "@/shared/utils/logger.js";
+import { logger } from "../../../shared/utils/logger.js";
 
 interface GeminiGenerateResponse {
   modelVersion?: string;

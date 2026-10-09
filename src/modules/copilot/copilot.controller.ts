@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { ApiResponse } from "@/shared/types/response.js";
+import { ApiResponse } from "../../shared/types/response.js";
 import { CopilotError, copilotService } from "./copilot.service.js";
 import {
   createConversationSchema,
@@ -11,7 +11,7 @@ import {
 import { z } from "zod";
 import { CopilotService } from "./copilot.service.js";
 import { AIProviderException, AIServiceException } from "@/modules/ai/index.js";
-import { logger } from "@/shared/utils/logger.js";
+import { logger } from "../../shared/utils/logger.js";
 
 import {
   CopilotStreamingService,

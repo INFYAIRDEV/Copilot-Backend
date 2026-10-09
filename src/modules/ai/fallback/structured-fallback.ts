@@ -7,7 +7,7 @@ import {
   AIProviderResponse,
   ModelCandidatePlan,
 } from "../types/ai-provider.types.js";
-import { logger } from "@/shared/utils/logger.js";
+import { logger } from "../../../shared/utils/logger.js";
 
 export class StructuredFallbackProvider implements IAIProvider {
   private readonly metadata: AIProviderMetadata = {

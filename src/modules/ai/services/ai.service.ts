@@ -33,7 +33,7 @@ import {
   HandledAIResponse,
 } from "../response/index.js";
 import { IAIUsageService, defaultUsageService } from "../usage/index.js";
-import { logger } from "@/shared/utils/logger.js";
+import { logger } from "../../../shared/utils/logger.js";
 import {
   OutputSchemaRegistry,
   OutputSchemaException,

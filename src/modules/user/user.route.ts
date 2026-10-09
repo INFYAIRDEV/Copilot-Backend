@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { asyncHandler } from "../../shared/middlewares/responseHandler.js";
 import { userController } from "./user.controller.js";
-import { authenticate } from "@/shared/middlewares/authenticate.js";
+import { authenticate } from "../../shared/middlewares/authenticate.js";
 
 const router = Router();
 

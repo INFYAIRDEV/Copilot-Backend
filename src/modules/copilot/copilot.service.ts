@@ -796,7 +796,7 @@ import {
   ResilientAIProvider,
   LLMProviderAdapter,
 } from "@/modules/ai/index.js";
-import { logger } from "@/shared/utils/logger.js";
+import { logger } from "../../shared/utils/logger.js";
 
 export interface SemanticValidationResult {
   isValid: boolean;

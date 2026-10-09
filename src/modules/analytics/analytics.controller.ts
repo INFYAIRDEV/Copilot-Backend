@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
 import { randomUUID } from "node:crypto";
-import { ApiResponse } from "@/shared/types/response.js";
-import { prisma } from "@/shared/utils/prismaClient.js";
-import { logger } from "@/shared/utils/logger.js";
+import { ApiResponse } from "../../shared/types/response.js";
+import { prisma } from "../../shared/utils/prismaClient.js";
+import { logger } from "../../shared/utils/logger.js";
 import { analyticsService, AnalyticsService } from "./analytics.service.js";
 import {
   analyticsRepository,

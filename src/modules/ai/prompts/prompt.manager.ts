@@ -7,7 +7,7 @@ import {
 import { PromptRegistry, defaultPromptRegistry } from "./prompt.registry.js";
 import { PromptValidator } from "./prompt.validator.js";
 import { PromptRenderer } from "./prompt.renderer.js";
-import { logger } from "@/shared/utils/logger.js";
+import { logger } from "../../../shared/utils/logger.js";
 
 /**
  * IPromptManager

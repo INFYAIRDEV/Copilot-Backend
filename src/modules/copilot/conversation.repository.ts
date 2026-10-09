@@ -5,7 +5,7 @@ import {
   message_kind,
   message_role,
 } from "@prisma/client";
-import { prisma } from "@/shared/utils/prismaClient.js";
+import { prisma } from "../../shared/utils/prismaClient.js";
 import { randomUUID } from "node:crypto";
 
 async function auditedTransaction<T>(

@@ -1,4 +1,4 @@
-import { prisma } from "@/shared/utils/prismaClient.js";
+import { prisma } from "../../shared/utils/prismaClient.js";
 
 async function main() {
   const views = [

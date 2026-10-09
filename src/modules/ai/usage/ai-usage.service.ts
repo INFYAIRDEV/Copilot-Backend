@@ -14,7 +14,7 @@ import {
   defaultUsageRepository,
 } from "./ai-usage.repository.js";
 import { AIUsageTelemetry } from "../types/ai-provider.types.js";
-import { logger } from "@/shared/utils/logger.js";
+import { logger } from "../../../shared/utils/logger.js";
 
 export interface TrackUsageInput {
   requestUuid: string;

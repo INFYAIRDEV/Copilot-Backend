@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
-import { prisma as defaultPrismaClient } from "@/shared/utils/prismaClient.js";
+import { prisma as defaultPrismaClient } from "../../../shared/utils/prismaClient.js";
 import { AIUsageRecord, AIUsageQueryFilters } from "./ai-usage.types.js";
-import { logger } from "@/shared/utils/logger.js";
+import { logger } from "../../../shared/utils/logger.js";
 
 export interface IAIUsageRepository {
   create(record: AIUsageRecord): Promise<AIUsageRecord>;

@@ -1,5 +1,5 @@
 import { AIProviderException } from "../types/ai-provider.types.js";
-import { logger } from "@/shared/utils/logger.js";
+import { logger } from "../../../shared/utils/logger.js";
 import {
   defaultResilienceMetrics,
   AIResilienceMetrics,

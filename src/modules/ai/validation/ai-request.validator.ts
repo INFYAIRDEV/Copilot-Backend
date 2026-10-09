@@ -13,7 +13,7 @@ import {
 } from "./ai-request.errors.js";
 import { aiRequestSchema, aiOperationSchema } from "./ai-request.schema.js";
 import { AIOperationType } from "../prompts/prompt.types.js";
-import { logger } from "@/shared/utils/logger.js";
+import { logger } from "../../../shared/utils/logger.js";
 
 /**
  * Secret and credential detection patterns.
