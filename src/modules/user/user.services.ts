@@ -1,9 +1,17 @@
 // Business rules for users.
 import { Prisma } from "@prisma/client";
-import { ConflictError } from "../../shared/errors/error.js";
+import {
+  ConflictError,
+  ForbiddenError,
+  UnauthorizedError,
+} from "../../shared/errors/error.js";
 import { hashPassword } from "../../shared/utils/password.js";
 import type { RegisterInput } from "./user.validation.js";
 import { userRepository } from "./user.repository.js";
+import { logger } from "../../shared/utils/logger.js";
+import { verifyPassword } from "../../shared/utils/password.js";
+import { generateAccessToken, verifyJwtToken } from "../../shared/utils/jwt.js";
+import type { LoginInput } from "./user.validation.js";
 
 export const userService = {
   async register(input: RegisterInput) {
@@ -42,5 +50,38 @@ export const userService = {
       }
       throw error;
     }
+  },
+  async login(input: LoginInput) {
+    const user = await userRepository.findForLogin(input.username);
+
+    // The check always runs, even for an unknown user, so the response time looks the same.
+    const passwordOk = await verifyPassword(
+      input.password,
+      user?.password_hash,
+    );
+
+    // Unknown user and wrong password give the same generic answer.
+    if (!user || !passwordOk) {
+      logger.warn("Login failed", { reason: "invalid_credentials" });
+      throw new UnauthorizedError("user.invalidCredentials");
+    }
+
+    // Correct password, but the account is switched off.
+    if (!user.is_active) {
+      logger.warn("Login refused", { reason: "inactive_user" });
+      throw new ForbiddenError("user.accountInactive");
+    }
+
+    // The token is created by the central JWT component (COP-12).
+    const accessToken = generateAccessToken(user.user_id);
+    // Read the expiry back from the new token so it always matches JWT_EXPIRES_IN.
+    const { expiresAt } = verifyJwtToken(accessToken);
+
+    return {
+      accessToken,
+      tokenType: "Bearer",
+      expiresAt,
+      userId: user.user_id,
+    };
   },
 };

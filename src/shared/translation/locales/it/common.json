@@ -31,6 +31,10 @@
     "invalidRequest": "Richiesta non valida",
     "alreadyExists": "Nome utente o email già registrati",
     "registered": "Registrazione completata",
-    "registrationFailed": "Registrazione non riuscita. Riprova più tardi."
+    "registrationFailed": "Registrazione non riuscita. Riprova più tardi.",
+    "invalidCredentials": "Nome utente o password non validi",
+    "accountInactive": "Questo account non è attivo. Contatta l'amministratore.",
+    "loggedIn": "Accesso effettuato",
+    "loginFailed": "Accesso non riuscita. Riprova più tardi."
   }
 }

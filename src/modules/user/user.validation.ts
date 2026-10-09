@@ -64,3 +64,25 @@ export const registerSchema = (z: typeof base) =>
     });
 
 export type RegisterInput = ZOD.infer<ReturnType<typeof registerSchema>>;
+
+// Login request. Unknown fields are rejected, so the client can never send its own
+// user id or role. Only the shape is checked here; the password rules are not
+// repeated on purpose (they apply to new passwords only).
+export const loginSchema = (z: typeof base) =>
+  z
+    .object({
+      username: z
+        .string({ message: "user.usernameRequired" })
+        .trim()
+        .toLowerCase()
+        .min(1, { message: "user.usernameRequired" })
+        .max(50, { message: "user.invalidRequest" }),
+      // The password is never trimmed, so spaces count as typed.
+      password: z
+        .string({ message: "user.passwordRequired" })
+        .min(1, { message: "user.passwordRequired" })
+        .max(128, { message: "user.invalidRequest" }),
+    })
+    .strict({ message: "user.invalidRequest" });
+
+export type LoginInput = ZOD.infer<ReturnType<typeof loginSchema>>;

@@ -31,6 +31,10 @@
     "invalidRequest": "Invalid request",
     "alreadyExists": "Username or email is already registered",
     "registered": "Registration successful",
-    "registrationFailed": "Registration failed. Please try again later."
+    "registrationFailed": "Registration failed. Please try again later.",
+    "invalidCredentials": "Invalid username or password",
+    "accountInactive": "This account is not active. Contact your administrator.",
+    "loggedIn": "Login successful",
+    "loginFailed": "Login failed. Please try again later."
   }
 }

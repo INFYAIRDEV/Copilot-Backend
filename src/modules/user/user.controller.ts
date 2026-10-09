@@ -3,7 +3,7 @@ import { Request, Response } from "express";
 import { ApiResponse } from "../../shared/types/response.js";
 import { APIResponse } from "../../shared/errors/error.js";
 import { logger } from "../../shared/utils/logger.js";
-import { registerSchema } from "./user.validation.js";
+import { registerSchema, loginSchema } from "./user.validation.js";
 import { userService } from "./user.services.js";
 import { z } from "zod";
 
@@ -40,6 +40,42 @@ export const userController = {
       });
       return ApiResponse.error(res, {
         messageKey: "user.registrationFailed",
+        statusCode: 500,
+      });
+    }
+  },
+  async login(req: Request, res: Response) {
+    // Plain zod, same as register. Messages are translation keys.
+    const parsed = loginSchema(z).safeParse(req.body ?? {});
+    if (!parsed.success) {
+      return ApiResponse.error(res, {
+        messageKey: parsed.error.issues[0].message,
+        statusCode: 400,
+      });
+    }
+
+    try {
+      const data = await userService.login(parsed.data);
+      return ApiResponse.success(res, {
+        messageKey: "user.loggedIn",
+        statusCode: 200,
+        data,
+      });
+    } catch (error) {
+      // Known errors (401 and 403) become controlled responses.
+      if (error instanceof APIResponse) {
+        return ApiResponse.error(res, {
+          messageKey: error.messageKey,
+          statusCode: error.statusCode,
+        });
+      }
+      // Log only the error type and code; never the body, password or token.
+      logger.error("User login failed", {
+        name: error instanceof Error ? error.name : "unknown",
+        code: (error as { code?: string })?.code,
+      });
+      return ApiResponse.error(res, {
+        messageKey: "user.loginFailed",
         statusCode: 500,
       });
     }

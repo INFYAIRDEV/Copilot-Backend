@@ -31,4 +31,11 @@ export const userRepository = {
       data: { ...data, role_id: RoleCode.USER },
       select: publicUserSelect,
     }),
+
+  // Finds the user for login. Selects only what login needs; none of it is sent to the client.
+  findForLogin: (username: string) =>
+    prisma.users.findUnique({
+      where: { username },
+      select: { user_id: true, password_hash: true, is_active: true },
+    }),
 };
