@@ -14,6 +14,9 @@ import { zodLocaleMiddleware } from "@/shared/middlewares/zodLocaleMiddleware.js
 import { setRequestContext } from "@/shared/utils/requestContext.js";
 import { asyncHandler } from "@/shared/middlewares/responseHandler.js";
 import { ApiResponse } from "@/shared/types/response.js";
+import { assertPasswordConfig } from "./src/shared/utils/password.js";
+import { assertJwtConfig } from "./src/shared/utils/jwt.js";
+import userRoutes from "./src/modules/user/user.route.js";
 
 dotenv.config();
 
@@ -56,6 +59,7 @@ app.get(
 app.use("/api/v1/copilot", copilotRoutes);
 app.use("/api/v1/analytics", analyticsRoutes);
 
+app.use("/api/v1/user", userRoutes);
 app.use((req: Request, res: Response) => {
   res.status(404).json({ status: "error", message: "Route not found" });
 });
@@ -63,6 +67,12 @@ app.use((req: Request, res: Response) => {
 app.use(errorHandler);
 
 const port = 8080;
+
+// Stop the app at startup if the hashing cost in .env is invalid.
+assertPasswordConfig();
+
+// Stop the app at startup if the JWT settings in .env are missing or invalid.
+assertJwtConfig();
 
 server.listen(port, "0.0.0.0", async () => {
   console.log(`Server is running on ${port}`);

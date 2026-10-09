@@ -7,6 +7,37 @@
     "fetched": "{{entity}} Fetched Successfully",
     "mapped": "{{entity}} Mapped Successfully",
     "found": "{{entity}} Found Successfully",
-    "notFound": "{{entity}} Not Found"
+    "notFound": "{{entity}} Not Found",
+    "serverIssue": "Something went wrong. Please try again later."
+  },
+  "user": {
+    "passwordRequired": "Password is required",
+    "passwordMin": "Password must be at least 8 characters",
+    "passwordMax": "Password is too long",
+    "passwordLowercase": "Password must contain a lowercase letter",
+    "passwordUppercase": "Password must contain an uppercase letter",
+    "passwordDigit": "Password must contain a number",
+    "unauthorized": "Authentication failed. Please log in again.",
+    "fullNameRequired": "Full name is required",
+    "fullNameMin": "Full name must be at least 2 characters",
+    "fullNameMax": "Full name is too long",
+    "usernameRequired": "Username is required",
+    "usernameMin": "Username must be at least 3 characters",
+    "usernameMax": "Username is too long",
+    "usernameFormat": "Username may contain only letters, numbers, dots, dashes and underscores",
+    "emailRequired": "Email is required",
+    "emailInvalid": "Enter a valid email address",
+    "confirmPasswordRequired": "Please confirm your password",
+    "confirmPasswordMismatch": "Passwords do not match",
+    "invalidRequest": "Invalid request",
+    "alreadyExists": "Username or email is already registered",
+    "registered": "Registration successful",
+    "registrationFailed": "Registration failed. Please try again later.",
+    "invalidCredentials": "Invalid username or password",
+    "accountInactive": "This account is not active. Contact your administrator.",
+    "loggedIn": "Login successful",
+    "loginFailed": "Login failed. Please try again later.",
+    "profileFetched": "Profile retrieved",
+    "profileFailed": "Could not retrieve the profile. Please try again later."
   }
 }

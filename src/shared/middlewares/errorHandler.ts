@@ -1,39 +1,43 @@
-// src/middlewares/error.middleware.ts
 import { Request, Response, NextFunction } from "express";
 import { ApiResponse } from "../types/response.js";
+import { APIResponse } from "../errors/error.js";
+import { logger } from "../utils/logger.js";
 
 export const errorHandler = (
-  err: any,
-  req: Request,
+  err: unknown,
+  _req: Request,
   res: Response,
   next: NextFunction,
 ) => {
-  console.error(err.stack);
+  if (res.headersSent) return next(err);
 
-  if (err.name === "ValidationError") {
-    return ApiResponse.badRequest(res, "Validation Error", err.errors);
-  }
+  const e = err as { name?: string; code?: string; type?: string };
+  // Log the type only. Never the message, stack or body.
+  logger.error("Unhandled request error", { name: e?.name, code: e?.code });
 
-  if (err.statusCode) {
+  // Known application errors (401, 403, 409, ...).
+  if (err instanceof APIResponse) {
     return ApiResponse.error(res, {
-      message: err.message,
-      error: err,
+      messageKey: err.messageKey,
+      messageParams: err.messageParams,
       statusCode: err.statusCode,
-
-      success: false,
     });
   }
 
-  // Default to 500 server error
+  // Malformed JSON from body-parser. Its error object carries the raw body.
+  if (e?.type === "entity.parse.failed") {
+    return ApiResponse.error(res, {
+      messageKey: "user.invalidRequest",
+      statusCode: 400,
+    });
+  }
+
   return ApiResponse.error(res, {
-    message: "Internal Server Error",
-    error: process.env.NODE_ENV === "development" ? err : undefined,
+    messageKey: "common.serverIssue",
     statusCode: 500,
-    success: false,
   });
 };
 
-// Async handler wrapper
 export const asyncHandler =
   (fn: Function) => (req: Request, res: Response, next: NextFunction) => {
     Promise.resolve(fn(req, res, next)).catch(next);
