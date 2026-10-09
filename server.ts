@@ -19,12 +19,6 @@ import userRoutes from "./src/modules/user/user.route.js";
 
 dotenv.config();
 
-// Stop the app at startup if the hashing cost in .env is invalid.
-assertPasswordConfig();
-
-// Stop the app at startup if the JWT settings in .env are missing or invalid.
-assertJwtConfig();
-
 const app: Application = express();
 const server = createServer(app);
 
@@ -71,6 +65,12 @@ app.use((req: Request, res: Response) => {
 app.use(errorHandler);
 
 const port = 8080;
+
+// Stop the app at startup if the hashing cost in .env is invalid.
+assertPasswordConfig();
+
+// Stop the app at startup if the JWT settings in .env are missing or invalid.
+assertJwtConfig();
 
 server.listen(port, "0.0.0.0", async () => {
   console.log(`Server is running on ${port}`);

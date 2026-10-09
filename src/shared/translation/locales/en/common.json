@@ -7,7 +7,8 @@
     "fetched": "{{entity}} Fetched Successfully",
     "mapped": "{{entity}} Mapped Successfully",
     "found": "{{entity}} Found Successfully",
-    "notFound": "{{entity}} Not Found"
+    "notFound": "{{entity}} Not Found",
+    "serverIssue": "Something went wrong. Please try again later."
   },
   "user": {
     "passwordRequired": "Password is required",

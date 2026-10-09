@@ -7,7 +7,8 @@
     "fetched": "{{entity}} Recuperato Successivamente",
     "mapped": "{{entity}} Mappato Successivamente",
     "found": "{{entity}} Trovato Successivamente",
-    "notFound": "{{entity}} Non Trovato"
+    "notFound": "{{entity}} Non Trovato",
+    "serverIssue": "Qualcosa è andato storto. Riprova più tardi."
   },
   "user": {
     "passwordRequired": "La password è obbligatoria",
