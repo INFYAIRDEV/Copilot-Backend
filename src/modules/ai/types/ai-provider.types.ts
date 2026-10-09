@@ -59,6 +59,40 @@ export interface AIProviderRequest {
   temperature?: number;
 }
 
+/** JSON Schema subset supported by the configured Gemini generateContent API. */
+export type AIJsonSchema = {
+  type?:
+    "object" | "array" | "string" | "number" | "integer" | "boolean" | "null";
+  title?: string;
+  description?: string;
+  properties?: Record<string, AIJsonSchema>;
+  required?: string[];
+  additionalProperties?: boolean;
+  items?: AIJsonSchema;
+  enum?: Array<string | number>;
+  minimum?: number;
+  maximum?: number;
+};
+
+export interface AIProviderStructuredRequest extends AIProviderRequest {
+  structuredOutput: {
+    name: string;
+    description: string;
+    schema: AIJsonSchema;
+  };
+}
+
+/** Raw generated JSON text and provider metadata; content remains untrusted. */
+export interface AIProviderStructuredResponse {
+  content: string;
+  providerName: string;
+  modelName?: string;
+  requestId?: string;
+  finishReason?: string;
+  refusal?: boolean;
+  usage?: Partial<AIUsageTelemetry>;
+}
+
 /**
  * Normalized telemetry collected for operational observability, cost tracking,
  * and persistence in model_usage.

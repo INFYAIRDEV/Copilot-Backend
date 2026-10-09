@@ -5,6 +5,7 @@ import {
   AIServiceResult,
   AIServiceException,
   AIServiceErrorCode,
+  NormalizedAnalyticalContext,
 } from "../types/ai-service.types.js";
 import {
   AIProviderRequest,
@@ -33,6 +34,17 @@ import {
 } from "../response/index.js";
 import { IAIUsageService, defaultUsageService } from "../usage/index.js";
 import { logger } from "@/shared/utils/logger.js";
+import {
+  OutputSchemaRegistry,
+  OutputSchemaException,
+} from "../structured/structured-output.registry.js";
+import { defaultOutputSchemaRegistry } from "../structured/output-schema.catalog.js";
+import { validateStructuredOutput } from "../structured/structured-output.validator.js";
+import {
+  OutputSchemaDefinition,
+  StructuredOutputResult,
+} from "../structured/structured-output.types.js";
+import { LLMConfigManager } from "@/infrastructure/ai/llm-config.js";
 
 /**
  * Secret / credential sanitization patterns for model input minimization.
@@ -76,7 +88,285 @@ export class AIService implements IAIService {
     private readonly requestValidator: IAIRequestValidator = defaultAIRequestValidator,
     private readonly responseHandler: IAIResponseHandler = defaultAIResponseHandler,
     private readonly usageService: IAIUsageService = defaultUsageService,
+    private readonly outputSchemaRegistry: OutputSchemaRegistry = defaultOutputSchemaRegistry,
   ) {}
+
+  /**
+   * Generates an explicitly requested, schema-constrained response and only
+   * returns application data after local Zod validation succeeds.
+   */
+  public async generateStructuredOutput<T>(request: {
+    prompt: string;
+    schema: OutputSchemaDefinition<T>;
+    context: NormalizedAnalyticalContext;
+    tokenBudget?: AIProviderRequest["tokenBudget"];
+    correlationId?: string;
+  }): Promise<StructuredOutputResult<T>> {
+    const correlationId =
+      request.correlationId ||
+      `ai-structured-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    try {
+      this.outputSchemaRegistry.assertRegistered(request.schema);
+    } catch (error) {
+      if (error instanceof OutputSchemaException) {
+        throw new AIServiceException(error.code, error.message, {
+          statusCode: error.code === "AI_OUTPUT_SCHEMA_NOT_FOUND" ? 400 : 500,
+          correlationId,
+          details: error.schemaId ? [`schemaId:${error.schemaId}`] : [],
+        });
+      }
+      throw error;
+    }
+
+    if (
+      !request.prompt.trim() ||
+      request.prompt.length > 20000 ||
+      !request.context ||
+      !Number.isSafeInteger(request.context.userId) ||
+      !request.context.roleId.trim()
+    ) {
+      throw new AIServiceException(
+        "COPILOT_INVALID_REQUEST",
+        "Invalid structured generation request",
+        { statusCode: 400, correlationId },
+      );
+    }
+    let managedPrompt: ManagedPrompt;
+    try {
+      managedPrompt = this.promptManager.buildPrompt(request.schema.promptKey, {
+        userQuery: request.prompt,
+        context: request.context,
+      });
+    } catch (error: unknown) {
+      if (error instanceof PromptException) {
+        throw new AIServiceException(
+          "COPILOT_PROMPT_ERROR",
+          "Approved structured prompt could not be constructed",
+          { statusCode: 500, correlationId },
+        );
+      }
+      throw error;
+    }
+    const providerContext = {
+      userId: request.context.userId,
+      roleId: request.context.roleId,
+      locale: request.context.locale || "en",
+      allowedEntities: request.context.allowedEntities
+        ? [...request.context.allowedEntities]
+        : undefined,
+    };
+    const tokenBudget = request.tokenBudget;
+    for (const value of [
+      tokenBudget?.maxInputTokens,
+      tokenBudget?.maxOutputTokens,
+      tokenBudget?.maxConversationTokens,
+    ]) {
+      if (value !== undefined && (!Number.isSafeInteger(value) || value <= 0)) {
+        throw new AIServiceException(
+          "COPILOT_INVALID_REQUEST",
+          "Invalid structured generation token budget",
+          { statusCode: 400, correlationId },
+        );
+      }
+    }
+    if (
+      tokenBudget?.maxOutputTokens !== undefined &&
+      tokenBudget.maxOutputTokens > LLMConfigManager.getConfig().maxOutputTokens
+    ) {
+      throw new AIServiceException(
+        "COPILOT_INVALID_REQUEST",
+        "Requested output token limit exceeds the configured provider limit",
+        { statusCode: 400, correlationId },
+      );
+    }
+    if (
+      tokenBudget?.maxInputTokens !== undefined &&
+      Math.ceil(managedPrompt.userPrompt.length / 4) >
+        tokenBudget.maxInputTokens
+    ) {
+      throw new AIServiceException(
+        "COPILOT_TOKEN_BUDGET_EXCEEDED",
+        "Structured prompt exceeds the requested input token limit",
+        { statusCode: 422, correlationId },
+      );
+    }
+    if (!this.provider.generateStructuredOutput) {
+      throw new AIServiceException(
+        "AI_STRUCTURED_OUTPUT_UNSUPPORTED",
+        "Configured AI provider does not support native structured output",
+        { statusCode: 501, correlationId },
+      );
+    }
+
+    const configuredAttempts = Number(
+      process.env.AI_STRUCTURED_OUTPUT_RECOVERY_ATTEMPTS ?? "1",
+    );
+    if (
+      !Number.isInteger(configuredAttempts) ||
+      configuredAttempts < 0 ||
+      configuredAttempts > 2
+    ) {
+      throw new AIServiceException(
+        "AI_OUTPUT_SCHEMA_INVALID",
+        "Invalid structured output recovery configuration",
+        { statusCode: 500, correlationId },
+      );
+    }
+
+    const startTime = Date.now();
+    let recoveryAttempts = 0;
+    const prompt = managedPrompt.userPrompt;
+    let systemInstruction = managedPrompt.systemInstruction;
+    let finalResponse:
+      | Awaited<
+          ReturnType<NonNullable<IAIProvider["generateStructuredOutput"]>>
+        >
+      | undefined;
+    let lastValidation:
+      ReturnType<typeof validateStructuredOutput<T>> | undefined;
+
+    for (let attempt = 0; attempt <= configuredAttempts; attempt++) {
+      try {
+        finalResponse = await this.provider.generateStructuredOutput({
+          prompt,
+          systemInstruction,
+          context: providerContext,
+          tokenBudget: request.tokenBudget,
+          structuredOutput: {
+            name: request.schema.name,
+            description: request.schema.description,
+            schema: request.schema.providerSchema,
+          },
+        });
+      } catch (error: unknown) {
+        if (
+          error instanceof AIProviderException &&
+          error.category === "REJECTED"
+        ) {
+          throw new AIServiceException(
+            "AI_STRUCTURED_OUTPUT_UNSUPPORTED",
+            "The configured model rejected the structured output schema",
+            { statusCode: 501, correlationId },
+          );
+        }
+        throw this.handleProviderFailure(
+          error,
+          correlationId,
+          Date.now() - startTime,
+        );
+      }
+
+      if (finalResponse.refusal) {
+        throw new AIServiceException(
+          "AI_OUTPUT_REFUSED",
+          "The AI provider refused this structured generation request",
+          { statusCode: 422, correlationId },
+        );
+      }
+      if (
+        ["MAX_TOKENS", "LENGTH"].includes(
+          (finalResponse.finishReason || "").toUpperCase(),
+        )
+      ) {
+        throw new AIServiceException(
+          "AI_OUTPUT_INCOMPLETE",
+          "The AI provider response was incomplete",
+          { statusCode: 422, correlationId },
+        );
+      }
+
+      lastValidation = validateStructuredOutput(
+        finalResponse.content,
+        request.schema.schema,
+      );
+      if (lastValidation.success) break;
+      if (attempt >= configuredAttempts) break;
+
+      recoveryAttempts++;
+      logger.warn(
+        `[AIService] Structured output validation failed [correlationId: ${correlationId}, schemaId: ${request.schema.id}, category: ${lastValidation.code}, attempt: ${recoveryAttempts}/${configuredAttempts}]`,
+      );
+      const feedback =
+        lastValidation.issues
+          .map((issue) => `${issue.path}:${issue.code}`)
+          .join(", ") || lastValidation.code;
+      systemInstruction = `${managedPrompt.systemInstruction}\n\nA previous response failed local validation. Correct the output and return only a new response matching the registered JSON schema. Validation feedback: ${feedback}.`;
+    }
+
+    if (!finalResponse || !lastValidation?.success) {
+      const failure = lastValidation;
+      const code =
+        failure && failure.success === false ? failure.code : "AI_OUTPUT_EMPTY";
+      const publicCode =
+        recoveryAttempts > 0 ? "AI_OUTPUT_RECOVERY_EXHAUSTED" : code;
+      const issues =
+        failure && failure.success === false
+          ? failure.issues.map((issue) => `${issue.path}:${issue.code}`)
+          : [];
+      logger.warn(
+        `[AIService] Structured output rejected [correlationId: ${correlationId}, schemaId: ${request.schema.id}, code: ${publicCode}, issues: ${issues.join(",")}]`,
+      );
+      throw new AIServiceException(
+        publicCode,
+        "AI provider output did not satisfy the required response format",
+        {
+          statusCode: 422,
+          correlationId,
+          details: [`schemaId:${request.schema.id}`, ...issues],
+        },
+      );
+    }
+
+    const durationMs = Date.now() - startTime;
+    const usage = finalResponse.usage;
+    if (usage?.inputTokens !== undefined && usage.outputTokens !== undefined) {
+      this.usageService
+        .trackUsage({
+          requestUuid: correlationId,
+          provider: finalResponse.providerName,
+          model:
+            finalResponse.modelName ||
+            this.provider.getProviderMetadata().defaultModel,
+          purpose: `STRUCTURED_OUTPUT:${request.schema.id}`,
+          promptVersion: managedPrompt.metadata.version,
+          inputTokens: usage.inputTokens,
+          outputTokens: usage.outputTokens,
+          latencyMs: durationMs,
+          retryCount: (usage.retryCount || 0) + recoveryAttempts,
+          status: "SUCCESS",
+        })
+        .catch(() =>
+          logger.warn(
+            `[AIService] Structured usage tracking failed [correlationId: ${correlationId}]`,
+          ),
+        );
+    }
+
+    logger.info(
+      `[AIService] Structured output validated [correlationId: ${correlationId}, schemaId: ${request.schema.id}, provider: ${finalResponse.providerName}, model: ${finalResponse.modelName || "unknown"}, recoveryAttempts: ${recoveryAttempts}, duration: ${durationMs}ms]`,
+    );
+    return {
+      success: true,
+      data: lastValidation.data,
+      metadata: {
+        schemaId: request.schema.id,
+        promptVersion: managedPrompt.metadata.version,
+        provider: finalResponse.providerName,
+        model: finalResponse.modelName,
+        requestId: finalResponse.requestId,
+        finishReason: finalResponse.finishReason,
+        validationStatus: "valid",
+        recoveryAttempts,
+        usage: usage
+          ? {
+              inputTokens: usage.inputTokens,
+              outputTokens: usage.outputTokens,
+              totalTokens: usage.totalTokens,
+            }
+          : undefined,
+      },
+    };
+  }
 
   /**
    * Generates a candidate typed analytical plan for normalized Copilot context.

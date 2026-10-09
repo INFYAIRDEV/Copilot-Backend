@@ -1,6 +1,8 @@
 import {
   AIProviderRequest,
   AIProviderResponse,
+  AIProviderStructuredRequest,
+  AIProviderStructuredResponse,
 } from "../types/ai-provider.types.js";
 
 export interface AIProviderMetadata {
@@ -23,6 +25,11 @@ export interface IAIProvider {
   generateCandidatePlan(
     request: AIProviderRequest,
   ): Promise<AIProviderResponse>;
+
+  /** Optional native schema-constrained generation capability. */
+  generateStructuredOutput?(
+    request: AIProviderStructuredRequest,
+  ): Promise<AIProviderStructuredResponse>;
 
   /**
    * Optionally streams candidate response content incrementally via onChunk callback.

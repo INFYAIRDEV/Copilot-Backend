@@ -7,6 +7,8 @@ import {
   AIProviderResponse,
   AIProviderException,
   AIUsageTelemetry,
+  AIProviderStructuredRequest,
+  AIProviderStructuredResponse,
 } from "../types/ai-provider.types.js";
 import { CircuitBreaker, CircuitBreakerConfig } from "./circuit-breaker.js";
 import { structuredFallbackProvider } from "../fallback/structured-fallback.js";
@@ -183,6 +185,72 @@ export class ResilientAIProvider implements IAIProvider {
 
       // Non-transient errors (e.g. TOKEN_BUDGET_EXCEEDED, REJECTED, CONFIG_ERROR) are re-thrown
       throw normalizedError;
+    }
+  }
+
+  /** Structured output uses bounded transport retries but never a synthetic fallback. */
+  public async generateStructuredOutput(
+    request: AIProviderStructuredRequest,
+  ): Promise<AIProviderStructuredResponse> {
+    const method = this.primaryProvider.generateStructuredOutput;
+    const providerName =
+      this.primaryProvider.getProviderMetadata().providerName;
+    if (!method) {
+      throw new AIProviderException(
+        "REJECTED",
+        "Provider does not support structured output",
+        providerName,
+      );
+    }
+    this.metrics.recordRequest();
+    if (this.circuitBreaker.getState() === "OPEN") {
+      throw new AIProviderException(
+        "UNAVAILABLE",
+        "AI provider circuit is open",
+        providerName,
+      );
+    }
+
+    let retryCount = 0;
+    const startedAt = Date.now();
+    try {
+      const response = await this.circuitBreaker.execute(async () => {
+        try {
+          return await method.call(this.primaryProvider, request);
+        } catch (error: unknown) {
+          const classified = AIErrorClassifier.classify(error);
+          if (!classified.isRetryable || retryCount >= 1) throw error;
+          retryCount++;
+          logger.warn(
+            `[ResilientAIProvider:${providerName}] Retrying transient structured output request (attempt ${retryCount}/1)`,
+          );
+          if (this.retryBackoffMs > 0)
+            await new Promise((resolve) =>
+              setTimeout(resolve, this.retryBackoffMs),
+            );
+          try {
+            const retried = await method.call(this.primaryProvider, request);
+            this.metrics.recordRetry(true);
+            return retried;
+          } catch (retryError: unknown) {
+            this.metrics.recordRetry(false);
+            throw retryError;
+          }
+        }
+      });
+      const latencyMs = Date.now() - startedAt;
+      this.metrics.recordSuccess(latencyMs);
+      const usage = response.usage
+        ? { ...response.usage, retryCount, latencyMs }
+        : undefined;
+      return { ...response, usage };
+    } catch (error: unknown) {
+      const normalized = this.normalizeError(error, providerName);
+      this.metrics.recordFailure(normalized.isTransient);
+      logger.error(
+        `[ResilientAIProvider:${providerName}] Structured output request failed [category: ${normalized.category}]`,
+      );
+      throw normalized;
     }
   }
 
