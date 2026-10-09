@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { verifyAccessToken } from "@/shared/utils/jwt.js";
+import { verifyAccessToken } from "../../shared/utils/jwt.js";
 import { copilotController } from "./copilot.controller.js";
 import { analyticsController } from "@/modules/analytics/analytics.controller.js";
 
