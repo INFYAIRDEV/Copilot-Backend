@@ -5,6 +5,9 @@ import { errorHandler } from "./src/shared/middlewares/errorHandler.js";
 import { requestLogger } from "./src/shared/middlewares/requestLogger.js";
 import { rateLimiter } from "./src/shared/middlewares/rateLimiter.js";
 import exampleRoutes from "./src/modules/example/example.route.js";
+import copilotRoutes from "./src/modules/copilot/copilot.route.js"; 
+import analyticsRoutes from "./src/modules/analytics/analytics.route.js"; 
+
 import { createServer } from "http";
 import { corsConfig } from "@/shared/utils/corsConfig.js";
 import { languageMiddleware } from "@/shared/middlewares/language.js";
@@ -12,7 +15,6 @@ import { zodLocaleMiddleware } from "@/shared/middlewares/zodLocaleMiddleware.js
 import { setRequestContext } from "@/shared/utils/requestContext.js";
 import { asyncHandler } from "@/shared/middlewares/responseHandler.js";
 import { ApiResponse } from "@/shared/types/response.js";
-import copilotRoutes from "./src/modules/copilot/copilot.route.js";
 
 dotenv.config();
 
@@ -54,6 +56,7 @@ app.get(
 
 app.use("/api/v1/example", exampleRoutes);
 app.use("/api/v1/copilot", copilotRoutes);
+app.use("/api/v1/analytics", analyticsRoutes);
 
 app.use((req: Request, res: Response) => {
   res.status(404).json({ status: "error", message: "Route not found" });
