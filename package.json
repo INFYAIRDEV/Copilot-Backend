@@ -5,10 +5,11 @@
   "type": "module",
   "main": "dist/server.js",
   "scripts": {
-    "build": "tsc",
+    "build": "prisma generate --schema=prisma/schema.prisma && tsc && npm run copy-locales",
     "start": "node dist/server.js",
     "dev": "tsx watch server.ts",
-    "prisma:generate": "prisma generate",
+    "copy-locales": "node -e \"const fs=require('fs'); fs.cpSync('src/shared/translation/locales','dist/src/shared/translation/locales',{recursive:true})\"",
+    "prisma:generate": "prisma generate --schema=prisma/schema.prisma",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "prettier:check": "prettier --check .",

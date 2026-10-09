@@ -2,8 +2,6 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { UnauthorizedError } from "../errors/error.js";
 
-
-
 // export const auth = async (req: Request, res: Response, next: NextFunction) => {
 //   try {
 //     const token = req.headers.authorization?.replace("Bearer ", "");

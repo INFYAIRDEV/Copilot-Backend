@@ -217,7 +217,8 @@ paths:
               type: object
               required: [question]
               properties:
-                question: { type: string, example: "Show top 5 customers by sales" }
+                question:
+                  { type: string, example: "Show top 5 customers by sales" }
                 locale: { type: string, enum: [en, it], default: en }
       responses:
         "200":
@@ -233,9 +234,18 @@ paths:
                       - $ref: "#/components/schemas/UIAnswer"
                       - type: object
                         properties:
-                          candidatePlan: { type: object, description: "ModelCandidatePlan v1.2 JSON" }
-                          executionEnvelope: { type: object, description: "Server-owned ExecutionEnvelope v1.2" }
-                          blueprintResponse: { type: object, description: "AnswerResponse v1.2" }
+                          candidatePlan:
+                            {
+                              type: object,
+                              description: "ModelCandidatePlan v1.2 JSON",
+                            }
+                          executionEnvelope:
+                            {
+                              type: object,
+                              description: "Server-owned ExecutionEnvelope v1.2",
+                            }
+                          blueprintResponse:
+                            { type: object, description: "AnswerResponse v1.2" }
   /copilot/answers:
     get:
       operationId: listCopilotAnswers
@@ -255,7 +265,11 @@ paths:
                 type: object
                 properties:
                   success: { type: boolean, example: true }
-                  data: { type: array, items: { $ref: "#/components/schemas/UIAnswer" } }
+                  data:
+                    {
+                      type: array,
+                      items: { $ref: "#/components/schemas/UIAnswer" },
+                    }
   /copilot/answers/{id}:
     parameters:
       - name: id
@@ -451,7 +465,8 @@ components:
           properties:
             title: { type: string }
             columns: { type: array, items: { type: string } }
-            rows: { type: array, items: { type: array, items: { type: string } } }
+            rows:
+              { type: array, items: { type: array, items: { type: string } } }
         meta:
           type: object
           properties:
@@ -486,7 +501,8 @@ components:
         reason: { type: string }
     StreamResponseCompletedData:
       type: object
-      required: [message_id, role, kind, text, conversation_uuid, created_at, usage]
+      required:
+        [message_id, role, kind, text, conversation_uuid, created_at, usage]
       properties:
         message_id: { type: integer }
         role: { type: string, enum: [ASSISTANT] }

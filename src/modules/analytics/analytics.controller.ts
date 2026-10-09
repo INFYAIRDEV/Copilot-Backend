@@ -1,7 +1,13 @@
 import { Request, Response } from "express";
+import { randomUUID } from "node:crypto";
 import { ApiResponse } from "@/shared/types/response.js";
+import { prisma } from "@/shared/utils/prismaClient.js";
+import { logger } from "@/shared/utils/logger.js";
 import { analyticsService, AnalyticsService } from "./analytics.service.js";
-import { analyticsRepository, AnalyticsRepository } from "./analytics.repository.js";
+import {
+  analyticsRepository,
+  AnalyticsRepository,
+} from "./analytics.repository.js";
 import { JourneyId, PipelineExecutionResult } from "./analytics.types.js";
 
 export class AnalyticsController {
@@ -13,14 +19,8 @@ export class AnalyticsController {
   /**
    * POST /api/v1/copilot/query
    *
-   * Executes the full governed architectural pipeline:
-   * 1. Receive User Question in Natural Language
-   * 2. AI (Gemini) Proposes ModelCandidatePlan JSON (or governed canonical candidate plan)
-   * 3. Validate Candidate Plan (closed schema, canonical IDs, clarification check)
-   * 4. Derive Authorization and Build Server-Owned ExecutionEnvelope
-   * 5. Bind Deterministic Read-Only Query Handler
-   * 6. Execute Query against Governed Analytics Views
-   * 7. Assemble Structured AnswerResponse + UI Answer
+   * Executes the full governed architectural pipeline and persists the turn
+   * to analytics.conversation and analytics.conversation_message tables in PostgreSQL.
    */
   queryPipeline = async (req: Request, res: Response) => {
     const question = req.body.question || req.body.prompt || req.body.text;
@@ -39,20 +39,131 @@ export class AnalyticsController {
         ? "it"
         : "en";
 
+    const incomingConversationId = req.body.conversationId;
+
     try {
       const result = await this.service.executePipeline({
         question,
         locale,
-        userId: (req as any).user?.user_id ? String((req as any).user.user_id) : "user-executive",
+        userId: (req as any).user?.user_id
+          ? String((req as any).user.user_id)
+          : "user-executive",
         roleId: (req as any).user?.role || "executive",
       });
 
-      if ("clarification" in result.candidatePlan && result.candidatePlan.clarification?.status === "REQUIRED") {
+      const isClarification =
+        "clarification" in result.candidatePlan &&
+        result.candidatePlan.clarification?.status === "REQUIRED";
+      const uiAnswer = isClarification
+        ? result.uiAnswer
+        : (result as PipelineExecutionResult).uiAnswer;
+
+      // Persist conversation and messages to live PostgreSQL tables
+      let activeConversationUuid = incomingConversationId;
+      try {
+        let user = await prisma.users.findFirst({ select: { user_id: true } });
+        if (!user) {
+          const defaultRole = await prisma.roles.findFirst({
+            select: { role_code: true },
+          });
+          user = await prisma.users.create({
+            data: {
+              username: "executive_user",
+              password_hash: "system_hash",
+              role_id: defaultRole?.role_code || "USER",
+            },
+            select: { user_id: true },
+          });
+        }
+
+        let conv: any = null;
+        const isValidUuid =
+          incomingConversationId &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+            incomingConversationId,
+          );
+        if (isValidUuid) {
+          conv = await prisma.conversation.findUnique({
+            where: { conversation_uuid: incomingConversationId },
+          });
+        }
+
+        if (!conv) {
+          activeConversationUuid =
+            isValidUuid && incomingConversationId
+              ? incomingConversationId
+              : randomUUID();
+          conv = await prisma.conversation.create({
+            data: {
+              conversation_uuid: activeConversationUuid,
+              owner_user_id: user.user_id,
+              locale: locale as any,
+              state: "ACTIVE",
+              updated_at: new Date(),
+            },
+          });
+        } else {
+          activeConversationUuid = conv.conversation_uuid;
+          await prisma.conversation.update({
+            where: { id: conv.id },
+            data: { updated_at: new Date() },
+          });
+        }
+
+        // 1. Record User Question
+        await prisma.conversation_message.create({
+          data: {
+            conversation_id: conv.id,
+            role: "USER",
+            kind: "QUESTION",
+            text: question,
+            locale: locale as any,
+            request_uuid: randomUUID(),
+          },
+        });
+
+        // 2. Record Assistant Answer with complete metadata
+        const completeAnswer = {
+          ...uiAnswer,
+          conversationId: activeConversationUuid,
+          syntheticLabel: this.repo.getDataSourceLabel(),
+        };
+
+        const assistantMsg = await prisma.conversation_message.create({
+          data: {
+            conversation_id: conv.id,
+            role: "ASSISTANT",
+            kind: isClarification ? "CLARIFICATION_REQUEST" : "QUESTION",
+            text: JSON.stringify(completeAnswer),
+            locale: locale as any,
+            request_uuid: randomUUID(),
+          },
+        });
+
+        // 3. Record Answer row
+        await prisma.answer.create({
+          data: {
+            answer_uuid: randomUUID(),
+            conversation_id: conv.id,
+            message_id: assistantMsg.id,
+            status: "SUCCESS",
+            request_uuid: randomUUID(),
+            query_fingerprint: question,
+          },
+        });
+      } catch (dbErr: any) {
+        logger.warn(
+          `[AnalyticsController] PostgreSQL conversation persistence note: ${dbErr.message}`,
+        );
+      }
+
+      if (isClarification) {
         return ApiResponse.success(res, {
           statusCode: 200,
           message: "Clarification required",
           data: {
             ...result.uiAnswer,
+            conversationId: activeConversationUuid,
             candidatePlan: result.candidatePlan,
             syntheticLabel: this.repo.getDataSourceLabel(),
           },
@@ -65,6 +176,7 @@ export class AnalyticsController {
         message: "Pipeline query executed successfully",
         data: {
           ...pipelineRes.uiAnswer,
+          conversationId: activeConversationUuid,
           candidatePlan: pipelineRes.candidatePlan,
           executionEnvelope: pipelineRes.executionEnvelope,
           blueprintResponse: pipelineRes.blueprintResponse,
@@ -81,6 +193,94 @@ export class AnalyticsController {
   };
 
   /**
+   * GET /api/v1/copilot/conversations/:id
+   *
+   * Retrieves an entire multi-turn conversation thread from the database.
+   */
+  getConversation = async (req: Request, res: Response) => {
+    const { id } = req.params;
+
+    const isValidUuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        id,
+      );
+    if (!isValidUuid) {
+      return ApiResponse.error(res, {
+        statusCode: 404,
+        code: "CONVERSATION_NOT_FOUND",
+        message: `Conversation ${id} was not found in database`,
+      });
+    }
+
+    try {
+      const conv = await prisma.conversation.findUnique({
+        where: { conversation_uuid: id },
+      });
+
+      if (!conv) {
+        return ApiResponse.error(res, {
+          statusCode: 404,
+          code: "CONVERSATION_NOT_FOUND",
+          message: `Conversation ${id} was not found in database`,
+        });
+      }
+
+      const rawMessages = await prisma.conversation_message.findMany({
+        where: { conversation_id: conv.id },
+        orderBy: { created_at: "asc" },
+      });
+
+      const messages = rawMessages.map((m: any) => {
+        let parsedAnswer = null;
+        if (m.role === "ASSISTANT" && m.text) {
+          try {
+            parsedAnswer = JSON.parse(m.text);
+            if (parsedAnswer && typeof parsedAnswer === "object") {
+              if (!parsedAnswer.syntheticLabel) {
+                parsedAnswer.syntheticLabel = this.repo.getDataSourceLabel();
+              }
+              if (!parsedAnswer.conversationId) {
+                parsedAnswer.conversationId = conv.conversation_uuid;
+              }
+            }
+          } catch {
+            parsedAnswer = null;
+          }
+        }
+        return {
+          id: String(m.id),
+          role: String(m.role).toLowerCase(),
+          text:
+            m.role === "USER"
+              ? m.text
+              : parsedAnswer?.summary?.map((s: any) => s.text).join("") ||
+                m.text,
+          answer: parsedAnswer,
+          createdAt:
+            m.created_at instanceof Date
+              ? m.created_at.toISOString()
+              : String(m.created_at),
+        };
+      });
+
+      return ApiResponse.success(res, {
+        statusCode: 200,
+        message: "Conversation retrieved from database",
+        data: {
+          conversationId: conv.conversation_uuid,
+          messages,
+        },
+      });
+    } catch (err: any) {
+      return ApiResponse.error(res, {
+        statusCode: 500,
+        code: "CONVERSATION_FETCH_ERROR",
+        message: err.message || "Failed to retrieve conversation from database",
+      });
+    }
+  };
+
+  /**
    * GET /api/v1/copilot/answers/:id
    *
    * Retrieves the structured answer for an approved Track A journey or question ID.
@@ -88,9 +288,11 @@ export class AnalyticsController {
    */
   getAnswerById = async (req: Request, res: Response) => {
     const rawId = req.params.id;
-    const locale = (req.query.locale as string) === "it" || req.headers["accept-language"]?.startsWith("it")
-      ? "it"
-      : "en";
+    const locale =
+      (req.query.locale as string) === "it" ||
+      req.headers["accept-language"]?.startsWith("it")
+        ? "it"
+        : "en";
 
     const journeyId = this.service.resolveJourney(rawId);
     if (!journeyId) {
@@ -130,9 +332,11 @@ export class AnalyticsController {
    * Lists all approved Track A journeys with current answers.
    */
   listAnswers = async (req: Request, res: Response) => {
-    const locale = (req.query.locale as string) === "it" || req.headers["accept-language"]?.startsWith("it")
-      ? "it"
-      : "en";
+    const locale =
+      (req.query.locale as string) === "it" ||
+      req.headers["accept-language"]?.startsWith("it")
+        ? "it"
+        : "en";
 
     const journeyIds: JourneyId[] = [
       "current-sales",
@@ -166,6 +370,34 @@ export class AnalyticsController {
   };
 
   /**
+   * GET /api/v1/copilot/history
+   *
+   * Retrieves query history items from the database catalog for the sidebar.
+   */
+  getHistory = async (req: Request, res: Response) => {
+    const locale =
+      (req.query.locale as string) === "it" ||
+      req.headers["accept-language"]?.startsWith("it")
+        ? "it"
+        : "en";
+
+    try {
+      const groups = await this.repo.getHistoryItems(locale);
+      return ApiResponse.success(res, {
+        statusCode: 200,
+        message: "Query history retrieved from database",
+        data: groups,
+      });
+    } catch (err: any) {
+      return ApiResponse.error(res, {
+        statusCode: 500,
+        code: "ANALYTICS_HISTORY_ERROR",
+        message: err.message || "Failed to retrieve history",
+      });
+    }
+  };
+
+  /**
    * GET /api/v1/copilot/answers/:id/records
    *
    * Returns supporting records for drill-down inspection with pagination.
@@ -185,7 +417,11 @@ export class AnalyticsController {
     }
 
     try {
-      const recordsData = await this.service.getSupportingRecords(journeyId, limit, offset);
+      const recordsData = await this.service.getSupportingRecords(
+        journeyId,
+        limit,
+        offset,
+      );
       return ApiResponse.success(res, {
         statusCode: 200,
         message: "Supporting records retrieved",
@@ -209,8 +445,12 @@ export class AnalyticsController {
     try {
       const checks = await this.repo.getGoldenValidation();
       const totalChecks = checks.length;
-      const passedChecks = checks.filter((c: any) => c.result === "PASS").length;
-      const failedChecks = checks.filter((c: any) => c.result === "FAIL").length;
+      const passedChecks = checks.filter(
+        (c: any) => c.result === "PASS",
+      ).length;
+      const failedChecks = checks.filter(
+        (c: any) => c.result === "FAIL",
+      ).length;
 
       return ApiResponse.success(res, {
         statusCode: 200,
@@ -219,7 +459,10 @@ export class AnalyticsController {
           totalChecks,
           passedChecks,
           failedChecks,
-          status: failedChecks === 0 ? "18/18 PASS" : `${passedChecks}/${totalChecks} PASS`,
+          status:
+            failedChecks === 0
+              ? "18/18 PASS"
+              : `${passedChecks}/${totalChecks} PASS`,
           checks,
         },
       });
@@ -249,7 +492,8 @@ export class AnalyticsController {
         unit: "EUR",
         asset_id: "analytics.v_sales_transaction_fact",
         allowed_dimensions: ["customer.customer"],
-        business_definition: "Posted invoice amounts less credit notes and discounts, net of VAT.",
+        business_definition:
+          "Posted invoice amounts less credit notes and discounts, net of VAT.",
       },
       "sales.delayed_order_count": {
         metric_id: "sales.delayed_order_count",
@@ -260,7 +504,8 @@ export class AnalyticsController {
         unit: "count",
         asset_id: "analytics.v_sales_order_delay_current",
         allowed_dimensions: ["customer.customer", "sales.sales_order"],
-        business_definition: "Distinct active sales orders containing at least one delayed open line.",
+        business_definition:
+          "Distinct active sales orders containing at least one delayed open line.",
       },
       "sales.delayed_order_line_count": {
         metric_id: "sales.delayed_order_line_count",
@@ -271,7 +516,8 @@ export class AnalyticsController {
         unit: "count",
         asset_id: "analytics.v_sales_order_delay_current",
         allowed_dimensions: ["customer.customer", "sales.sales_order_line"],
-        business_definition: "Distinct active sales order lines with open quantity past commitment date.",
+        business_definition:
+          "Distinct active sales order lines with open quantity past commitment date.",
       },
       "sales.delayed_backlog_net": {
         metric_id: "sales.delayed_backlog_net",
@@ -282,7 +528,8 @@ export class AnalyticsController {
         unit: "EUR",
         asset_id: "analytics.v_sales_order_delay_current",
         allowed_dimensions: ["customer.customer", "sales.sales_order"],
-        business_definition: "Remaining net amount (open quantity × unit price) of delayed active lines.",
+        business_definition:
+          "Remaining net amount (open quantity × unit price) of delayed active lines.",
       },
       "procurement.supplier_spend_net": {
         metric_id: "procurement.supplier_spend_net",
@@ -293,7 +540,8 @@ export class AnalyticsController {
         unit: "EUR",
         asset_id: "analytics.v_supplier_transaction_fact",
         allowed_dimensions: ["supplier.supplier"],
-        business_definition: "Posted supplier invoices less credit notes, net of VAT.",
+        business_definition:
+          "Posted supplier invoices less credit notes, net of VAT.",
       },
       "production.delayed_order_count": {
         metric_id: "production.delayed_order_count",
@@ -304,7 +552,8 @@ export class AnalyticsController {
         unit: "count",
         asset_id: "analytics.v_production_order_delay_current",
         allowed_dimensions: ["production.production_order"],
-        business_definition: "Active production orders past governing finish with remaining good quantity > 0.",
+        business_definition:
+          "Active production orders past governing finish with remaining good quantity > 0.",
       },
       "production.exposed_backlog_net": {
         metric_id: "production.exposed_backlog_net",
@@ -314,8 +563,12 @@ export class AnalyticsController {
         time_mode: "CURRENT_STATE",
         unit: "EUR",
         asset_id: "analytics.v_customer_delay_exposure_current",
-        allowed_dimensions: ["customer.customer", "production.production_order"],
-        business_definition: "Delayed sales backlog explicitly allocated to delayed production orders.",
+        allowed_dimensions: [
+          "customer.customer",
+          "production.production_order",
+        ],
+        business_definition:
+          "Delayed sales backlog explicitly allocated to delayed production orders.",
       },
       "production.sales_linkage_coverage_pct": {
         metric_id: "production.sales_linkage_coverage_pct",
@@ -326,7 +579,8 @@ export class AnalyticsController {
         unit: "percent",
         asset_id: "analytics.v_customer_delay_exposure_current",
         allowed_dimensions: [],
-        business_definition: "100 × explicitly allocated delayed backlog / total delayed backlog (91.0%).",
+        business_definition:
+          "100 × explicitly allocated delayed backlog / total delayed backlog (91.0%).",
       },
     };
 
