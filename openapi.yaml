@@ -198,6 +198,136 @@ paths:
         "403": { $ref: "#/components/responses/PermissionDenied" }
         "409": { $ref: "#/components/responses/Conflict" }
         "500": { $ref: "#/components/responses/ServerError" }
+  /copilot/query:
+    post:
+      operationId: executeCopilotQueryPipeline
+      summary: Natural language governed analytics query pipeline
+      description: |
+        Executes the full Track A architectural pipeline:
+        1. Interprets natural language question into closed ModelCandidatePlan v1.2 JSON (via Gemini)
+        2. Validates plan and checks for ambiguity/clarification
+        3. Constructs server-owned ExecutionEnvelope v1.2 with verified authorization
+        4. Binds to deterministic query handler and executes read-only SQL
+        5. Assembles structured AnswerResponse v1.2 and UI-compatible Answer format.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question]
+              properties:
+                question: { type: string, example: "Show top 5 customers by sales" }
+                locale: { type: string, enum: [en, it], default: en }
+      responses:
+        "200":
+          description: Pipeline executed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    allOf:
+                      - $ref: "#/components/schemas/UIAnswer"
+                      - type: object
+                        properties:
+                          candidatePlan: { type: object, description: "ModelCandidatePlan v1.2 JSON" }
+                          executionEnvelope: { type: object, description: "Server-owned ExecutionEnvelope v1.2" }
+                          blueprintResponse: { type: object, description: "AnswerResponse v1.2" }
+  /copilot/answers:
+    get:
+      operationId: listCopilotAnswers
+      summary: List all approved Track A demonstrator answers
+      description: Returns pre-compiled governed analytical answers for all six approved demonstrator journeys.
+      parameters:
+        - name: locale
+          in: query
+          required: false
+          schema: { type: string, enum: [en, it], default: en }
+      responses:
+        "200":
+          description: List of Track A demonstrator answers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data: { type: array, items: { $ref: "#/components/schemas/UIAnswer" } }
+  /copilot/answers/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Journey ID (e.g. top-customers, delayed-orders, supplier-spend, production-linkage, current-sales, sales-comparison)
+        schema: { type: string }
+    get:
+      operationId: getCopilotAnswerById
+      summary: Retrieve governed analytical answer for a Track A journey
+      description: Returns the structured result, KPI values, visualizations, evidence, and warnings. Compatible with both the UI contract and Blueprint AnswerResponse.
+      parameters:
+        - name: locale
+          in: query
+          required: false
+          schema: { type: string, enum: [en, it], default: en }
+      responses:
+        "200":
+          description: Governed analytical answer returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data: { $ref: "#/components/schemas/UIAnswer" }
+        "404":
+          description: Journey not found
+  /copilot/answers/{id}/records:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Journey ID
+        schema: { type: string }
+    get:
+      operationId: getCopilotAnswerRecords
+      summary: Retrieve supporting records for a journey with pagination
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, default: 50, maximum: 100 }
+        - name: offset
+          in: query
+          required: false
+          schema: { type: integer, default: 0 }
+      responses:
+        "200":
+          description: Paginated supporting records
+  /analytics/metrics/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Canonical metric identifier (e.g. sales.invoiced_net, procurement.supplier_spend_net)
+        schema: { type: string }
+    get:
+      operationId: getAnalyticsMetric
+      summary: Retrieve certified metric definition, versions, and lineage
+      responses:
+        "200":
+          description: Certified metric definition
+        "404":
+          description: Metric not certified
+  /analytics/golden-validation:
+    get:
+      operationId: getGoldenValidationStatus
+      summary: Retrieve deterministic 18/18 PASS regression test results
+      responses:
+        "200":
+          description: Golden validation status
 components:
   securitySchemes:
     bearerAuth:
@@ -286,6 +416,48 @@ components:
                 limit: { type: integer }
                 next_cursor: { type: [string, "null"] }
                 has_more: { type: boolean }
+    UIAnswer:
+      type: object
+      required: [id, question, summary]
+      properties:
+        id: { type: string }
+        question: { type: string }
+        summary:
+          type: array
+          items:
+            type: object
+            required: [text]
+            properties:
+              text: { type: string }
+              bold: { type: boolean }
+        chart:
+          type: object
+          properties:
+            title: { type: string }
+            subtitle: { type: string }
+            format: { type: string, enum: [currency, count, percent] }
+            yMax: { type: number }
+            yStep: { type: number }
+            points:
+              type: array
+              items:
+                type: object
+                required: [label, value]
+                properties:
+                  label: { type: string }
+                  value: { type: number }
+        table:
+          type: object
+          properties:
+            title: { type: string }
+            columns: { type: array, items: { type: string } }
+            rows: { type: array, items: { type: array, items: { type: string } } }
+        meta:
+          type: object
+          properties:
+            period: { type: string }
+            metric: { type: string }
+            howCalculated: { type: string }
     StreamResponseStartedData:
       type: object
       required: [conversation_uuid, request_uuid, created_at]

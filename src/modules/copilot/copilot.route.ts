@@ -1,8 +1,16 @@
 import { Router } from "express";
 import { verifyAccessToken } from "@/shared/utils/jwt.js";
 import { copilotController } from "./copilot.controller.js";
+import { analyticsController } from "@/modules/analytics/analytics.controller.js";
 
 const router = Router();
+
+// Track A Demonstrator Answer Endpoints (Accessible for UI and demo queries)
+router.get("/answers", analyticsController.listAnswers);
+router.get("/answers/:id", analyticsController.getAnswerById);
+router.get("/answers/:id/records", analyticsController.getSupportingRecords);
+router.post("/query", analyticsController.queryPipeline);
+
 router.use(verifyAccessToken);
 router.get("/conversations", copilotController.listConversations);
 router.post("/conversations", copilotController.create);
@@ -18,7 +26,6 @@ import { copilotAnalyticalController } from "./copilot.controller.js";
 
 router.post(
   "/analytical-plan",
-  verifyAccessToken,
   copilotAnalyticalController.generateAnalyticalPlan,
 );
 

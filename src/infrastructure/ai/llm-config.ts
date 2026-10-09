@@ -27,10 +27,13 @@ export class LLMConfigManager {
 
     const apiKey = process.env.AI_PROVIDER_API_KEY || process.env.GEMINI_API_KEY;
     const endpointUrl =
+      process.env.AI_PROVIDER_ENDPOINT_URL ||
       process.env.AI_PROVIDER_ENDPOINT ||
       "https://generativelanguage.googleapis.com/v1beta";
     const modelIdentifier =
-      process.env.AI_PROVIDER_MODEL || "gemini-1.5-flash";
+      process.env.AI_PROVIDER_MODEL_IDENTIFIER ||
+      process.env.AI_PROVIDER_MODEL ||
+      "gemini-3.8-flash";
     const timeoutMs = parseInt(process.env.AI_PROVIDER_TIMEOUT_MS || "8000", 10);
     const maxInputTokens = parseInt(process.env.AI_MAX_INPUT_TOKENS || "4096", 10);
     const maxOutputTokens = parseInt(process.env.AI_MAX_OUTPUT_TOKENS || "2048", 10);
