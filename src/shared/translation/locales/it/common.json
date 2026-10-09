@@ -8,5 +8,13 @@
     "mapped": "{{entity}} Mappato Successivamente",
     "found": "{{entity}} Trovato Successivamente",
     "notFound": "{{entity}} Non Trovato"
+  },
+  "user": {
+    "passwordRequired": "La password è obbligatoria",
+    "passwordMin": "La password deve contenere almeno 8 caratteri",
+    "passwordMax": "La password è troppo lunga",
+    "passwordLowercase": "La password deve contenere una lettera minuscola",
+    "passwordUppercase": "La password deve contenere una lettera maiuscola",
+    "passwordDigit": "La password deve contenere un numero"
   }
 }

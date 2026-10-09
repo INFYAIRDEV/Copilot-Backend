@@ -8,5 +8,13 @@
     "mapped": "{{entity}} Mapped Successfully",
     "found": "{{entity}} Found Successfully",
     "notFound": "{{entity}} Not Found"
+  },
+  "user": {
+    "passwordRequired": "Password is required",
+    "passwordMin": "Password must be at least 8 characters",
+    "passwordMax": "Password is too long",
+    "passwordLowercase": "Password must contain a lowercase letter",
+    "passwordUppercase": "Password must contain an uppercase letter",
+    "passwordDigit": "Password must contain a number"
   }
 }

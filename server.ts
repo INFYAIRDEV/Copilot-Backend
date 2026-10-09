@@ -1,4 +1,4 @@
-import express, { Application, Request, Response, } from "express";
+import express, { Application, Request, Response } from "express";
 import morgan from "morgan";
 import dotenv from "dotenv";
 import { errorHandler } from "./src/shared/middlewares/errorHandler.js";
@@ -12,8 +12,12 @@ import { zodLocaleMiddleware } from "@/shared/middlewares/zodLocaleMiddleware.js
 import { setRequestContext } from "@/shared/utils/requestContext.js";
 import { asyncHandler } from "@/shared/middlewares/responseHandler.js";
 import { ApiResponse } from "@/shared/types/response.js";
+import { assertPasswordConfig } from "./src/shared/utils/password.js";
 
 dotenv.config();
+
+// Stop the app at startup if the hashing cost in .env is invalid.
+assertPasswordConfig();
 
 const app: Application = express();
 const server = createServer(app);
@@ -32,7 +36,7 @@ app.use(languageMiddleware);
 app.use(zodLocaleMiddleware);
 
 app.use((req, res, next) => {
-  const lang = req.lang || 'en';
+  const lang = req.lang || "en";
   setRequestContext({ lang }, next);
 });
 
