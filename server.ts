@@ -5,6 +5,7 @@ import { errorHandler } from "./src/shared/middlewares/errorHandler.js";
 import { requestLogger } from "./src/shared/middlewares/requestLogger.js";
 import { rateLimiter } from "./src/shared/middlewares/rateLimiter.js";
 import exampleRoutes from "./src/modules/example/example.route.js";
+import copilotRoutes from "./src/modules/copilot/copilot.route.js";
 import analyticsRoutes from "./src/modules/analytics/analytics.route.js";
 
 import { createServer } from "http";

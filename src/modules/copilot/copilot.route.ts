@@ -10,6 +10,8 @@ router.get("/answers", analyticsController.listAnswers);
 router.get("/answers/:id", analyticsController.getAnswerById);
 router.get("/answers/:id/records", analyticsController.getSupportingRecords);
 router.post("/query", analyticsController.queryPipeline);
+router.get("/history", analyticsController.getHistory);
+router.get("/conversations/:id", analyticsController.getConversation);
 
 router.use(verifyAccessToken);
 router.get("/conversations", copilotController.listConversations);
