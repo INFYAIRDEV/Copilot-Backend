@@ -15,6 +15,7 @@
     "passwordMax": "Password is too long",
     "passwordLowercase": "Password must contain a lowercase letter",
     "passwordUppercase": "Password must contain an uppercase letter",
-    "passwordDigit": "Password must contain a number"
+    "passwordDigit": "Password must contain a number",
+    "unauthorized": "Authentication failed. Please log in again."
   }
 }

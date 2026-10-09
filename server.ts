@@ -14,11 +14,15 @@ import { asyncHandler } from "@/shared/middlewares/responseHandler.js";
 import { ApiResponse } from "@/shared/types/response.js";
 import copilotRoutes from "./src/modules/copilot/copilot.route.js";
 import { assertPasswordConfig } from "./src/shared/utils/password.js";
+import { assertJwtConfig } from "./src/shared/utils/jwt.js";
 
 dotenv.config();
 
 // Stop the app at startup if the hashing cost in .env is invalid.
 assertPasswordConfig();
+
+// Stop the app at startup if the JWT settings in .env are missing or invalid.
+assertJwtConfig();
 
 const app: Application = express();
 const server = createServer(app);

@@ -15,6 +15,7 @@
     "passwordMax": "La password è troppo lunga",
     "passwordLowercase": "La password deve contenere una lettera minuscola",
     "passwordUppercase": "La password deve contenere una lettera maiuscola",
-    "passwordDigit": "La password deve contenere un numero"
+    "passwordDigit": "La password deve contenere un numero",
+    "unauthorized": "Autenticazione non riuscita. Effettua di nuovo l'accesso."
   }
 }
