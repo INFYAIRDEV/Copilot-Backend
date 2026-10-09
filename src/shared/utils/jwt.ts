@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { ApiResponse } from "../types/response.js";
-import jwt from "jsonwebtoken";
 import { prisma } from "./prismaClient.js";
+import jwt from "jsonwebtoken";
 import { randomUUID } from "node:crypto";
 import { UnauthorizedError } from "../errors/error.js";
 import { logger } from "./logger.js";
@@ -156,7 +156,7 @@ export const verifyAccessToken = async (
     });
   }
 
-  const secret = process.env.ACCESS_TOKEN_SECRET;
+  const secret = process.env.JWT_SECRET || process.env.ACCESS_TOKEN_SECRET;
 
   if (!secret) {
     return ApiResponse.error(res, {
@@ -168,7 +168,7 @@ export const verifyAccessToken = async (
   interface JwtPayload {
     user_id: number;
     role_id: number;
-    session_id: string;
+    session_id?: string;
     iat?: number;
     exp?: number;
   }
@@ -269,12 +269,12 @@ export const restrictOperatorAccess = async (
 
 export const verifyWebSocketToken = async (
   token: string,
-): Promise<{ user_id: number; role_id: number }> => {
+): Promise<{ user_id: number; role_id: string }> => {
   if (!token) {
     throw new Error("user.noTokenProvided");
   }
 
-  const secret = process.env.ACCESS_TOKEN_SECRET;
+  const secret = process.env.JWT_SECRET || process.env.ACCESS_TOKEN_SECRET;
   if (!secret) {
     throw new Error("user.serverConfigurationError");
   }
@@ -282,10 +282,9 @@ export const verifyWebSocketToken = async (
   try {
     const decodedToken = jwt.verify(token, secret) as {
       user_id: number;
-      role_id: number;
+      role_id: string;
     };
 
-    // Verify user exists in database
     const user = await prisma.users.findUnique({
       where: { user_id: decodedToken.user_id },
       select: { user_id: true, role_id: true, is_active: true },
@@ -299,7 +298,7 @@ export const verifyWebSocketToken = async (
       throw new Error("user.userAccountInactive");
     }
 
-    return decodedToken;
+    return { user_id: user.user_id, role_id: user.role_id };
   } catch (err: any) {
     if (err.name === "TokenExpiredError") {
       throw new Error("user.tokenExpired");

@@ -30,6 +30,30 @@ paths:
         "400": { $ref: "#/components/responses/ValidationError" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "500": { $ref: "#/components/responses/ServerError" }
+    get:
+      operationId: listCopilotConversations
+      summary: Retrieve conversations owned by the authenticated user
+      security: [{ bearerAuth: [] }]
+      description: Retrieve a paginated list of conversations owned by the authenticated user, ordered by creation date descending. Excludes deleted conversations and internal analytical data. Cursors are signed, expire after 15 minutes, and are bound to the authenticated user.
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - name: cursor
+          in: query
+          required: false
+          description: Opaque signed cursor from previous page
+          schema: { type: string, maxLength: 2048 }
+      responses:
+        "200":
+          description: List of user-owned conversations and pagination metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConversationListResponse" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "500": { $ref: "#/components/responses/ServerError" }
   /copilot/conversations/{id}/messages:
     parameters:
       - name: id
@@ -41,12 +65,18 @@ paths:
       operationId: sendCopilotMessage
       summary: Persist a user message in an active owned conversation
       security: [{ bearerAuth: [] }]
-      description: The server fixes role to USER. A repeated key and identical canonical body returns the original message; using the same key with a different body returns 409. This endpoint does not perform LLM, SQL, or analytical processing.
+      description: Requires a valid access token with copilot.ask authorization. Persist a user or assistant message in an active owned conversation. Defaults role to USER, and supports ASSISTANT for assistant interactions. A repeated key and identical canonical body returns the original message; using the same key with a different body returns 409. This endpoint does not perform LLM, SQL, or analytical processing.
       parameters:
         - name: Idempotency-Key
           in: header
           required: true
+          description: Idempotency key ensuring at-most-once message creation
           schema: { type: string, minLength: 1, maxLength: 128 }
+        - name: X-Request-Id
+          in: header
+          required: false
+          description: Optional client/request UUID for distributed tracing and correlation
+          schema: { type: string, format: uuid }
       requestBody:
         required: true
         content:
@@ -56,7 +86,13 @@ paths:
               additionalProperties: false
               required: [kind, text]
               properties:
-                kind: { type: string, enum: [QUESTION, CLARIFICATION_REPLY] }
+                role: { type: string, enum: [USER, ASSISTANT], default: USER }
+                kind:
+                  {
+                    type: string,
+                    enum:
+                      [QUESTION, CLARIFICATION_REPLY, CLARIFICATION_REQUEST],
+                  }
                 text: { type: string, minLength: 1, maxLength: 20000 }
                 locale: { type: string, enum: [en, it] }
       responses:
@@ -95,6 +131,203 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/PermissionDenied" }
         "500": { $ref: "#/components/responses/ServerError" }
+  /copilot/conversations/{id}/messages/stream:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Server-generated conversation UUID returned by create
+        schema: { type: string, format: uuid }
+    post:
+      operationId: streamCopilotMessage
+      summary: Incrementally stream an AI chat response for an owned conversation
+      security: [{ bearerAuth: [] }]
+      description: >
+        Requires a valid access token with copilot.ask authorization. Validates conversation ownership and active state,
+        persists the user message idempotently, executes the AI analytical and narrative generation pipeline,
+        and streams approved response events incrementally using Server-Sent Events (SSE).
+        Emits events: response_started, content_chunk, result_available, degraded_response, response_completed, and error.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Idempotency key ensuring at-most-once message creation
+          schema: { type: string, minLength: 1, maxLength: 128 }
+        - name: X-Request-Id
+          in: header
+          required: false
+          description: Optional client/request UUID for distributed tracing and correlation
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [kind, text]
+              properties:
+                role: { type: string, enum: [USER], default: USER }
+                kind:
+                  {
+                    type: string,
+                    enum:
+                      [QUESTION, CLARIFICATION_REPLY, CLARIFICATION_REQUEST],
+                  }
+                text: { type: string, minLength: 1, maxLength: 20000 }
+                locale: { type: string, enum: [en, it] }
+      responses:
+        "200":
+          description: Server-Sent Events (SSE) incremental chat response stream
+          headers:
+            Content-Type:
+              schema: { type: string, example: "text/event-stream" }
+            Cache-Control:
+              schema: { type: string, example: "no-cache, no-transform" }
+            Connection:
+              schema: { type: string, example: "keep-alive" }
+            X-Accel-Buffering:
+              schema: { type: string, example: "no" }
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: Chunked SSE stream formatted as event and data JSON blocks
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/PermissionDenied" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/ServerError" }
+  /copilot/query:
+    post:
+      operationId: executeCopilotQueryPipeline
+      summary: Natural language governed analytics query pipeline
+      description: |
+        Executes the full Track A architectural pipeline:
+        1. Interprets natural language question into closed ModelCandidatePlan v1.2 JSON (via Gemini)
+        2. Validates plan and checks for ambiguity/clarification
+        3. Constructs server-owned ExecutionEnvelope v1.2 with verified authorization
+        4. Binds to deterministic query handler and executes read-only SQL
+        5. Assembles structured AnswerResponse v1.2 and UI-compatible Answer format.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question]
+              properties:
+                question: { type: string, example: "Show top 5 customers by sales" }
+                locale: { type: string, enum: [en, it], default: en }
+      responses:
+        "200":
+          description: Pipeline executed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    allOf:
+                      - $ref: "#/components/schemas/UIAnswer"
+                      - type: object
+                        properties:
+                          candidatePlan: { type: object, description: "ModelCandidatePlan v1.2 JSON" }
+                          executionEnvelope: { type: object, description: "Server-owned ExecutionEnvelope v1.2" }
+                          blueprintResponse: { type: object, description: "AnswerResponse v1.2" }
+  /copilot/answers:
+    get:
+      operationId: listCopilotAnswers
+      summary: List all approved Track A demonstrator answers
+      description: Returns pre-compiled governed analytical answers for all six approved demonstrator journeys.
+      parameters:
+        - name: locale
+          in: query
+          required: false
+          schema: { type: string, enum: [en, it], default: en }
+      responses:
+        "200":
+          description: List of Track A demonstrator answers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data: { type: array, items: { $ref: "#/components/schemas/UIAnswer" } }
+  /copilot/answers/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Journey ID (e.g. top-customers, delayed-orders, supplier-spend, production-linkage, current-sales, sales-comparison)
+        schema: { type: string }
+    get:
+      operationId: getCopilotAnswerById
+      summary: Retrieve governed analytical answer for a Track A journey
+      description: Returns the structured result, KPI values, visualizations, evidence, and warnings. Compatible with both the UI contract and Blueprint AnswerResponse.
+      parameters:
+        - name: locale
+          in: query
+          required: false
+          schema: { type: string, enum: [en, it], default: en }
+      responses:
+        "200":
+          description: Governed analytical answer returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data: { $ref: "#/components/schemas/UIAnswer" }
+        "404":
+          description: Journey not found
+  /copilot/answers/{id}/records:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Journey ID
+        schema: { type: string }
+    get:
+      operationId: getCopilotAnswerRecords
+      summary: Retrieve supporting records for a journey with pagination
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, default: 50, maximum: 100 }
+        - name: offset
+          in: query
+          required: false
+          schema: { type: integer, default: 0 }
+      responses:
+        "200":
+          description: Paginated supporting records
+  /analytics/metrics/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Canonical metric identifier (e.g. sales.invoiced_net, procurement.supplier_spend_net)
+        schema: { type: string }
+    get:
+      operationId: getAnalyticsMetric
+      summary: Retrieve certified metric definition, versions, and lineage
+      responses:
+        "200":
+          description: Certified metric definition
+        "404":
+          description: Metric not certified
+  /analytics/golden-validation:
+    get:
+      operationId: getGoldenValidationStatus
+      summary: Retrieve deterministic 18/18 PASS regression test results
+      responses:
+        "200":
+          description: Golden validation status
 components:
   securitySchemes:
     bearerAuth:
@@ -131,6 +364,7 @@ components:
         text: { type: [string, "null"] }
         redacted: { type: boolean }
         locale: { type: string, enum: [en, it] }
+        request_uuid: { type: string, format: uuid }
         created_at: { type: string, format: date-time }
     ConversationCreatedResponse:
       type: object
@@ -144,6 +378,25 @@ components:
         success: { type: boolean, const: true }
         message: { type: string }
         data: { $ref: "#/components/schemas/Message" }
+    ConversationListResponse:
+      type: object
+      properties:
+        success: { type: boolean, const: true }
+        message: { type: string }
+        data:
+          type: object
+          required: [conversations, page]
+          properties:
+            conversations:
+              type: array
+              items: { $ref: "#/components/schemas/Conversation" }
+            page:
+              type: object
+              required: [limit, next_cursor, has_more]
+              properties:
+                limit: { type: integer }
+                next_cursor: { type: [string, "null"] }
+                has_more: { type: boolean }
     HistoryResponse:
       type: object
       properties:
@@ -163,6 +416,99 @@ components:
                 limit: { type: integer }
                 next_cursor: { type: [string, "null"] }
                 has_more: { type: boolean }
+    UIAnswer:
+      type: object
+      required: [id, question, summary]
+      properties:
+        id: { type: string }
+        question: { type: string }
+        summary:
+          type: array
+          items:
+            type: object
+            required: [text]
+            properties:
+              text: { type: string }
+              bold: { type: boolean }
+        chart:
+          type: object
+          properties:
+            title: { type: string }
+            subtitle: { type: string }
+            format: { type: string, enum: [currency, count, percent] }
+            yMax: { type: number }
+            yStep: { type: number }
+            points:
+              type: array
+              items:
+                type: object
+                required: [label, value]
+                properties:
+                  label: { type: string }
+                  value: { type: number }
+        table:
+          type: object
+          properties:
+            title: { type: string }
+            columns: { type: array, items: { type: string } }
+            rows: { type: array, items: { type: array, items: { type: string } } }
+        meta:
+          type: object
+          properties:
+            period: { type: string }
+            metric: { type: string }
+            howCalculated: { type: string }
+    StreamResponseStartedData:
+      type: object
+      required: [conversation_uuid, request_uuid, created_at]
+      properties:
+        conversation_uuid: { type: string, format: uuid }
+        request_uuid: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+    StreamContentChunkData:
+      type: object
+      required: [delta, index]
+      properties:
+        delta: { type: string }
+        index: { type: integer, minimum: 0 }
+    StreamResultAvailableData:
+      type: object
+      required: [plan_id, confidence_score]
+      properties:
+        plan_id: { type: string }
+        confidence_score: { type: number }
+        suggested_visualization: { type: string }
+        primary_entity: { type: string }
+    StreamDegradedResponseData:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string }
+    StreamResponseCompletedData:
+      type: object
+      required: [message_id, role, kind, text, conversation_uuid, created_at, usage]
+      properties:
+        message_id: { type: integer }
+        role: { type: string, enum: [ASSISTANT] }
+        kind: { type: string }
+        text: { type: string }
+        conversation_uuid: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        usage:
+          type: object
+          required: [input_tokens, output_tokens, total_tokens, latency_ms]
+          properties:
+            input_tokens: { type: integer }
+            output_tokens: { type: integer }
+            total_tokens: { type: integer }
+            latency_ms: { type: integer }
+    StreamErrorData:
+      type: object
+      required: [code, message, status_code]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        status_code: { type: integer }
   responses:
     ValidationError:
       description: Invalid body, path, header, query, or cursor
