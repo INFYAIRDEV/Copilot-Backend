@@ -19,14 +19,14 @@ export const userValidation = (z: typeof base) =>
       .max(100, { message: "user.usernameMax" }),
 
     email: z
-      .string({ message: 'user.emailRequired' })
-      .nonempty({ message: 'user.emailRequired' })
-      .email({ message: 'user.emailInvalid' }),
+      .string({ message: "user.emailRequired" })
+      .nonempty({ message: "user.emailRequired" })
+      .email({ message: "user.emailInvalid" }),
 
     mobile: z
-      .string({ message: 'user.mobileRequired' })
-      .nonempty({ message: 'user.mobileRequired' })
-      .min(10, { message: 'user.mobileMin' })
-      .max(10, { message: 'user.mobileMax' })
-      .regex(/^[0-9]+$/, { message: 'user.mobileDigitsOnly' }),
+      .string({ message: "user.mobileRequired" })
+      .nonempty({ message: "user.mobileRequired" })
+      .min(10, { message: "user.mobileMin" })
+      .max(10, { message: "user.mobileMax" })
+      .regex(/^[0-9]+$/, { message: "user.mobileDigitsOnly" }),
   });

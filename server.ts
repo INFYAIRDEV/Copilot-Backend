@@ -12,6 +12,7 @@ import { zodLocaleMiddleware } from "@/shared/middlewares/zodLocaleMiddleware.js
 import { setRequestContext } from "@/shared/utils/requestContext.js";
 import { asyncHandler } from "@/shared/middlewares/responseHandler.js";
 import { ApiResponse } from "@/shared/types/response.js";
+import copilotRoutes from "./src/modules/copilot/copilot.route.js";
 import { assertPasswordConfig } from "./src/shared/utils/password.js";
 
 dotenv.config();
@@ -56,6 +57,7 @@ app.get(
 );
 
 app.use("/api/v1/example", exampleRoutes);
+app.use("/api/v1/copilot", copilotRoutes);
 
 app.use((req: Request, res: Response) => {
   res.status(404).json({ status: "error", message: "Route not found" });
