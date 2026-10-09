@@ -49,6 +49,7 @@ export const userRepository = {
         username: true,
         full_name: true,
         email: true,
+        role_id: true,
         is_active: true,
       },
     }),

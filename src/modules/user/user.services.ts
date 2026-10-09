@@ -95,6 +95,7 @@ export const userService = {
       username: user.username,
       fullName: user.full_name,
       email: user.email,
+      roleId: user.role_id,
     };
   },
 };
