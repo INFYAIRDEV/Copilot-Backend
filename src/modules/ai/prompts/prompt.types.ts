@@ -7,7 +7,8 @@ export type AIOperationType =
   | "CANDIDATE_PLAN"
   | "ANALYTICAL_INTENT"
   | "CLARIFICATION"
-  | "NARRATIVE_INTERPRETATION";
+  | "NARRATIVE_INTERPRETATION"
+  | "STRUCTURED_OUTPUT";
 
 /**
  * Versioned prompt definition maintained in the centralized prompt catalog.

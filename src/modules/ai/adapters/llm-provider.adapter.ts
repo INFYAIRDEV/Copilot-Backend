@@ -4,12 +4,28 @@ import {
   AIProviderResponse,
   ModelCandidatePlan,
   AIProviderException,
+  AIProviderStructuredRequest,
+  AIProviderStructuredResponse,
 } from "../types/ai-provider.types.js";
 import {
   LLMConfigManager,
   LLMProviderConfig,
 } from "@/infrastructure/ai/llm-config.js";
 import { logger } from "@/shared/utils/logger.js";
+
+interface GeminiGenerateResponse {
+  modelVersion?: string;
+  candidates?: Array<{
+    finishReason?: string;
+    content?: { parts?: Array<{ text?: string }> };
+  }>;
+  promptFeedback?: { blockReason?: string };
+  usageMetadata?: {
+    promptTokenCount?: number;
+    candidatesTokenCount?: number;
+    totalTokenCount?: number;
+  };
+}
 
 export class LLMProviderAdapter extends BaseAIProviderAdapter {
   private readonly config: LLMProviderConfig;
@@ -156,6 +172,120 @@ export class LLMProviderAdapter extends BaseAIProviderAdapter {
       }
 
       throw this.normalizeError(error);
+    }
+  }
+
+  /** Calls the existing Gemini-compatible provider with native JSON Schema output. */
+  public async generateStructuredOutput(
+    request: AIProviderStructuredRequest,
+  ): Promise<AIProviderStructuredResponse> {
+    if (
+      !this.config.apiKey ||
+      this.config.apiKey === "mock-dev-key" ||
+      this.config.environment === "test"
+    ) {
+      throw new AIProviderException(
+        "CONFIG_ERROR",
+        "A real AI provider credential is required for structured generation",
+        this.metadata.providerName,
+      );
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(
+      () => controller.abort(),
+      this.config.timeoutMs,
+    );
+    const startedAt = Date.now();
+    const safePrompt = this.sanitizeAndMinimizeInput(request.prompt);
+    const context = request.context;
+    const contextText = context
+      ? `\n<application_context>\nlocale: ${context.locale || "en"}\nrole: ${context.roleId || ""}\n</application_context>`
+      : "";
+    const promptText = `${contextText}\n\n<untrusted_user_input>\n${safePrompt}\n</untrusted_user_input>`;
+    const systemInstruction = `${request.systemInstruction?.trim() || ""}\n\n${request.structuredOutput.description}\nReturn only data matching the supplied response schema.`;
+
+    try {
+      const response = await fetch(
+        `${this.config.endpointUrl}/models/${encodeURIComponent(this.config.modelIdentifier)}:generateContent`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": this.config.apiKey,
+          },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: systemInstruction }] },
+            contents: [{ role: "user", parts: [{ text: promptText }] }],
+            generationConfig: {
+              responseFormat: {
+                text: {
+                  mimeType: "application/json",
+                  schema: {
+                    ...request.structuredOutput.schema,
+                    title: request.structuredOutput.name,
+                    description: request.structuredOutput.description,
+                  },
+                },
+              },
+              maxOutputTokens:
+                request.tokenBudget?.maxOutputTokens ??
+                this.config.maxOutputTokens,
+            },
+          }),
+          signal: controller.signal,
+        },
+      );
+      if (!response.ok) {
+        throw new Error(`AI provider returned HTTP ${response.status}`);
+      }
+
+      const data = (await response.json()) as GeminiGenerateResponse;
+      const candidate = data.candidates?.[0];
+      const usageMetadata = data.usageMetadata;
+      const inputTokens = usageMetadata?.promptTokenCount;
+      const outputTokens = usageMetadata?.candidatesTokenCount;
+      const totalTokens = usageMetadata?.totalTokenCount;
+      const hasUsage =
+        inputTokens !== undefined ||
+        outputTokens !== undefined ||
+        totalTokens !== undefined;
+
+      return {
+        content:
+          candidate?.content?.parts?.map((part) => part.text || "").join("") ||
+          "",
+        providerName: this.metadata.providerName,
+        modelName: data.modelVersion || this.config.modelIdentifier,
+        requestId: response.headers.get("x-goog-request-id") || undefined,
+        finishReason: candidate?.finishReason,
+        refusal:
+          Boolean(data.promptFeedback?.blockReason) ||
+          candidate?.finishReason === "SAFETY",
+        usage: hasUsage
+          ? {
+              ...(inputTokens !== undefined ? { inputTokens } : {}),
+              ...(outputTokens !== undefined ? { outputTokens } : {}),
+              ...(totalTokens !== undefined ? { totalTokens } : {}),
+              latencyMs: Date.now() - startedAt,
+              providerName: this.metadata.providerName,
+              modelName: data.modelVersion || this.config.modelIdentifier,
+            }
+          : undefined,
+      };
+    } catch (error: unknown) {
+      if (error instanceof AIProviderException) throw error;
+      if (error instanceof Error && error.name === "AbortError") {
+        throw new AIProviderException(
+          "TIMEOUT",
+          "AI provider request timed out",
+          this.metadata.providerName,
+          error,
+        );
+      }
+      throw this.normalizeError(error);
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 

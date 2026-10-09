@@ -83,7 +83,16 @@ export type AIServiceErrorCode =
   | "COPILOT_CONFIG_ERROR"
   | "COPILOT_PROMPT_ERROR"
   | "COPILOT_INVALID_REQUEST"
-  | "COPILOT_SERVICE_ERROR";
+  | "COPILOT_SERVICE_ERROR"
+  | "AI_OUTPUT_SCHEMA_NOT_FOUND"
+  | "AI_OUTPUT_SCHEMA_INVALID"
+  | "AI_STRUCTURED_OUTPUT_UNSUPPORTED"
+  | "AI_OUTPUT_PARSE_FAILED"
+  | "AI_OUTPUT_VALIDATION_FAILED"
+  | "AI_OUTPUT_EMPTY"
+  | "AI_OUTPUT_INCOMPLETE"
+  | "AI_OUTPUT_REFUSED"
+  | "AI_OUTPUT_RECOVERY_EXHAUSTED";
 
 /**
  * Application-level exception thrown by the AI Service.
@@ -112,9 +121,12 @@ export class AIServiceException extends Error {
     this.statusCode =
       options.statusCode ??
       (code === "COPILOT_TOKEN_BUDGET_EXCEEDED" ||
-      code === "COPILOT_INVALID_RESPONSE"
+      code === "COPILOT_INVALID_RESPONSE" ||
+      code.startsWith("AI_OUTPUT_")
         ? 422
-        : 503);
+        : code === "AI_STRUCTURED_OUTPUT_UNSUPPORTED"
+          ? 501
+          : 503);
     this.isTransient =
       options.isTransient ??
       (code === "COPILOT_MODEL_TIMEOUT" ||
