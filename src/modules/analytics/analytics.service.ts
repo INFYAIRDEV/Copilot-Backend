@@ -26,12 +26,17 @@ const PERIOD_CURRENT_IT = "1 lug – 15 ago 2026";
 const AS_OF_TIME_EN = "Aug 15, 2026, 08:30 Europe/Rome";
 const AS_OF_TIME_IT = "15 ago 2026, 08:30 Europe/Rome";
 
-const isCurrentQ3Window = (w?: string) => !w || w === "Q3-CURRENT" || w.includes("Q3_2026") || w.includes("CURRENT");
-const isQ2ElapsedWindow = (w?: string) => w === "Q2-46D" || (!!w && (w.includes("Q2_2026") || w.includes("Q2")));
-const isPYElapsedWindow = (w?: string) => w === "PY-46D" || (!!w && (w.includes("2025") || w.includes("PY")));
+const isCurrentQ3Window = (w?: string) =>
+  !w || w === "Q3-CURRENT" || w.includes("Q3_2026") || w.includes("CURRENT");
+const isQ2ElapsedWindow = (w?: string) =>
+  w === "Q2-46D" || (!!w && (w.includes("Q2_2026") || w.includes("Q2")));
+const isPYElapsedWindow = (w?: string) =>
+  w === "PY-46D" || (!!w && (w.includes("2025") || w.includes("PY")));
 
 export class AnalyticsService {
-  constructor(private readonly repo: AnalyticsRepository = analyticsRepository) { }
+  constructor(
+    private readonly repo: AnalyticsRepository = analyticsRepository,
+  ) {}
 
   /**
    * Resolves a user prompt or journey ID to one of the 6 fixed Track A journeys.
@@ -50,7 +55,11 @@ export class AnalyticsService {
       return rawTrimmed as JourneyId;
     }
 
-    const text = input.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+    const text = input
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
     if (!text) return null;
 
     // 1. Production Linkage (must precede delayed-orders so 'production orders linked to delayed sales' routes here)
@@ -60,7 +69,10 @@ export class AnalyticsService {
       text.includes("linked production") ||
       text.includes("linkage") ||
       text.includes("collegamento produzione") ||
-      (text.includes("production") && (text.includes("delay") || text.includes("link") || text.includes("sales")))
+      (text.includes("production") &&
+        (text.includes("delay") ||
+          text.includes("link") ||
+          text.includes("sales")))
     ) {
       return "production-linkage";
     }
@@ -132,7 +144,10 @@ export class AnalyticsService {
   /**
    * Executes one of the 6 fixed Track A journeys deterministically.
    */
-  async executeJourney(journeyId: JourneyId, locale: "en" | "it" = "en"): Promise<JourneyExecutionResult> {
+  async executeJourney(
+    journeyId: JourneyId,
+    locale: "en" | "it" = "en",
+  ): Promise<JourneyExecutionResult> {
     switch (journeyId) {
       case "current-sales":
         return this.executeCurrentSalesJourney(locale);
@@ -154,10 +169,17 @@ export class AnalyticsService {
   // =========================================================================
   // JOURNEY 1: Current Sales
   // =========================================================================
-  private async executeCurrentSalesJourney(locale: "en" | "it"): Promise<JourneyExecutionResult> {
+  private async executeCurrentSalesJourney(
+    locale: "en" | "it",
+  ): Promise<JourneyExecutionResult> {
     const facts = await this.repo.getSalesTransactions();
-    const currentQ3Facts = facts.filter((f) => isCurrentQ3Window(f.fixture_window));
-    const totalNetSales = currentQ3Facts.reduce((sum, f) => sum + f.net_amount, 0); // 820,000
+    const currentQ3Facts = facts.filter((f) =>
+      isCurrentQ3Window(f.fixture_window),
+    );
+    const totalNetSales = currentQ3Facts.reduce(
+      (sum, f) => sum + f.net_amount,
+      0,
+    ); // 820,000
 
     const isIt = locale === "it";
     const period = isIt ? PERIOD_CURRENT_IT : PERIOD_CURRENT_EN;
@@ -165,38 +187,54 @@ export class AnalyticsService {
 
     const summary: SummaryPart[] = isIt
       ? [
-        t("Le vendite nette fatturate per il terzo trimestre 2026 alla data odierna ammontano a "),
-        b(formattedTotal),
-        t(", al netto di IVA e note di accredito."),
-      ]
+          t(
+            "Le vendite nette fatturate per il terzo trimestre 2026 alla data odierna ammontano a ",
+          ),
+          b(formattedTotal),
+          t(", al netto di IVA e note di accredito."),
+        ]
       : [
-        t("Net invoiced sales for Q3 2026 to date are "),
-        b(formattedTotal),
-        t(", net of VAT and credit notes across all customer accounts."),
-      ];
+          t("Net invoiced sales for Q3 2026 to date are "),
+          b(formattedTotal),
+          t(", net of VAT and credit notes across all customer accounts."),
+        ];
 
     // Points by customer for breakdown
     const customerMap = new Map<string, number>();
     for (const f of currentQ3Facts) {
-      customerMap.set(f.customer_name, (customerMap.get(f.customer_name) || 0) + f.net_amount);
+      customerMap.set(
+        f.customer_name,
+        (customerMap.get(f.customer_name) || 0) + f.net_amount,
+      );
     }
-    const points = Array.from(customerMap.entries()).map(([label, value]) => ({ label, value }));
+    const points = Array.from(customerMap.entries()).map(([label, value]) => ({
+      label,
+      value,
+    }));
 
     const uiAnswer: UIAnswer = {
       id: "current-sales",
-      question: isIt ? "Mostrami le prestazioni di vendita del trimestre corrente" : "Show sales performance for the current quarter",
+      question: isIt
+        ? "Mostrami le prestazioni di vendita del trimestre corrente"
+        : "Show sales performance for the current quarter",
       summary,
       chart: {
         title: isIt ? "Vendite nette fatturate Q3" : "Q3 Net Invoiced Sales",
-        subtitle: isIt ? "Importo (€) per cliente" : "Net invoiced sales (€) by customer",
+        subtitle: isIt
+          ? "Importo (€) per cliente"
+          : "Net invoiced sales (€) by customer",
         format: "currency",
         yMax: 200000,
         yStep: 50000,
         points: points.slice(0, 5),
       },
       table: {
-        title: isIt ? "Riepilogo vendite per cliente" : "Sales summary by customer",
-        columns: isIt ? ["Cliente", "Fatturato netto (€)", "Quota"] : ["Customer", "Net invoiced sales (€)", "Share"],
+        title: isIt
+          ? "Riepilogo vendite per cliente"
+          : "Sales summary by customer",
+        columns: isIt
+          ? ["Cliente", "Fatturato netto (€)", "Quota"]
+          : ["Customer", "Net invoiced sales (€)", "Share"],
         rows: points.map((p) => [
           p.label,
           "€" + p.value.toLocaleString("en-US"),
@@ -233,7 +271,11 @@ export class AnalyticsService {
         {
           claimId: "claim-sales-total",
           claimType: "VALUE",
-          valueRefs: ["/metrics/0/value", "/context/periodStart", "/context/periodEndExclusive"],
+          valueRefs: [
+            "/metrics/0/value",
+            "/context/periodStart",
+            "/context/periodEndExclusive",
+          ],
         },
       ],
       context: {
@@ -279,7 +321,7 @@ export class AnalyticsService {
         resultRowCount: currentQ3Facts.length,
         supportingRecordAccess: "FULL",
         datasetPublicationIds: ["44444444-4444-4444-8444-444444444444"],
-        sourceVersions: ["synthetic-sales-fixture-v1.2"],
+        sourceVersions: ["analytics.v_sales_transaction_fact-v1.0"],
       },
       freshness: {
         sourceCutoffAt: "2026-08-15T06:30:00Z",
@@ -306,36 +348,54 @@ export class AnalyticsService {
   // =========================================================================
   // JOURNEY 2: Sales Comparison
   // =========================================================================
-  private async executeSalesComparisonJourney(locale: "en" | "it"): Promise<JourneyExecutionResult> {
+  private async executeSalesComparisonJourney(
+    locale: "en" | "it",
+  ): Promise<JourneyExecutionResult> {
     const facts = await this.repo.getSalesTransactions();
-    const currentQ3 = facts.filter((f) => isCurrentQ3Window(f.fixture_window)).reduce((s, f) => s + f.net_amount, 0); // 820,000
-    const q2Equivalent = facts.filter((f) => isQ2ElapsedWindow(f.fixture_window)).reduce((s, f) => s + f.net_amount, 0); // 760,000
-    const pyEquivalent = facts.filter((f) => isPYElapsedWindow(f.fixture_window)).reduce((s, f) => s + f.net_amount, 0); // 700,000
+    const currentQ3 = facts
+      .filter((f) => isCurrentQ3Window(f.fixture_window))
+      .reduce((s, f) => s + f.net_amount, 0); // 820,000
+    const q2Equivalent = facts
+      .filter((f) => isQ2ElapsedWindow(f.fixture_window))
+      .reduce((s, f) => s + f.net_amount, 0); // 760,000
+    const pyEquivalent = facts
+      .filter((f) => isPYElapsedWindow(f.fixture_window))
+      .reduce((s, f) => s + f.net_amount, 0); // 700,000
 
-    const varianceQ2 = Number((((currentQ3 - q2Equivalent) / q2Equivalent) * 100).toFixed(1)); // +7.9%
-    const variancePY = Number((((currentQ3 - pyEquivalent) / pyEquivalent) * 100).toFixed(1)); // +17.1%
+    const varianceQ2 = Number(
+      (((currentQ3 - q2Equivalent) / q2Equivalent) * 100).toFixed(1),
+    ); // +7.9%
+    const variancePY = Number(
+      (((currentQ3 - pyEquivalent) / pyEquivalent) * 100).toFixed(1),
+    ); // +17.1%
 
     const isIt = locale === "it";
 
     const summary: SummaryPart[] = isIt
       ? [
-        t("Le vendite del Q3 alla data odierna ("),
-        b("€820.000"),
-        t(") registrano una crescita del "),
-        b("+7,9%"),
-        t(" (+€60.000) rispetto all'analogo periodo di 46 giorni del Q2 2026 (€760.000) e del "),
-        b("+17,1%"),
-        t(" (+€120.000) rispetto al Q3 2025 (€700.000)."),
-      ]
+          t("Le vendite del Q3 alla data odierna ("),
+          b("€820.000"),
+          t(") registrano una crescita del "),
+          b("+7,9%"),
+          t(
+            " (+€60.000) rispetto all'analogo periodo di 46 giorni del Q2 2026 (€760.000) e del ",
+          ),
+          b("+17,1%"),
+          t(" (+€120.000) rispetto al Q3 2025 (€700.000)."),
+        ]
       : [
-        t("Current Q3 sales ("),
-        b("€820,000"),
-        t(") are up "),
-        b("+7.9%"),
-        t(" (+€60,000) compared to the equivalent 46-day window of Q2 2026 (€760,000), and up "),
-        b("+17.1%"),
-        t(" (+€120,000) vs the equivalent Q3 2025 prior-year period (€700,000)."),
-      ];
+          t("Current Q3 sales ("),
+          b("€820,000"),
+          t(") are up "),
+          b("+7.9%"),
+          t(
+            " (+€60,000) compared to the equivalent 46-day window of Q2 2026 (€760,000), and up ",
+          ),
+          b("+17.1%"),
+          t(
+            " (+€120,000) vs the equivalent Q3 2025 prior-year period (€700,000).",
+          ),
+        ];
 
     const uiAnswer: UIAnswer = {
       id: "sales-comparison",
@@ -344,29 +404,70 @@ export class AnalyticsService {
         : "Compare sales with previous quarter and same period last year",
       summary,
       chart: {
-        title: isIt ? "Confronto vendite per periodi equivalenti" : "Equivalent-period sales comparison",
-        subtitle: isIt ? "Finestra di 46 giorni trascorsi (€)" : "46-day elapsed window (€)",
+        title: isIt
+          ? "Confronto vendite per periodi equivalenti"
+          : "Equivalent-period sales comparison",
+        subtitle: isIt
+          ? "Finestra di 46 giorni trascorsi (€)"
+          : "46-day elapsed window (€)",
         format: "currency",
         yMax: 900000,
         yStep: 200000,
         points: [
-          { label: isIt ? "Q3 2025 (stesso periodo)" : "Q3 2025 (Prior Year)", value: pyEquivalent },
-          { label: isIt ? "Q2 2026 (trim. prec.)" : "Q2 2026 (Previous Qtr)", value: q2Equivalent },
-          { label: isIt ? "Q3 2026 (attuale)" : "Q3 2026 (Current)", value: currentQ3 },
+          {
+            label: isIt ? "Q3 2025 (stesso periodo)" : "Q3 2025 (Prior Year)",
+            value: pyEquivalent,
+          },
+          {
+            label: isIt ? "Q2 2026 (trim. prec.)" : "Q2 2026 (Previous Qtr)",
+            value: q2Equivalent,
+          },
+          {
+            label: isIt ? "Q3 2026 (attuale)" : "Q3 2026 (Current)",
+            value: currentQ3,
+          },
         ],
       },
       table: {
-        title: isIt ? "Dettaglio confronto periodi equivalenti" : "Equivalent-period performance table",
-        columns: isIt ? ["Periodo", "Finestra", "Fatturato netto (€)", "Variazione vs attuale"] : ["Period", "Window", "Net sales (€)", "Variance vs Current"],
+        title: isIt
+          ? "Dettaglio confronto periodi equivalenti"
+          : "Equivalent-period performance table",
+        columns: isIt
+          ? [
+              "Periodo",
+              "Finestra",
+              "Fatturato netto (€)",
+              "Variazione vs attuale",
+            ]
+          : ["Period", "Window", "Net sales (€)", "Variance vs Current"],
         rows: [
-          [isIt ? "Q3 2026 (attuale)" : "Current Q3 2026", "1 lug – 15 ago (46d)", "€820,000", isIt ? "Base di riferimento" : "Baseline"],
-          [isIt ? "Q2 2026 (trim. prec.)" : "Equivalent Q2 2026", "1 apr – 15 mag (46d)", "€760,000", `+${varianceQ2}% (+€60,000)`],
-          [isIt ? "Q3 2025 (anno prec.)" : "Equivalent Q3 2025", "1 lug – 15 ago (46d)", "€700,000", `+${variancePY}% (+€120,000)`],
+          [
+            isIt ? "Q3 2026 (attuale)" : "Current Q3 2026",
+            "1 lug – 15 ago (46d)",
+            "€820,000",
+            isIt ? "Base di riferimento" : "Baseline",
+          ],
+          [
+            isIt ? "Q2 2026 (trim. prec.)" : "Equivalent Q2 2026",
+            "1 apr – 15 mag (46d)",
+            "€760,000",
+            `+${varianceQ2}% (+€60,000)`,
+          ],
+          [
+            isIt ? "Q3 2025 (anno prec.)" : "Equivalent Q3 2025",
+            "1 lug – 15 ago (46d)",
+            "€700,000",
+            `+${variancePY}% (+€120,000)`,
+          ],
         ],
       },
       meta: {
-        period: isIt ? "Finestra di 46 giorni trascorsi" : "46 elapsed calendar days",
-        metric: isIt ? "Variazione vendite nette fatturate" : "Net invoiced sales variance",
+        period: isIt
+          ? "Finestra di 46 giorni trascorsi"
+          : "46 elapsed calendar days",
+        metric: isIt
+          ? "Variazione vendite nette fatturate"
+          : "Net invoiced sales variance",
         howCalculated: isIt
           ? "Confronto tra i primi 46 giorni di calendario di ciascun trimestre: Q3 2026 (1 lug – 15 ago) vs Q2 2026 (1 apr – 15 mag) e Q3 2025 (1 lug – 15 ago)."
           : "Compares identical 46-calendar-day elapsed periods: Q3 2026 (Jul 1 – Aug 15) vs Q2 2026 (Apr 1 – May 15) and Q3 2025 (Jul 1 – Aug 15).",
@@ -384,19 +485,25 @@ export class AnalyticsService {
         generationMode: "SERVER_TEMPLATE",
         claimRefs: ["claim-comp-q2", "claim-comp-py"],
         text: isIt
-          ? `Le vendite del Q3 (€820.000) superano il periodo equivalente del Q2 2026 del +7,9% e il Q3 2025 del +17,1%.`
-          : `Current Q3 sales (€820,000) are up +7.9% vs equivalent Q2 2026 and +17.1% vs equivalent Q3 2025.`,
+          ? `Le vendite del Q3 (€${currentQ3.toLocaleString("it-IT")}) superano il periodo equivalente del Q2 2026 del ${varianceQ2 >= 0 ? "+" : ""}${varianceQ2}% e il Q3 2025 del ${variancePY >= 0 ? "+" : ""}${variancePY}%.`
+          : `Current Q3 sales (€${currentQ3.toLocaleString("en-US")}) are up ${varianceQ2 >= 0 ? "+" : ""}${varianceQ2}% vs equivalent Q2 2026 and ${variancePY >= 0 ? "+" : ""}${variancePY}% vs equivalent Q3 2025.`,
       },
       claims: [
         {
           claimId: "claim-comp-q2",
           claimType: "COMPARISON",
-          valueRefs: ["/comparisons/0/percentVariance", "/comparisons/0/baselineValue"],
+          valueRefs: [
+            "/comparisons/0/percentVariance",
+            "/comparisons/0/baselineValue",
+          ],
         },
         {
           claimId: "claim-comp-py",
           claimType: "COMPARISON",
-          valueRefs: ["/comparisons/1/percentVariance", "/comparisons/1/baselineValue"],
+          valueRefs: [
+            "/comparisons/1/percentVariance",
+            "/comparisons/1/baselineValue",
+          ],
         },
       ],
       context: {
@@ -461,7 +568,7 @@ export class AnalyticsService {
         resultRowCount: facts.length,
         supportingRecordAccess: "FULL",
         datasetPublicationIds: ["44444444-4444-4444-8444-444444444444"],
-        sourceVersions: ["synthetic-sales-fixture-v1.2"],
+        sourceVersions: ["analytics.v_sales_transaction_fact-v1.0"],
       },
       freshness: {
         sourceCutoffAt: "2026-08-15T06:30:00Z",
@@ -488,13 +595,18 @@ export class AnalyticsService {
   // =========================================================================
   // JOURNEY 3: Top Customers
   // =========================================================================
-  private async executeTopCustomersJourney(locale: "en" | "it"): Promise<JourneyExecutionResult> {
+  private async executeTopCustomersJourney(
+    locale: "en" | "it",
+  ): Promise<JourneyExecutionResult> {
     const facts = await this.repo.getSalesTransactions();
     const currentQ3 = facts.filter((f) => isCurrentQ3Window(f.fixture_window));
     const totalSales = currentQ3.reduce((s, f) => s + f.net_amount, 0); // 820,000
 
     // Group by customer
-    const customerMap = new Map<string, { code: string; id: string; name: string; amount: number }>();
+    const customerMap = new Map<
+      string,
+      { code: string; id: string; name: string; amount: number }
+    >();
     for (const f of currentQ3) {
       const existing = customerMap.get(f.customer_id) || {
         id: f.customer_id,
@@ -520,35 +632,51 @@ export class AnalyticsService {
 
     const summary: SummaryPart[] = isIt
       ? [
-        t("I primi 5 clienti hanno generato "),
-        b("€" + top5Total.toLocaleString("en-US")),
-        t(", pari al "),
-        b(top5Share.toFixed(1) + "%"),
-        t(" delle vendite nette fatturate complessive (€" + totalSales.toLocaleString("en-US") + ")."),
-      ]
+          t("I primi 5 clienti hanno generato "),
+          b("€" + top5Total.toLocaleString("en-US")),
+          t(", pari al "),
+          b(top5Share.toFixed(1) + "%"),
+          t(
+            " delle vendite nette fatturate complessive (€" +
+              totalSales.toLocaleString("en-US") +
+              ").",
+          ),
+        ]
       : [
-        t("The top 5 customers generated "),
-        b("€" + top5Total.toLocaleString("en-US")),
-        t(", representing "),
-        b(top5Share.toFixed(1) + "%"),
-        t(" of total net invoiced sales (€" + totalSales.toLocaleString("en-US") + ")."),
-      ];
+          t("The top 5 customers generated "),
+          b("€" + top5Total.toLocaleString("en-US")),
+          t(", representing "),
+          b(top5Share.toFixed(1) + "%"),
+          t(
+            " of total net invoiced sales (€" +
+              totalSales.toLocaleString("en-US") +
+              ").",
+          ),
+        ];
 
     const uiAnswer: UIAnswer = {
       id: "top-customers",
-      question: isIt ? "Quali sono i primi 5 clienti per fatturato?" : "Give me the top 5 customers.",
+      question: isIt
+        ? "Quali sono i primi 5 clienti per fatturato?"
+        : "Give me the top 5 customers.",
       summary,
       chart: {
         title: isIt ? "Primi 5 clienti" : "Top 5 customers",
-        subtitle: isIt ? "Vendite nette fatturate (€)" : "Net invoiced sales (€)",
+        subtitle: isIt
+          ? "Vendite nette fatturate (€)"
+          : "Net invoiced sales (€)",
         format: "currency",
         yMax: 200000,
         yStep: 50000,
         points: top5.map((c) => ({ label: c.name, value: c.amount })),
       },
       table: {
-        title: isIt ? "Classifica dei primi 5 clienti per vendite nette fatturate" : "Top 5 customers by net invoiced sales",
-        columns: isIt ? ["Cliente", "Fatturato netto (€)", "Quota"] : ["Customer", "Net invoiced sales (€)", "Share"],
+        title: isIt
+          ? "Classifica dei primi 5 clienti per vendite nette fatturate"
+          : "Top 5 customers by net invoiced sales",
+        columns: isIt
+          ? ["Cliente", "Fatturato netto (€)", "Quota"]
+          : ["Customer", "Net invoiced sales (€)", "Share"],
         rows: top5.map((c) => [
           c.name,
           "€" + c.amount.toLocaleString("en-US"),
@@ -575,8 +703,8 @@ export class AnalyticsService {
         generationMode: "SERVER_TEMPLATE",
         claimRefs: ["claim-top-customers"],
         text: isIt
-          ? `I primi 5 clienti hanno generato €631.000, rappresentando il 77,0% del fatturato netto complessivo.`
-          : `The top five customers generated €631,000, or 77.0% of €820,000 net invoiced sales, for the certified period.`,
+          ? `I primi 5 clienti hanno generato €${top5Total.toLocaleString("it-IT")}, rappresentando il ${top5Share.toFixed(1)}% del fatturato netto complessivo (€${totalSales.toLocaleString("it-IT")}).`
+          : `The top five customers generated €${top5Total.toLocaleString("en-US")}, or ${top5Share.toFixed(1)}% of €${totalSales.toLocaleString("en-US")} net invoiced sales, for the certified period.`,
       },
       claims: [
         {
@@ -656,7 +784,7 @@ export class AnalyticsService {
         resultRowCount: 5,
         supportingRecordAccess: "FULL",
         datasetPublicationIds: ["44444444-4444-4444-8444-444444444444"],
-        sourceVersions: ["synthetic-sales-fixture-v1.2"],
+        sourceVersions: ["analytics.v_sales_transaction_fact-v1.0"],
       },
       freshness: {
         sourceCutoffAt: "2026-08-15T06:30:00Z",
@@ -683,12 +811,17 @@ export class AnalyticsService {
   // =========================================================================
   // JOURNEY 4: Top Suppliers
   // =========================================================================
-  private async executeSupplierSpendJourney(locale: "en" | "it"): Promise<JourneyExecutionResult> {
+  private async executeSupplierSpendJourney(
+    locale: "en" | "it",
+  ): Promise<JourneyExecutionResult> {
     const facts = await this.repo.getSupplierTransactions();
     const totalSpend = facts.reduce((s, f) => s + f.net_amount, 0); // 510,000
 
     // Group by supplier
-    const supplierMap = new Map<string, { id: string; code: string; name: string; amount: number }>();
+    const supplierMap = new Map<
+      string,
+      { id: string; code: string; name: string; amount: number }
+    >();
     for (const f of facts) {
       const existing = supplierMap.get(f.supplier_id) || {
         id: f.supplier_id,
@@ -714,24 +847,32 @@ export class AnalyticsService {
 
     const summary: SummaryPart[] = isIt
       ? [
-        t("La spesa totale per fornitori approvata è stata di "),
-        b("€" + totalSpend.toLocaleString("en-US")),
-        t("; i primi 5 fornitori rappresentano il "),
-        b(top5Share.toFixed(1) + "%"),
-        t(" (€" + top5Total.toLocaleString("en-US") + "). "),
-        t("Nota: SafeLogistics è classificato al netto della nota di credito (€50.000). La spesa riflette i volumi e non le prestazioni di consegna."),
-      ]
+          t("La spesa totale per fornitori approvata è stata di "),
+          b("€" + totalSpend.toLocaleString("en-US")),
+          t("; i primi 5 fornitori rappresentano il "),
+          b(top5Share.toFixed(1) + "%"),
+          t(" (€" + top5Total.toLocaleString("en-US") + "). "),
+          t(
+            "Nota: SafeLogistics è classificato al netto della nota di credito (€50.000). La spesa riflette i volumi e non le prestazioni di consegna.",
+          ),
+        ]
       : [
-        t("Approved procurement spend was "),
-        b("€" + totalSpend.toLocaleString("en-US")),
-        t("; the top 5 suppliers account for "),
-        b(top5Share.toFixed(1) + "%"),
-        t(" (€" + top5Total.toLocaleString("en-US") + ") of it. SafeLogistics is ranked net of credit note (€50,000)."),
-      ];
+          t("Approved procurement spend was "),
+          b("€" + totalSpend.toLocaleString("en-US")),
+          t("; the top 5 suppliers account for "),
+          b(top5Share.toFixed(1) + "%"),
+          t(
+            " (€" +
+              top5Total.toLocaleString("en-US") +
+              ") of it. SafeLogistics is ranked net of credit note (€50,000).",
+          ),
+        ];
 
     const uiAnswer: UIAnswer = {
       id: "supplier-spend",
-      question: isIt ? "Mostrami la spesa fornitori" : "Supplier spend overview",
+      question: isIt
+        ? "Mostrami la spesa fornitori"
+        : "Supplier spend overview",
       summary,
       chart: {
         title: isIt ? "Primi 5 fornitori" : "Top 5 suppliers",
@@ -742,8 +883,12 @@ export class AnalyticsService {
         points: top5.map((sp) => ({ label: sp.name, value: sp.amount })),
       },
       table: {
-        title: isIt ? "Primi 5 fornitori per spesa approvata" : "Top 5 suppliers by approved spend",
-        columns: isIt ? ["Fornitore", "Spesa (€)", "Quota"] : ["Supplier", "Spend (€)", "Share"],
+        title: isIt
+          ? "Primi 5 fornitori per spesa approvata"
+          : "Top 5 suppliers by approved spend",
+        columns: isIt
+          ? ["Fornitore", "Spesa (€)", "Quota"]
+          : ["Supplier", "Spend (€)", "Share"],
         rows: top5.map((sp) => [
           sp.name,
           "€" + sp.amount.toLocaleString("en-US"),
@@ -770,8 +915,8 @@ export class AnalyticsService {
         generationMode: "SERVER_TEMPLATE",
         claimRefs: ["claim-supplier-spend"],
         text: isIt
-          ? `La spesa fornitori approvata per il Q3 è stata di €510.000; i primi 5 fornitori rappresentano €380.000 (74,5%).`
-          : `Approved procurement spend was €510,000; the top 5 suppliers account for €380,000 (74.5%) of spend.`,
+          ? `La spesa fornitori approvata per il Q3 è stata di €${totalSpend.toLocaleString("it-IT")}; i primi 5 fornitori rappresentano €${top5Total.toLocaleString("it-IT")} (${top5Share.toFixed(1)}%).`
+          : `Approved procurement spend was €${totalSpend.toLocaleString("en-US")}; the top 5 suppliers account for €${top5Total.toLocaleString("en-US")} (${top5Share.toFixed(1)}%) of spend.`,
       },
       claims: [
         {
@@ -843,7 +988,8 @@ export class AnalyticsService {
         {
           metricId: "procurement.supplier_spend_net",
           metricVersion: "1.0.0",
-          definitionUrl: "/api/v1/analytics/metrics/procurement.supplier_spend_net",
+          definitionUrl:
+            "/api/v1/analytics/metrics/procurement.supplier_spend_net",
         },
       ],
       evidence: {
@@ -851,7 +997,7 @@ export class AnalyticsService {
         resultRowCount: 5,
         supportingRecordAccess: "FULL",
         datasetPublicationIds: ["44444444-4444-4444-8444-444444444444"],
-        sourceVersions: ["synthetic-supplier-fixture-v1.2"],
+        sourceVersions: ["analytics.v_supplier_transaction_fact-v1.0"],
       },
       freshness: {
         sourceCutoffAt: "2026-08-15T06:30:00Z",
@@ -878,50 +1024,68 @@ export class AnalyticsService {
   // =========================================================================
   // JOURNEY 5: Delayed Orders (Sales)
   // =========================================================================
-  private async executeDelayedOrdersJourney(locale: "en" | "it"): Promise<JourneyExecutionResult> {
+  private async executeDelayedOrdersJourney(
+    locale: "en" | "it",
+  ): Promise<JourneyExecutionResult> {
     const delayLines = await this.repo.getSalesOrderDelayLines();
-    const distinctOrders = new Set(delayLines.map((l) => l.sales_order_id)).size; // 6
+    const distinctOrders = new Set(delayLines.map((l) => l.sales_order_id))
+      .size; // 6
     const distinctLines = delayLines.length; // 7
-    const distinctCustomers = new Set(delayLines.map((l) => l.customer_id)).size; // 5
-    const totalBacklog = delayLines.reduce((s, l) => s + l.remaining_net_value, 0); // 164,000
+    const distinctCustomers = new Set(delayLines.map((l) => l.customer_id))
+      .size; // 5
+    const totalBacklog = delayLines.reduce(
+      (s, l) => s + l.remaining_net_value,
+      0,
+    ); // 164,000
 
     const isIt = locale === "it";
 
     const summary: SummaryPart[] = isIt
       ? [
-        b("6 ordini di vendita"),
-        t(" contenenti "),
-        b("7 righe"),
-        t(" su "),
-        b("5 clienti"),
-        t(" risultano attualmente in ritardo, per un valore totale di backlog in ritardo di "),
-        b("€" + totalBacklog.toLocaleString("en-US")),
-        t("."),
-      ]
+          b("6 ordini di vendita"),
+          t(" contenenti "),
+          b("7 righe"),
+          t(" su "),
+          b("5 clienti"),
+          t(
+            " risultano attualmente in ritardo, per un valore totale di backlog in ritardo di ",
+          ),
+          b("€" + totalBacklog.toLocaleString("en-US")),
+          t("."),
+        ]
       : [
-        b("6 sales orders"),
-        t(" containing "),
-        b("7 lines"),
-        t(" across "),
-        b("5 customers"),
-        t(" are currently delayed, representing "),
-        b("€" + totalBacklog.toLocaleString("en-US")),
-        t(" in delayed backlog value."),
-      ];
+          b("6 sales orders"),
+          t(" containing "),
+          b("7 lines"),
+          t(" across "),
+          b("5 customers"),
+          t(" are currently delayed, representing "),
+          b("€" + totalBacklog.toLocaleString("en-US")),
+          t(" in delayed backlog value."),
+        ];
 
     // Customer backlog grouping for chart
     const customerBacklog = new Map<string, number>();
     for (const l of delayLines) {
-      customerBacklog.set(l.customer_name, (customerBacklog.get(l.customer_name) || 0) + l.remaining_net_value);
+      customerBacklog.set(
+        l.customer_name,
+        (customerBacklog.get(l.customer_name) || 0) + l.remaining_net_value,
+      );
     }
-    const points = Array.from(customerBacklog.entries()).map(([label, value]) => ({ label, value }));
+    const points = Array.from(customerBacklog.entries()).map(
+      ([label, value]) => ({ label, value }),
+    );
 
     const uiAnswer: UIAnswer = {
       id: "delayed-orders",
-      question: isIt ? "Quali ordini di vendita sono in ritardo?" : "Why are there delayed orders?",
+      question: isIt
+        ? "Quali ordini di vendita sono in ritardo?"
+        : "Why are there delayed orders?",
       summary,
       chart: {
-        title: isIt ? "Backlog in ritardo per cliente" : "Delayed backlog by customer",
+        title: isIt
+          ? "Backlog in ritardo per cliente"
+          : "Delayed backlog by customer",
         subtitle: isIt ? "Valore backlog (€)" : "Delayed backlog value (€)",
         format: "currency",
         yMax: 60000,
@@ -929,10 +1093,26 @@ export class AnalyticsService {
         points,
       },
       table: {
-        title: isIt ? "Righe ordini di vendita in ritardo" : "Delayed sales order lines",
+        title: isIt
+          ? "Righe ordini di vendita in ritardo"
+          : "Delayed sales order lines",
         columns: isIt
-          ? ["Ordine", "Riga", "Cliente", "Q.tà aperta", "Prezzo unitario", "Valore backlog (€)"]
-          : ["Order ID", "Line ID", "Customer", "Open Qty", "Unit Price", "Backlog (€)"],
+          ? [
+              "Ordine",
+              "Riga",
+              "Cliente",
+              "Q.tà aperta",
+              "Prezzo unitario",
+              "Valore backlog (€)",
+            ]
+          : [
+              "Order ID",
+              "Line ID",
+              "Customer",
+              "Open Qty",
+              "Unit Price",
+              "Backlog (€)",
+            ],
         rows: delayLines.map((l) => [
           l.sales_order_id,
           l.sales_order_line_id,
@@ -944,7 +1124,9 @@ export class AnalyticsService {
       },
       meta: {
         period: isIt ? AS_OF_TIME_IT : AS_OF_TIME_EN,
-        metric: isIt ? "Backlog ordini di vendita in ritardo" : "Delayed sales order backlog",
+        metric: isIt
+          ? "Backlog ordini di vendita in ritardo"
+          : "Delayed sales order backlog",
         howCalculated: isIt
           ? "Una riga è in ritardo quando la data di consegna concordata è passata rispetto all'orario as-of e la quantità aperta è > 0. Il valore residuo è q.tà aperta × prezzo unitario netto."
           : "A sales order line is delayed when its approved commitment date has passed the local end of business day in Europe/Rome and open quantity > 0. Backlog is open qty × unit net price.",
@@ -962,8 +1144,8 @@ export class AnalyticsService {
         generationMode: "SERVER_TEMPLATE",
         claimRefs: ["claim-delay-count", "claim-delay-backlog"],
         text: isIt
-          ? `Sono presenti 6 ordini di vendita in ritardo (7 righe, 5 clienti) per un valore di backlog di €164.000.`
-          : `There are 6 delayed sales orders (7 lines, 5 customers) with €164,000 delayed backlog value.`,
+          ? `Sono presenti ${distinctOrders} ordini di vendita in ritardo (${distinctLines} righe, ${distinctCustomers} clienti) per un valore di backlog di €${totalBacklog.toLocaleString("it-IT")}.`
+          : `There are ${distinctOrders} delayed sales orders (${distinctLines} lines, ${distinctCustomers} customers) with €${totalBacklog.toLocaleString("en-US")} delayed backlog value.`,
       },
       claims: [
         {
@@ -1034,7 +1216,7 @@ export class AnalyticsService {
         resultRowCount: delayLines.length,
         supportingRecordAccess: "FULL",
         datasetPublicationIds: ["44444444-4444-4444-8444-444444444444"],
-        sourceVersions: ["synthetic-sales-fixture-v1.2"],
+        sourceVersions: ["analytics.v_sales_order_delay_current-v1.0"],
       },
       freshness: {
         sourceCutoffAt: "2026-08-15T06:30:00Z",
@@ -1061,67 +1243,127 @@ export class AnalyticsService {
   // =========================================================================
   // JOURNEY 6: Production Linkage
   // =========================================================================
-  private async executeProductionLinkageJourney(locale: "en" | "it"): Promise<JourneyExecutionResult> {
+  private async executeProductionLinkageJourney(
+    locale: "en" | "it",
+  ): Promise<JourneyExecutionResult> {
     const allocations = await this.repo.getAllocations();
     const productionOrders = await this.repo.getProductionOrderDelayFacts();
     const delayLines = await this.repo.getSalesOrderDelayLines();
 
-    const totalDelayedBacklog = delayLines.reduce((s, l) => s + l.remaining_net_value, 0); // 164,000
-    const linkedBacklog = allocations.reduce((s, a) => s + a.allocated_backlog_value, 0); // 149,240
+    const totalDelayedBacklog = delayLines.reduce(
+      (s, l) => s + l.remaining_net_value,
+      0,
+    ); // 164,000
+    const linkedBacklog = allocations.reduce(
+      (s, a) => s + a.allocated_backlog_value,
+      0,
+    ); // 149,240
     const unlinkedBacklog = totalDelayedBacklog - linkedBacklog; // 14,760
-    const coveragePct = Number(((linkedBacklog / totalDelayedBacklog) * 100).toFixed(1)); // 91.0%
+    const coveragePct = Number(
+      ((linkedBacklog / totalDelayedBacklog) * 100).toFixed(1),
+    ); // 91.0%
 
-    const linkedProdOrdersCount = new Set(allocations.map((a) => a.production_order_id)).size; // 6
-    const affectedCustomersCount = new Set(allocations.map((a) => a.customer_id)).size; // 5
+    const linkedProdOrdersCount = new Set(
+      allocations.map((a) => a.production_order_id),
+    ).size; // 6
+    const affectedCustomersCount = new Set(
+      allocations.map((a) => a.customer_id),
+    ).size; // 5
 
     const isIt = locale === "it";
 
     const summary: SummaryPart[] = isIt
       ? [
-        b("6 ordini di produzione in ritardo"),
-        t(" risultano esplicitamente collegati a ordini cliente in ritardo per "),
-        b("5 clienti"),
-        t(", corrispondenti a "),
-        b("€" + linkedBacklog.toLocaleString("en-US")),
-        t(" (il "),
-        b(coveragePct.toFixed(1) + "%"),
-        t(") del backlog totale in ritardo (€" + totalDelayedBacklog.toLocaleString("en-US") + "). "),
-        b("Attenzione:"),
-        t(" €" + unlinkedBacklog.toLocaleString("en-US") + " di backlog in ritardo non hanno ordini di produzione associati. Il legame esplicito evidenzia associazione e non causalità."),
-      ]
+          b("6 ordini di produzione in ritardo"),
+          t(
+            " risultano esplicitamente collegati a ordini cliente in ritardo per ",
+          ),
+          b("5 clienti"),
+          t(", corrispondenti a "),
+          b("€" + linkedBacklog.toLocaleString("en-US")),
+          t(" (il "),
+          b(coveragePct.toFixed(1) + "%"),
+          t(
+            ") del backlog totale in ritardo (€" +
+              totalDelayedBacklog.toLocaleString("en-US") +
+              "). ",
+          ),
+          b("Attenzione:"),
+          t(
+            " €" +
+              unlinkedBacklog.toLocaleString("en-US") +
+              " di backlog in ritardo non hanno ordini di produzione associati. Il legame esplicito evidenzia associazione e non causalità.",
+          ),
+        ]
       : [
-        b("6 delayed production orders"),
-        t(" are explicitly linked to delayed customer orders across "),
-        b("5 customers"),
-        t(", accounting for "),
-        b("€" + linkedBacklog.toLocaleString("en-US")),
-        t(" ("),
-        b(coveragePct.toFixed(1) + "%"),
-        t(") of total delayed backlog (€" + totalDelayedBacklog.toLocaleString("en-US") + "). "),
-        b("Warning:"),
-        t(" €" + unlinkedBacklog.toLocaleString("en-US") + " (9.0%) of delayed backlog has no linked production order. Explicit linkage is evidence of association, not verified causation."),
-      ];
+          b("6 delayed production orders"),
+          t(" are explicitly linked to delayed customer orders across "),
+          b("5 customers"),
+          t(", accounting for "),
+          b("€" + linkedBacklog.toLocaleString("en-US")),
+          t(" ("),
+          b(coveragePct.toFixed(1) + "%"),
+          t(
+            ") of total delayed backlog (€" +
+              totalDelayedBacklog.toLocaleString("en-US") +
+              "). ",
+          ),
+          b("Warning:"),
+          t(
+            " €" +
+              unlinkedBacklog.toLocaleString("en-US") +
+              " (9.0%) of delayed backlog has no linked production order. Explicit linkage is evidence of association, not verified causation.",
+          ),
+        ];
 
     const uiAnswer: UIAnswer = {
       id: "production-linkage",
-      question: isIt ? "Quali ordini di produzione sono collegati ai ritardi?" : "Production linkage summary",
+      question: isIt
+        ? "Quali ordini di produzione sono collegati ai ritardi?"
+        : "Production linkage summary",
       summary,
       chart: {
-        title: isIt ? "Copertura collegamento produzione" : "Production linkage exposure",
-        subtitle: isIt ? "Valore backlog collegato vs non collegato (€)" : "Linked vs unlinked delayed backlog (€)",
+        title: isIt
+          ? "Copertura collegamento produzione"
+          : "Production linkage exposure",
+        subtitle: isIt
+          ? "Valore backlog collegato vs non collegato (€)"
+          : "Linked vs unlinked delayed backlog (€)",
         format: "currency",
         yMax: 180000,
         yStep: 45000,
         points: [
-          { label: isIt ? "Backlog collegato (91%)" : "Linked Backlog (91%)", value: linkedBacklog },
-          { label: isIt ? "Backlog non collegato (9%)" : "Unlinked Backlog (9%)", value: unlinkedBacklog },
+          {
+            label: isIt ? "Backlog collegato (91%)" : "Linked Backlog (91%)",
+            value: linkedBacklog,
+          },
+          {
+            label: isIt
+              ? "Backlog non collegato (9%)"
+              : "Unlinked Backlog (9%)",
+            value: unlinkedBacklog,
+          },
         ],
       },
       table: {
-        title: isIt ? "Ordini di produzione collegati a righe cliente in ritardo" : "Production orders linked to delayed customer lines",
+        title: isIt
+          ? "Ordini di produzione collegati a righe cliente in ritardo"
+          : "Production orders linked to delayed customer lines",
         columns: isIt
-          ? ["Ordine prod.", "Riga cliente", "Cliente", "Pesi alloc.", "Valore collegato (€)"]
-          : ["Production Order", "Sales Line", "Customer", "Allocation Weight", "Linked Value (€)"],
+          ? [
+              "Ordine prod.",
+              "Riga cliente",
+              "Cliente",
+              "Pesi alloc.",
+              "Valore collegato (€)",
+            ]
+          : [
+              "Production Order",
+              "Sales Line",
+              "Customer",
+              "Allocation Weight",
+              "Linked Value (€)",
+            ],
         rows: allocations.map((a) => [
           a.production_order_id,
           a.sales_order_line_id,
@@ -1132,7 +1374,9 @@ export class AnalyticsService {
       },
       meta: {
         period: isIt ? AS_OF_TIME_IT : AS_OF_TIME_EN,
-        metric: isIt ? "Copertura collegamento produzione-vendite" : "Sales-production linkage coverage",
+        metric: isIt
+          ? "Copertura collegamento produzione-vendite"
+          : "Sales-production linkage coverage",
         howCalculated: isIt
           ? "Un ordine di produzione è collegato quando esiste un'allocazione esplicita a una riga d'ordine cliente in ritardo. Copertura = backlog collegato (€149.240) ÷ backlog totale in ritardo (€164.000) = 91,0%."
           : "A production order is linked when explicitly allocated to an open delayed sales order line. Coverage = explicitly allocated delayed backlog (€149,240) ÷ total delayed backlog (€164,000) = 91.0%.",
@@ -1150,14 +1394,18 @@ export class AnalyticsService {
         generationMode: "SERVER_TEMPLATE",
         claimRefs: ["claim-linkage-coverage", "claim-linkage-warning"],
         text: isIt
-          ? `6 ordini di produzione in ritardo sono collegati a 5 clienti per un valore di €149.240 (91,0% del backlog in ritardo). €14.760 non sono collegati.`
-          : `6 linked delayed production orders affect 5 customers with €149,240 linked backlog (91.0% coverage). €14,760 remains unlinked.`,
+          ? `${linkedProdOrdersCount} ordini di produzione in ritardo sono collegati a ${affectedCustomersCount} clienti per un valore di €${linkedBacklog.toLocaleString("it-IT")} (${coveragePct.toFixed(1)}% del backlog in ritardo). €${unlinkedBacklog.toLocaleString("it-IT")} non sono collegati.`
+          : `${linkedProdOrdersCount} linked delayed production orders affect ${affectedCustomersCount} customers with €${linkedBacklog.toLocaleString("en-US")} linked backlog (${coveragePct.toFixed(1)}% coverage). €${unlinkedBacklog.toLocaleString("en-US")} remains unlinked.`,
       },
       claims: [
         {
           claimId: "claim-linkage-coverage",
           claimType: "COVERAGE",
-          valueRefs: ["/metrics/0/value", "/evidence/linkage/numerator", "/evidence/linkage/denominator"],
+          valueRefs: [
+            "/metrics/0/value",
+            "/evidence/linkage/numerator",
+            "/evidence/linkage/denominator",
+          ],
         },
         {
           claimId: "claim-linkage-warning",
@@ -1214,7 +1462,8 @@ export class AnalyticsService {
         {
           metricId: "production.sales_linkage_coverage_pct",
           metricVersion: "1.0.0",
-          definitionUrl: "/api/v1/analytics/metrics/production.sales_linkage_coverage_pct",
+          definitionUrl:
+            "/api/v1/analytics/metrics/production.sales_linkage_coverage_pct",
         },
       ],
       evidence: {
@@ -1222,7 +1471,9 @@ export class AnalyticsService {
         resultRowCount: allocations.length,
         supportingRecordAccess: "FULL",
         datasetPublicationIds: ["44444444-4444-4444-8444-444444444444"],
-        sourceVersions: ["synthetic-production-fixture-v1.2"],
+        sourceVersions: [
+          "analytics.v_sales_production_allocation_current-v1.0",
+        ],
         linkage: {
           numerator: linkedBacklog,
           denominator: totalDelayedBacklog,
@@ -1348,10 +1599,7 @@ CRITICAL ARCHITECTURAL CONSTRAINTS:
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         controller = new AbortController();
 
-        timeout = setTimeout(
-          () => controller?.abort(),
-          requestTimeoutMs,
-        );
+        timeout = setTimeout(() => controller?.abort(), requestTimeoutMs);
 
         try {
           const response = await fetch(url, {
@@ -1372,13 +1620,8 @@ CRITICAL ARCHITECTURAL CONSTRAINTS:
             signal: controller.signal,
           });
 
-
-
-
           if (!response.ok) {
-            const retryableStatuses = new Set([
-              429, 500, 502, 503, 504,
-            ]);
+            const retryableStatuses = new Set([429, 500, 502, 503, 504]);
 
             if (
               retryableStatuses.has(response.status) &&
@@ -1393,27 +1636,22 @@ CRITICAL ARCHITECTURAL CONSTRAINTS:
                 },
               );
 
-              await response.body?.cancel().catch(() => { });
+              await response.body?.cancel().catch(() => {});
               await new Promise((resolve) => setTimeout(resolve, 500));
               continue;
             }
 
             const errorText = await response.text();
 
-            logger.warn(
-              "[AnalyticsService] Gemini API request failed",
-              {
-                status: response.status,
-                model: config.modelIdentifier,
-                attempt,
-                error: errorText.slice(0, 500),
-              },
-            );
+            logger.warn("[AnalyticsService] Gemini API request failed", {
+              status: response.status,
+              model: config.modelIdentifier,
+              attempt,
+              error: errorText.slice(0, 500),
+            });
 
             return null;
           }
-
-
 
           const result = (await response.json()) as {
             status?: string;
@@ -1451,7 +1689,6 @@ CRITICAL ARCHITECTURAL CONSTRAINTS:
             return null;
           }
 
-
           let parsed: BlueprintModelCandidatePlan;
 
           try {
@@ -1468,20 +1705,46 @@ CRITICAL ARCHITECTURAL CONSTRAINTS:
             return null;
           }
 
-
           // Gracefully normalize if the model returned intent as an object or schemaVersion as number
           if (parsed && typeof (parsed as any).schemaVersion === "number") {
-            (parsed as any).schemaVersion = String((parsed as any).schemaVersion);
+            (parsed as any).schemaVersion = String(
+              (parsed as any).schemaVersion,
+            );
           }
-          if (parsed && typeof parsed.intent === "object" && parsed.intent !== null) {
+          if (
+            parsed &&
+            typeof parsed.intent === "object" &&
+            parsed.intent !== null
+          ) {
             const rawIntentObj = parsed.intent as any;
-            const queryType = rawIntentObj.queryType || rawIntentObj.type || "SUMMARY";
-            const intentStr = (queryType === "ANALYTICAL" && rawIntentObj.sort?.length) ? "RANK" : (queryType === "ANALYTICAL" ? "SUMMARY" : queryType);
+            const queryType =
+              rawIntentObj.queryType || rawIntentObj.type || "SUMMARY";
+            const intentStr =
+              queryType === "ANALYTICAL" && rawIntentObj.sort?.length
+                ? "RANK"
+                : queryType === "ANALYTICAL"
+                  ? "SUMMARY"
+                  : queryType;
             if (rawIntentObj.metrics && !parsed.metrics) {
-              parsed.metrics = rawIntentObj.metrics.map((m: any) => typeof m === "string" ? { metricId: m === "revenue" ? "sales.invoiced_net" : m, metricVersion: "1.1.0", alias: m } : m);
+              parsed.metrics = rawIntentObj.metrics.map((m: any) =>
+                typeof m === "string"
+                  ? {
+                      metricId: m === "revenue" ? "sales.invoiced_net" : m,
+                      metricVersion: "1.1.0",
+                      alias: m,
+                    }
+                  : m,
+              );
             }
             if (rawIntentObj.dimensions && !parsed.dimensions) {
-              parsed.dimensions = rawIntentObj.dimensions.map((d: any) => typeof d === "string" ? { dimensionId: d === "customer_name" ? "customer.customer" : d } : d);
+              parsed.dimensions = rawIntentObj.dimensions.map((d: any) =>
+                typeof d === "string"
+                  ? {
+                      dimensionId:
+                        d === "customer_name" ? "customer.customer" : d,
+                    }
+                  : d,
+              );
             }
             if (rawIntentObj.limit && !parsed.limit) {
               parsed.limit = rawIntentObj.limit;
@@ -1489,12 +1752,15 @@ CRITICAL ARCHITECTURAL CONSTRAINTS:
             (parsed as any).intent = intentStr;
           }
 
-          logger.info("[AnalyticsService] Candidate plan validation diagnostics", {
-            topLevelKeys: Object.keys(parsed ?? {}),
-            schemaVersion: parsed?.schemaVersion,
-            intentType: typeof parsed?.intent,
-            intent: parsed?.intent,
-          });
+          logger.info(
+            "[AnalyticsService] Candidate plan validation diagnostics",
+            {
+              topLevelKeys: Object.keys(parsed ?? {}),
+              schemaVersion: parsed?.schemaVersion,
+              intentType: typeof parsed?.intent,
+              intent: parsed?.intent,
+            },
+          );
 
           // Basic contract check only.
           if (
@@ -1518,22 +1784,14 @@ CRITICAL ARCHITECTURAL CONSTRAINTS:
       }
 
       return null;
-
     } catch (error: unknown) {
-      const isTimeout =
-        error instanceof Error && error.name === "AbortError";
+      const isTimeout = error instanceof Error && error.name === "AbortError";
 
-      logger.warn(
-        "[AnalyticsService] Gemini API request failed",
-        {
-          reason: isTimeout ? "timeout" : "network_error",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Unknown error",
-          model: config.modelIdentifier,
-        },
-      );
+      logger.warn("[AnalyticsService] Gemini API request failed", {
+        reason: isTimeout ? "timeout" : "network_error",
+        message: error instanceof Error ? error.message : "Unknown error",
+        model: config.modelIdentifier,
+      });
 
       return null;
     } finally {
@@ -1541,7 +1799,6 @@ CRITICAL ARCHITECTURAL CONSTRAINTS:
         clearTimeout(timeout);
       }
     }
-
   }
 
   /**
@@ -1564,7 +1821,11 @@ CRITICAL ARCHITECTURAL CONSTRAINTS:
             period: { kind: "CURRENT_QUARTER", alignment: "FULL_PERIOD" },
           },
           metrics: [
-            { metricId: "sales.invoiced_net", metricVersion: "1.1.0", alias: "net_sales" },
+            {
+              metricId: "sales.invoiced_net",
+              metricVersion: "1.1.0",
+              alias: "net_sales",
+            },
           ],
           dimensions: [{ dimensionId: "customer.customer" }],
           filters: [],
@@ -1582,10 +1843,17 @@ CRITICAL ARCHITECTURAL CONSTRAINTS:
             mode: "TRANSACTION_PERIOD",
             timezone: "Europe/Rome",
             calendarId: "calendar.standard.it",
-            period: { kind: "CURRENT_QUARTER", alignment: "EQUIVALENT_ELAPSED_DAYS" },
+            period: {
+              kind: "CURRENT_QUARTER",
+              alignment: "EQUIVALENT_ELAPSED_DAYS",
+            },
           },
           metrics: [
-            { metricId: "sales.invoiced_net", metricVersion: "1.1.0", alias: "net_sales" },
+            {
+              metricId: "sales.invoiced_net",
+              metricVersion: "1.1.0",
+              alias: "net_sales",
+            },
           ],
           dimensions: [],
           filters: [],
@@ -1606,7 +1874,11 @@ CRITICAL ARCHITECTURAL CONSTRAINTS:
             period: { kind: "CURRENT_QUARTER", alignment: "FULL_PERIOD" },
           },
           metrics: [
-            { metricId: "sales.invoiced_net", metricVersion: "1.1.0", alias: "net_sales" },
+            {
+              metricId: "sales.invoiced_net",
+              metricVersion: "1.1.0",
+              alias: "net_sales",
+            },
           ],
           dimensions: [{ dimensionId: "customer.customer" }],
           filters: [],
@@ -1627,7 +1899,11 @@ CRITICAL ARCHITECTURAL CONSTRAINTS:
             period: { kind: "CURRENT_QUARTER", alignment: "FULL_PERIOD" },
           },
           metrics: [
-            { metricId: "procurement.supplier_spend_net", metricVersion: "1.0.0", alias: "supplier_spend" },
+            {
+              metricId: "procurement.supplier_spend_net",
+              metricVersion: "1.0.0",
+              alias: "supplier_spend",
+            },
           ],
           dimensions: [{ dimensionId: "supplier.supplier" }],
           filters: [],
@@ -1647,8 +1923,16 @@ CRITICAL ARCHITECTURAL CONSTRAINTS:
             calendarId: "calendar.standard.it",
           },
           metrics: [
-            { metricId: "sales.delayed_order_count", metricVersion: "1.0.0", alias: "delayed_orders" },
-            { metricId: "sales.delayed_backlog_net", metricVersion: "1.0.0", alias: "delayed_backlog" },
+            {
+              metricId: "sales.delayed_order_count",
+              metricVersion: "1.0.0",
+              alias: "delayed_orders",
+            },
+            {
+              metricId: "sales.delayed_backlog_net",
+              metricVersion: "1.0.0",
+              alias: "delayed_backlog",
+            },
           ],
           dimensions: [
             { dimensionId: "sales.sales_order" },
@@ -1671,8 +1955,16 @@ CRITICAL ARCHITECTURAL CONSTRAINTS:
             calendarId: "calendar.standard.it",
           },
           metrics: [
-            { metricId: "production.exposed_backlog_net", metricVersion: "1.0.0", alias: "linked_backlog" },
-            { metricId: "production.sales_linkage_coverage_pct", metricVersion: "1.0.0", alias: "coverage_pct" },
+            {
+              metricId: "production.exposed_backlog_net",
+              metricVersion: "1.0.0",
+              alias: "linked_backlog",
+            },
+            {
+              metricId: "production.sales_linkage_coverage_pct",
+              metricVersion: "1.0.0",
+              alias: "coverage_pct",
+            },
           ],
           dimensions: [
             { dimensionId: "production.production_order" },
@@ -1696,7 +1988,11 @@ CRITICAL ARCHITECTURAL CONSTRAINTS:
             period: { kind: "CURRENT_QUARTER", alignment: "FULL_PERIOD" },
           },
           metrics: [
-            { metricId: "sales.invoiced_net", metricVersion: "1.1.0", alias: "net_sales" },
+            {
+              metricId: "sales.invoiced_net",
+              metricVersion: "1.1.0",
+              alias: "net_sales",
+            },
           ],
           dimensions: [{ dimensionId: "customer.customer" }],
           filters: [],
@@ -1711,7 +2007,9 @@ CRITICAL ARCHITECTURAL CONSTRAINTS:
   /**
    * Resolves a journey ID from a ModelCandidatePlan's metrics and intent.
    */
-  resolveJourneyFromCandidatePlan(plan: BlueprintModelCandidatePlan): JourneyId | null {
+  resolveJourneyFromCandidatePlan(
+    plan: BlueprintModelCandidatePlan,
+  ): JourneyId | null {
     const metricIds = (plan.metrics || []).map((m) => m.metricId);
     if (
       metricIds.includes("production.exposed_backlog_net") ||
@@ -1736,7 +2034,10 @@ CRITICAL ARCHITECTURAL CONSTRAINTS:
       return "delayed-orders";
     }
     if (metricIds.includes("sales.invoiced_net")) {
-      if (plan.intent === "COMPARE" || plan.timeContext?.period?.alignment === "EQUIVALENT_ELAPSED_DAYS") {
+      if (
+        plan.intent === "COMPARE" ||
+        plan.timeContext?.period?.alignment === "EQUIVALENT_ELAPSED_DAYS"
+      ) {
         return "sales-comparison";
       }
       if (plan.intent === "RANK") {
@@ -1759,7 +2060,9 @@ CRITICAL ARCHITECTURAL CONSTRAINTS:
     // Check for ambiguity per Blueprint §11.3:
     // "delayed orders" is ambiguous between sales orders and production orders
     if (
-      (text === "delayed orders" || text === "show delayed orders" || text === "ordini in ritardo") &&
+      (text === "delayed orders" ||
+        text === "show delayed orders" ||
+        text === "ordini in ritardo") &&
       !text.includes("sales") &&
       !text.includes("production") &&
       !text.includes("vendita") &&
@@ -1808,7 +2111,9 @@ CRITICAL ARCHITECTURAL CONSTRAINTS:
           // resolve it directly to the canonical candidate plan rather than prompting the executive.
           if (candidatePlan.clarification?.status === "REQUIRED") {
             const isGenuinelyAmbiguous =
-              (text === "delayed orders" || text === "show delayed orders" || text === "ordini in ritardo") &&
+              (text === "delayed orders" ||
+                text === "show delayed orders" ||
+                text === "ordini in ritardo") &&
               !text.includes("sales") &&
               !text.includes("production") &&
               !text.includes("vendita") &&
@@ -1817,7 +2122,11 @@ CRITICAL ARCHITECTURAL CONSTRAINTS:
             if (!isGenuinelyAmbiguous) {
               const trackAJourney = this.resolveJourney(userPrompt);
               if (trackAJourney) {
-                return this.buildCanonicalCandidatePlan(trackAJourney, userPrompt, locale);
+                return this.buildCanonicalCandidatePlan(
+                  trackAJourney,
+                  userPrompt,
+                  locale,
+                );
               }
             }
           }
@@ -1852,20 +2161,20 @@ CRITICAL ARCHITECTURAL CONSTRAINTS:
 
     const resolvedTime = isCurrentState
       ? {
-        mode: "CURRENT_STATE",
-        timezone: "Europe/Rome" as const,
-        calendarId: "calendar.standard.it",
-      }
+          mode: "CURRENT_STATE",
+          timezone: "Europe/Rome" as const,
+          calendarId: "calendar.standard.it",
+        }
       : {
-        mode: "TRANSACTION_PERIOD",
-        timezone: "Europe/Rome" as const,
-        calendarId: "calendar.standard.it",
-        periodStartUtc:
-          journeyId === "sales-comparison"
-            ? "2026-04-01T00:00:00Z"
-            : "2026-06-30T22:00:00Z",
-        periodEndUtcExclusive: "2026-08-15T06:30:00Z",
-      };
+          mode: "TRANSACTION_PERIOD",
+          timezone: "Europe/Rome" as const,
+          calendarId: "calendar.standard.it",
+          periodStartUtc:
+            journeyId === "sales-comparison"
+              ? "2026-04-01T00:00:00Z"
+              : "2026-06-30T22:00:00Z",
+          periodEndUtcExclusive: "2026-08-15T06:30:00Z",
+        };
 
     const semanticBindings = candidatePlan.metrics.map((m, idx) => ({
       bindingKind: "METRIC" as const,
@@ -1879,8 +2188,8 @@ CRITICAL ARCHITECTURAL CONSTRAINTS:
 
     const assetId =
       journeyId === "current-sales" ||
-        journeyId === "sales-comparison" ||
-        journeyId === "top-customers"
+      journeyId === "sales-comparison" ||
+      journeyId === "top-customers"
         ? "analytics.v_sales_transaction_fact"
         : journeyId === "supplier-spend"
           ? "analytics.v_supplier_transaction_fact"
@@ -1977,9 +2286,9 @@ CRITICAL ARCHITECTURAL CONSTRAINTS:
   }): Promise<
     | PipelineExecutionResult
     | {
-      candidatePlan: BlueprintModelCandidatePlan;
-      uiAnswer: UIAnswer;
-    }
+        candidatePlan: BlueprintModelCandidatePlan;
+        uiAnswer: UIAnswer;
+      }
   > {
     const locale = params.locale || "en";
     const userQuery = params.question.trim();
@@ -1993,7 +2302,10 @@ CRITICAL ARCHITECTURAL CONSTRAINTS:
         id: "clarification-needed",
         question: userQuery,
         summary: [
-          { text: candidatePlan.clarification.question || "Clarification required" },
+          {
+            text:
+              candidatePlan.clarification.question || "Clarification required",
+          },
         ],
         meta: {
           period: locale === "it" ? PERIOD_CURRENT_IT : PERIOD_CURRENT_EN,
@@ -2048,7 +2360,9 @@ CRITICAL ARCHITECTURAL CONSTRAINTS:
         });
       }
     } catch (auditErr: any) {
-      logger.warn(`[AnalyticsService] Audit recording bypassed or failed: ${auditErr.message} `);
+      logger.warn(
+        `[AnalyticsService] Audit recording bypassed or failed: ${auditErr.message} `,
+      );
     }
 
     // 7. Assemble Pipeline Execution Result

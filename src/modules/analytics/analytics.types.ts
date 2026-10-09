@@ -55,7 +55,8 @@ export interface BlueprintAnswerResponse {
   status: "SUCCESS" | "PARTIAL" | "EMPTY" | "REFUSED" | "FAILED";
   summary: {
     locale: "en" | "it";
-    statementType: "FACTUAL_SUMMARY" | "CLARIFICATION" | "UNAVAILABLE" | "ERROR";
+    statementType:
+      "FACTUAL_SUMMARY" | "CLARIFICATION" | "UNAVAILABLE" | "ERROR";
     generationMode: "SERVER_TEMPLATE" | "MODEL_VALIDATED";
     claimRefs: string[];
     text: string;
@@ -66,7 +67,13 @@ export interface BlueprintAnswerResponse {
     valueRefs: string[];
   }>;
   context: {
-    mode: "CURRENT_STATE" | "TRANSACTION_PERIOD" | "AS_WAS_OPERATIONAL" | "AS_KNOWN_THEN" | "CORRECTED_HISTORY" | "FORECAST";
+    mode:
+      | "CURRENT_STATE"
+      | "TRANSACTION_PERIOD"
+      | "AS_WAS_OPERATIONAL"
+      | "AS_KNOWN_THEN"
+      | "CORRECTED_HISTORY"
+      | "FORECAST";
     timezone: "Europe/Rome";
     calendarId: string;
     asOf: string;
@@ -169,9 +176,16 @@ export interface JourneyExecutionResult {
 
 export interface BlueprintModelCandidatePlan {
   schemaVersion: "1.2";
-  intent: "SUMMARY" | "TREND" | "COMPARE" | "RANK" | "DETAIL" | "EXPLAIN_VARIANCE";
+  intent:
+    "SUMMARY" | "TREND" | "COMPARE" | "RANK" | "DETAIL" | "EXPLAIN_VARIANCE";
   timeContext: {
-    mode: "CURRENT_STATE" | "TRANSACTION_PERIOD" | "AS_WAS_OPERATIONAL" | "AS_KNOWN_THEN" | "CORRECTED_HISTORY" | "FORECAST";
+    mode:
+      | "CURRENT_STATE"
+      | "TRANSACTION_PERIOD"
+      | "AS_WAS_OPERATIONAL"
+      | "AS_KNOWN_THEN"
+      | "CORRECTED_HISTORY"
+      | "FORECAST";
     timezone: "Europe/Rome";
     calendarId: string;
     period?: {
@@ -195,7 +209,18 @@ export interface BlueprintModelCandidatePlan {
   }>;
   filters: Array<{
     dimensionId: string;
-    operator: "EQ" | "NEQ" | "IN" | "NOT_IN" | "GT" | "GTE" | "LT" | "LTE" | "BETWEEN" | "IS_NULL" | "IS_NOT_NULL";
+    operator:
+      | "EQ"
+      | "NEQ"
+      | "IN"
+      | "NOT_IN"
+      | "GT"
+      | "GTE"
+      | "LT"
+      | "LTE"
+      | "BETWEEN"
+      | "IS_NULL"
+      | "IS_NOT_NULL";
     values: Array<string | number | boolean | null>;
   }>;
   sort: Array<{
