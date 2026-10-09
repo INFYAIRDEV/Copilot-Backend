@@ -263,7 +263,7 @@ export const SUPPLIER_TRANSACTION_FACTS: SupplierTransactionFact[] = [
     transaction_type: "INVOICE",
     supplier_id: "SUP-001",
     supplier_code: "PRECGLASS",
-    supplier_name: "Precision Glass Italia",
+    supplier_name: "Glass Italia",
     currency: "EUR",
     net_amount: 112000,
   },

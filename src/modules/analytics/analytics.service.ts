@@ -37,12 +37,25 @@ export class AnalyticsService {
    * Resolves a user prompt or journey ID to one of the 6 fixed Track A journeys.
    */
   resolveJourney(input: string): JourneyId | null {
+    const rawTrimmed = (input || "").trim().toLowerCase();
+    const validIds: JourneyId[] = [
+      "current-sales",
+      "sales-comparison",
+      "top-customers",
+      "supplier-spend",
+      "delayed-orders",
+      "production-linkage",
+    ];
+    if (validIds.includes(rawTrimmed as JourneyId)) {
+      return rawTrimmed as JourneyId;
+    }
+
     const text = input.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
     if (!text) return null;
 
     // 1. Production Linkage (must precede delayed-orders so 'production orders linked to delayed sales' routes here)
     if (
-      text === "production-linkage" ||
+      text === "production linkage" ||
       text.includes("production link") ||
       text.includes("linked production") ||
       text.includes("linkage") ||
@@ -54,7 +67,7 @@ export class AnalyticsService {
 
     // 2. Delayed Sales Orders
     if (
-      text === "delayed-orders" ||
+      text === "delayed orders" ||
       text.includes("delayed sales") ||
       text.includes("delayed order") ||
       text.includes("late order") ||
@@ -66,7 +79,7 @@ export class AnalyticsService {
 
     // 3. Top Suppliers / Supplier Spend
     if (
-      text === "supplier-spend" ||
+      text === "supplier spend" ||
       text.includes("supplier") ||
       text.includes("fornitor") ||
       text.includes("procurement") ||
@@ -77,7 +90,9 @@ export class AnalyticsService {
 
     // 4. Sales Comparison (must precede current-sales)
     if (
-      text === "sales-comparison" ||
+      text === "sales comparison" ||
+      text.includes("sales comparison") ||
+      text.includes("comparison") ||
       text.includes("compare") ||
       text.includes("confront") ||
       text.includes("previous quarter") ||
@@ -90,7 +105,7 @@ export class AnalyticsService {
 
     // 5. Top Customers
     if (
-      text === "top-customers" ||
+      text === "top customers" ||
       text.includes("customer") ||
       text.includes("clienti") ||
       text.includes("primi clienti") ||
@@ -102,7 +117,7 @@ export class AnalyticsService {
 
     // 6. Current Net Sales
     if (
-      text === "current-sales" ||
+      text === "current sales" ||
       text.includes("sales") ||
       text.includes("vendit") ||
       text.includes("fatturato") ||
@@ -1293,8 +1308,16 @@ CRITICAL ARCHITECTURAL CONSTRAINTS:
    - "production.exposed_backlog_net" (Production linked backlog, version "1.0.0")
    - "production.sales_linkage_coverage_pct" (Sales-production linkage coverage, version "1.0.0")
 6. Canonical dimensions: "customer.customer", "supplier.supplier", "sales.sales_order", "production.production_order".
-7. Ambiguity: If the question is ambiguous (e.g. 'delayed orders' without specifying sales vs production), set clarification.status = "REQUIRED".
-8. Example JSON:
+7. Semantic Bindings for Executive Track A Journeys:
+   - "Current sales" / "Net sales" -> intent: "SUMMARY", metric: "sales.invoiced_net"
+   - "Equivalent-period comparison" / "Sales comparison" / "Compare sales" -> intent: "COMPARE", metric: "sales.invoiced_net", period alignment: "EQUIVALENT_ELAPSED_DAYS"
+   - "Top customers" -> intent: "RANK", metric: "sales.invoiced_net", dimension: "customer.customer", limit: 5
+   - "Top suppliers" / "Supplier spend" -> intent: "RANK", metric: "procurement.supplier_spend_net", dimension: "supplier.supplier", limit: 5
+   - "Delayed sales commitments" / "Delayed sales orders" -> intent: "DETAIL", metrics: ["sales.delayed_order_count", "sales.delayed_backlog_net"]
+   - "Production linkage" / "Production orders linked to delayed sales" -> intent: "DETAIL", metrics: ["production.sales_linkage_coverage_pct", "production.exposed_backlog_net"]
+8. Ambiguity: ONLY unqualified questions like 'delayed orders' (without specifying sales vs production) require clarification (clarification.status = "REQUIRED").
+   "Equivalent-period comparison" binds unambiguously to "sales.invoiced_net" and does NOT require clarification (clarification.status = "RESOLVED").
+9. Example JSON:
 {
   "schemaVersion": "1.2",
   "intent": "RANK",
@@ -1690,13 +1713,26 @@ CRITICAL ARCHITECTURAL CONSTRAINTS:
    */
   resolveJourneyFromCandidatePlan(plan: BlueprintModelCandidatePlan): JourneyId | null {
     const metricIds = (plan.metrics || []).map((m) => m.metricId);
-    if (metricIds.includes("production.exposed_backlog_net") || metricIds.includes("production.sales_linkage_coverage_pct")) {
+    if (
+      metricIds.includes("production.exposed_backlog_net") ||
+      metricIds.includes("production.sales_linkage_coverage_pct") ||
+      metricIds.includes("production.delayed_order_count") ||
+      metricIds.some((m) => m.startsWith("production."))
+    ) {
       return "production-linkage";
     }
-    if (metricIds.includes("procurement.supplier_spend_net")) {
+    if (
+      metricIds.includes("procurement.supplier_spend_net") ||
+      metricIds.some((m) => m.startsWith("procurement."))
+    ) {
       return "supplier-spend";
     }
-    if (metricIds.includes("sales.delayed_order_count") || metricIds.includes("sales.delayed_backlog_net")) {
+    if (
+      metricIds.includes("sales.delayed_order_count") ||
+      metricIds.includes("sales.delayed_backlog_net") ||
+      metricIds.includes("sales.delayed_order_line_count") ||
+      metricIds.some((m) => m.startsWith("sales.delayed_"))
+    ) {
       return "delayed-orders";
     }
     if (metricIds.includes("sales.invoiced_net")) {
@@ -1767,6 +1803,24 @@ CRITICAL ARCHITECTURAL CONSTRAINTS:
           config,
         );
         if (candidatePlan) {
+          // If Gemini flagged clarification for a prompt that is an approved Track A journey
+          // (such as "Equivalent-period comparison", which binds unambiguously to sales.invoiced_net per Blueprint §7),
+          // resolve it directly to the canonical candidate plan rather than prompting the executive.
+          if (candidatePlan.clarification?.status === "REQUIRED") {
+            const isGenuinelyAmbiguous =
+              (text === "delayed orders" || text === "show delayed orders" || text === "ordini in ritardo") &&
+              !text.includes("sales") &&
+              !text.includes("production") &&
+              !text.includes("vendita") &&
+              !text.includes("produzione");
+
+            if (!isGenuinelyAmbiguous) {
+              const trackAJourney = this.resolveJourney(userPrompt);
+              if (trackAJourney) {
+                return this.buildCanonicalCandidatePlan(trackAJourney, userPrompt, locale);
+              }
+            }
+          }
           return candidatePlan;
         }
       }
