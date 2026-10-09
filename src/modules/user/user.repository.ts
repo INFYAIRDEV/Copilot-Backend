@@ -38,4 +38,18 @@ export const userRepository = {
       where: { username },
       select: { user_id: true, password_hash: true, is_active: true },
     }),
+
+  // Profile read. Fields are listed one by one, so password_hash and
+  // refresh_token can never be selected by accident.
+  findProfileById: (userId: number) =>
+    prisma.users.findUnique({
+      where: { user_id: userId },
+      select: {
+        user_id: true,
+        username: true,
+        full_name: true,
+        email: true,
+        is_active: true,
+      },
+    }),
 };

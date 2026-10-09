@@ -35,6 +35,8 @@
     "invalidCredentials": "Nome utente o password non validi",
     "accountInactive": "Questo account non è attivo. Contatta l'amministratore.",
     "loggedIn": "Accesso effettuato",
-    "loginFailed": "Accesso non riuscita. Riprova più tardi."
+    "loginFailed": "Accesso non riuscito. Riprova più tardi.",
+    "profileFetched": "Profilo recuperato",
+    "profileFailed": "Impossibile recuperare il profilo. Riprova più tardi."
   }
 }

@@ -35,6 +35,8 @@
     "invalidCredentials": "Invalid username or password",
     "accountInactive": "This account is not active. Contact your administrator.",
     "loggedIn": "Login successful",
-    "loginFailed": "Login failed. Please try again later."
+    "loginFailed": "Login failed. Please try again later.",
+    "profileFetched": "Profile retrieved",
+    "profileFailed": "Could not retrieve the profile. Please try again later."
   }
 }

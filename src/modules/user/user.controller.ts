@@ -80,4 +80,37 @@ export const userController = {
       });
     }
   },
+  async profile(req: Request, res: Response) {
+    // The subject comes only from the verified token. No id is read from the request.
+    const authenticated = req.authenticatedUser;
+    if (!authenticated) {
+      return ApiResponse.error(res, {
+        messageKey: "user.unauthorized",
+        statusCode: 401,
+      });
+    }
+    try {
+      const data = await userService.getProfile(authenticated.id);
+      return ApiResponse.success(res, {
+        messageKey: "user.profileFetched",
+        statusCode: 200,
+        data,
+      });
+    } catch (error) {
+      if (error instanceof APIResponse) {
+        return ApiResponse.error(res, {
+          messageKey: error.messageKey,
+          statusCode: error.statusCode,
+        });
+      }
+      logger.error("User profile failed", {
+        name: error instanceof Error ? error.name : "unknown",
+        code: (error as { code?: string })?.code,
+      });
+      return ApiResponse.error(res, {
+        messageKey: "user.profileFailed",
+        statusCode: 500,
+      });
+    }
+  },
 };

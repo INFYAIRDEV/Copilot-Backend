@@ -84,4 +84,17 @@ export const userService = {
       userId: user.user_id,
     };
   },
+  async getProfile(userId: number) {
+    const user = await userRepository.findProfileById(userId);
+    // A valid token for a deleted or switched-off account is not a usable identity.
+    if (!user || !user.is_active)
+      throw new UnauthorizedError("user.unauthorized");
+    // Only approved fields. No locale: the users table has none.
+    return {
+      userId: user.user_id,
+      username: user.username,
+      fullName: user.full_name,
+      email: user.email,
+    };
+  },
 };
