@@ -12,7 +12,11 @@ const origins = process.env.CORS_ORIGINS
   : defaultOrigins;
 
 export const sharedCorsOptions = {
-  origin: origins,
+  origin: [
+    "http://localhost:3000",
+    "http://localhost:8081",
+    "https://copilot-client.onrender.com",
+  ],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
   allowedHeaders: ["Content-Type", "Authorization", "Accept-Language"],
   exposedHeaders: ["Content-Language"],
