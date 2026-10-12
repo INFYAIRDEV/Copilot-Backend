@@ -77,6 +77,17 @@
       "AI_OUTPUT_INCOMPLETE": "La risposta dell'AI era incompleta. Riprova.",
       "AI_OUTPUT_REFUSED": "L'AI non ha potuto elaborare questa richiesta.",
       "AI_OUTPUT_RECOVERY_EXHAUSTED": "L'AI non è riuscita a produrre una risposta valida. Riprova più tardi."
+    },
+    "validationErrors": {
+      "COPILOT_INVALID_REQUEST": "Richiesta non valida. Controlla i dati inseriti.",
+      "COPILOT_UNSUPPORTED_OPERATION": "Questa operazione non è supportata.",
+      "COPILOT_INVALID_LOCALE": "Lingua non supportata. Usa inglese o italiano.",
+      "COPILOT_TOKEN_BUDGET_EXCEEDED": "La richiesta è troppo lunga. Accorciala e riprova.",
+      "COPILOT_PROMPT_TOO_LONG": "La domanda è troppo lunga. Accorciala.",
+      "COPILOT_MISSING_CONTEXT": "Mancano informazioni obbligatorie nella richiesta.",
+      "COPILOT_INVALID_CONTEXT": "Le informazioni della richiesta non sono valide.",
+      "COPILOT_SECURITY_VIOLATION": "La richiesta contiene informazioni sensibili ed è stata rifiutata.",
+      "COPILOT_PROMPT_INJECTION_DETECTED": "La richiesta è stata rifiutata per motivi di sicurezza."
     }
   }
 }

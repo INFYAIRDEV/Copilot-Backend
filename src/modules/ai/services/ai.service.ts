@@ -395,7 +395,7 @@ export class AIService implements IAIService {
         const mappedCode: AIServiceErrorCode =
           err.code === "COPILOT_TOKEN_BUDGET_EXCEEDED"
             ? "COPILOT_TOKEN_BUDGET_EXCEEDED"
-            : "COPILOT_INVALID_RESPONSE";
+            : "COPILOT_INVALID_REQUEST";
         throw new AIServiceException(mappedCode, err.message, {
           statusCode: err.statusCode,
           correlationId,

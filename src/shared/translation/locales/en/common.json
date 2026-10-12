@@ -77,6 +77,17 @@
       "AI_OUTPUT_INCOMPLETE": "The AI response was incomplete. Please try again.",
       "AI_OUTPUT_REFUSED": "The AI could not process this request.",
       "AI_OUTPUT_RECOVERY_EXHAUSTED": "The AI could not produce a valid response. Please try again later."
+    },
+    "validationErrors": {
+      "COPILOT_INVALID_REQUEST": "Invalid request. Please check your input.",
+      "COPILOT_UNSUPPORTED_OPERATION": "This operation is not supported.",
+      "COPILOT_INVALID_LOCALE": "Unsupported language. Use English or Italian.",
+      "COPILOT_TOKEN_BUDGET_EXCEEDED": "Your request is too long. Please shorten it and try again.",
+      "COPILOT_PROMPT_TOO_LONG": "Your question is too long. Please shorten it.",
+      "COPILOT_MISSING_CONTEXT": "Required request information is missing.",
+      "COPILOT_INVALID_CONTEXT": "The request information is invalid.",
+      "COPILOT_SECURITY_VIOLATION": "Your request contains sensitive information and was rejected.",
+      "COPILOT_PROMPT_INJECTION_DETECTED": "Your request was rejected for security reasons."
     }
   }
 }
