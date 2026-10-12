@@ -57,6 +57,26 @@
       "COPILOT_UNSAFE_AI_OUTPUT": "La risposta dell'AI è stata rifiutata per motivi di sicurezza.",
       "COPILOT_SERVICE_ERROR": "Qualcosa è andato storto con il servizio AI. Riprova più tardi."
     },
-    "narrativeFallback": "Risultati standard del calcolo analitico generati."
+    "narrativeFallback": "Risultati standard del calcolo analitico generati.",
+    "serviceErrors": {
+      "COPILOT_MODEL_UNAVAILABLE": "Il servizio AI è temporaneamente non disponibile. I report certificati restano disponibili.",
+      "COPILOT_MODEL_DEGRADED": "Il servizio AI è attualmente degradato. Riprova più tardi.",
+      "COPILOT_MODEL_TIMEOUT": "Il servizio AI ha impiegato troppo tempo a rispondere. Riprova.",
+      "COPILOT_INVALID_RESPONSE": "L'AI ha restituito una risposta non valida. Riprova.",
+      "COPILOT_TOKEN_BUDGET_EXCEEDED": "La richiesta è troppo lunga. Accorciala e riprova.",
+      "COPILOT_CONFIG_ERROR": "Il servizio AI non è configurato correttamente. Contatta l'amministratore.",
+      "COPILOT_PROMPT_ERROR": "Non è stato possibile preparare la richiesta. Riprova.",
+      "COPILOT_INVALID_REQUEST": "Richiesta non valida. Controlla i dati inseriti.",
+      "COPILOT_SERVICE_ERROR": "Qualcosa è andato storto con il servizio AI. Riprova più tardi.",
+      "AI_OUTPUT_SCHEMA_NOT_FOUND": "Il formato di output richiesto non è disponibile.",
+      "AI_OUTPUT_SCHEMA_INVALID": "Il formato di output non è configurato correttamente.",
+      "AI_STRUCTURED_OUTPUT_UNSUPPORTED": "L'output strutturato non è supportato dalla configurazione AI attuale.",
+      "AI_OUTPUT_PARSE_FAILED": "Non è stato possibile leggere la risposta dell'AI. Riprova.",
+      "AI_OUTPUT_VALIDATION_FAILED": "La risposta dell'AI non corrisponde al formato richiesto. Riprova.",
+      "AI_OUTPUT_EMPTY": "L'AI ha restituito una risposta vuota. Riprova.",
+      "AI_OUTPUT_INCOMPLETE": "La risposta dell'AI era incompleta. Riprova.",
+      "AI_OUTPUT_REFUSED": "L'AI non ha potuto elaborare questa richiesta.",
+      "AI_OUTPUT_RECOVERY_EXHAUSTED": "L'AI non è riuscita a produrre una risposta valida. Riprova più tardi."
+    }
   }
 }

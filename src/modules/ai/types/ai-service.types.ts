@@ -1,4 +1,5 @@
 import { ModelCandidatePlan } from "./ai-provider.types.js";
+import { t } from "i18next";
 
 /**
  * Normalized Analytical Context provided by the Copilot orchestration layer.
@@ -135,5 +136,18 @@ export class AIServiceException extends Error {
     this.details = options.details;
 
     Object.setPrototypeOf(this, AIServiceException.prototype);
+  }
+
+  /**
+   * Client-safe message translated by error code.
+   * Pass the request language (e.g. req.lang). this.message stays English for logs.
+   */
+  public getClientMessage(locale: string = "en"): string {
+    return (
+      t(`ai.serviceErrors.${this.code}`, {
+        lng: locale,
+        defaultValue: this.message,
+      }) || this.message
+    );
   }
 }
