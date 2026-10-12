@@ -12,6 +12,7 @@ import {
   LLMProviderConfig,
 } from "@/infrastructure/ai/llm-config.js";
 import { logger } from "../../../shared/utils/logger.js";
+import { t } from "i18next";
 
 interface GeminiGenerateResponse {
   modelVersion?: string;
@@ -50,10 +51,14 @@ export class LLMProviderAdapter extends BaseAIProviderAdapter {
     request: AIProviderRequest,
   ): Promise<AIProviderResponse> {
     const startTime = Date.now();
+    const locale = request.context?.locale;
 
     // 1. Data Minimization & Context Aggregation
     const minimizedPrompt = this.sanitizeAndMinimizeInput(request.prompt);
-    const systemPrompt = this.getSystemInstruction(request.systemInstruction);
+    const systemPrompt = this.getSystemInstruction(
+      request.systemInstruction,
+      locale,
+    );
 
     // 2. Timeout Bounded Execution Setup
     const controller = new AbortController();
@@ -134,7 +139,7 @@ export class LLMProviderAdapter extends BaseAIProviderAdapter {
       clearTimeout(timeoutId);
 
       // 4. Structured Output Validation & Parsing
-      const candidatePlan = this.parseCandidatePlan(responseText);
+      const candidatePlan = this.parseCandidatePlan(responseText, locale);
 
       const latencyMs = Date.now() - startTime;
       const inputTokens = Math.ceil(minimizedPrompt.length / 4);
@@ -203,7 +208,7 @@ export class LLMProviderAdapter extends BaseAIProviderAdapter {
       ? `\n<application_context>\nlocale: ${context.locale || "en"}\nrole: ${context.roleId || ""}\n</application_context>`
       : "";
     const promptText = `${contextText}\n\n<untrusted_user_input>\n${safePrompt}\n</untrusted_user_input>`;
-    const systemInstruction = `${request.systemInstruction?.trim() || ""}\n\n${request.structuredOutput.description}\nReturn only data matching the supplied response schema.`;
+    const systemInstruction = `${request.systemInstruction?.trim() || ""}\n\n${request.structuredOutput.description}\nReturn only data matching the supplied response schema.\n${this.getLanguageInstruction(context?.locale)}`;
 
     try {
       const response = await fetch(
@@ -315,7 +320,7 @@ export class LLMProviderAdapter extends BaseAIProviderAdapter {
     const narrative =
       response.narrative ||
       response.candidatePlan.reasoningSummary ||
-      "Generated candidate analytical plan.";
+      t("ai.defaultNarrative", { lng: request.context?.locale });
 
     const words = narrative.split(" ");
     for (let i = 0; i < words.length; i++) {
@@ -345,9 +350,22 @@ export class LLMProviderAdapter extends BaseAIProviderAdapter {
   }
 
   /**
+   * Tells the model which language to use for free-text fields.
+   * Supported languages: English and Italian (fallback: English).
+   */
+  private getLanguageInstruction(locale?: string): string {
+    const names: Record<string, string> = { en: "English", it: "Italian" };
+    const lang = names[locale ?? "en"] ?? "English";
+    return `Write all free-text fields (e.g. reasoningSummary, summary) in ${lang}. Keep JSON keys, enum values, and entity, metric and dimension names exactly as defined.`;
+  }
+
+  /**
    * Constructs strict JSON system instruction forcing Candidate Plan output structure.
    */
-  private getSystemInstruction(customInstruction?: string): string {
+  private getSystemInstruction(
+    customInstruction?: string,
+    locale?: string,
+  ): string {
     const baseInstruction = `You are a specialized AI candidate plan generator for Copilot analytics.
 Your ONLY task is to return a valid JSON object matching the Candidate Typed Analytical Plan schema.
 You MUST NOT output raw SQL queries, database credentials, or operational execution instructions.
@@ -368,16 +386,21 @@ JSON Schema format required:
   "isFallback": false
 }`;
 
+    const withLanguage = `${baseInstruction}\n\n${this.getLanguageInstruction(locale)}`;
+
     return customInstruction
-      ? `${baseInstruction}\n\nAdditional Guidance: ${customInstruction}`
-      : baseInstruction;
+      ? `${withLanguage}\n\nAdditional Guidance: ${customInstruction}`
+      : withLanguage;
   }
 
   /**
    * Parses and validates structured candidate plan output.
    * Throws AIProviderException("INVALID_RESPONSE") on malformed output.
    */
-  private parseCandidatePlan(responseText: string): ModelCandidatePlan {
+  private parseCandidatePlan(
+    responseText: string,
+    locale?: string,
+  ): ModelCandidatePlan {
     try {
       // Remove any markdown code block fences if present
       const jsonText = responseText
@@ -412,7 +435,9 @@ JSON Schema format required:
           typeof parsed.confidenceScore === "number"
             ? parsed.confidenceScore
             : 0.8,
-        reasoningSummary: parsed.reasoningSummary || "Generated candidate plan",
+        reasoningSummary:
+          parsed.reasoningSummary ||
+          t("ai.defaultPlanSummary", { lng: locale }),
         suggestedVisualization: parsed.suggestedVisualization || "TABLE",
         isFallback: false,
       };

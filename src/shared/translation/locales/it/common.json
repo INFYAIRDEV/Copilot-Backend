@@ -1,13 +1,13 @@
 {
   "common": {
-    "created": "{{entity}} Creato Successivamente",
-    "updated": "{{entity}} Aggiornato Successivamente",
-    "deleted": "{{entity}} Eliminato Successivamente",
-    "filtered": "{{entity}} Filtrato Successivamente",
-    "fetched": "{{entity}} Recuperato Successivamente",
-    "mapped": "{{entity}} Mappato Successivamente",
-    "found": "{{entity}} Trovato Successivamente",
-    "notFound": "{{entity}} Non Trovato",
+    "created": "{{entity}} creato con successo",
+    "updated": "{{entity}} aggiornato con successo",
+    "deleted": "{{entity}} eliminato con successo",
+    "filtered": "{{entity}} filtrato con successo",
+    "fetched": "{{entity}} recuperato con successo",
+    "mapped": "{{entity}} mappato con successo",
+    "found": "{{entity}} trovato con successo",
+    "notFound": "{{entity}} non trovato",
     "serverIssue": "Qualcosa è andato storto. Riprova più tardi."
   },
   "user": {
@@ -39,5 +39,9 @@
     "loginFailed": "Accesso non riuscito. Riprova più tardi.",
     "profileFetched": "Profilo recuperato",
     "profileFailed": "Impossibile recuperare il profilo. Riprova più tardi."
+  },
+  "ai": {
+    "defaultNarrative": "Piano analitico candidato generato.",
+    "defaultPlanSummary": "Piano candidato generato"
   }
 }

@@ -39,5 +39,9 @@
     "loginFailed": "Login failed. Please try again later.",
     "profileFetched": "Profile retrieved",
     "profileFailed": "Could not retrieve the profile. Please try again later."
+  },
+  "ai": {
+    "defaultNarrative": "Generated candidate analytical plan.",
+    "defaultPlanSummary": "Generated candidate plan"
   }
 }
