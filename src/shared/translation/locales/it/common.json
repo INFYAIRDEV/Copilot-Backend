@@ -46,6 +46,16 @@
     "fallbackNarrative": "La generazione della narrazione AI è attualmente degradata. I report strutturati certificati restano pienamente disponibili.",
     "fallbackPlanSummary": "Modello di report standard certificato generato dal sistema di fallback strutturato durante un'interruzione del provider AI.",
     "narrativeDegraded": "I calcoli analitici deterministici sono stati generati con successo. L'interpretazione narrativa esecutiva è attualmente degradata.",
-    "narrativeValidationFailed": "Risultati standard certificati del calcolo analitico generati. L'interpretazione AI non ha soddisfatto gli standard di verifica di fedeltà."
+    "narrativeValidationFailed": "Risultati standard certificati del calcolo analitico generati. L'interpretazione AI non ha soddisfatto gli standard di verifica di fedeltà.",
+    "errors": {
+      "COPILOT_INVALID_RESPONSE": "La risposta dell'AI non è valida. Riprova.",
+      "COPILOT_MALFORMED_CANDIDATE": "L'AI ha restituito un risultato non valido. Riprova.",
+      "COPILOT_MODEL_UNAVAILABLE": "Il servizio AI non è al momento disponibile. Riprova più tardi.",
+      "COPILOT_MODEL_DEGRADED": "Il servizio AI è attualmente degradato. Riprova più tardi.",
+      "COPILOT_NARRATIVE_VALIDATION_FAILED": "Non è stato possibile verificare la narrazione dell'AI.",
+      "COPILOT_RESPONSE_TOO_LARGE": "La risposta dell'AI è troppo grande per essere elaborata.",
+      "COPILOT_UNSAFE_AI_OUTPUT": "La risposta dell'AI è stata rifiutata per motivi di sicurezza.",
+      "COPILOT_SERVICE_ERROR": "Qualcosa è andato storto con il servizio AI. Riprova più tardi."
+    }
   }
 }

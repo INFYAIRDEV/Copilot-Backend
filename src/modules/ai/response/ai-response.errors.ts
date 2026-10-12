@@ -1,3 +1,5 @@
+import { t } from "i18next";
+
 /**
  * AI Response Handling Error Types and Error Class.
  *
@@ -89,8 +91,9 @@ export class AIResponseException extends Error {
 
   /**
    * Safe serialization for client responses: strips internal stack traces and provider internals.
+   * The message is translated by error code; pass the request language (e.g. req.lang).
    */
-  public toClientResponse(): {
+  public toClientResponse(locale: string = "en"): {
     error: {
       code: AIResponseErrorCode;
       message: string;
@@ -98,10 +101,16 @@ export class AIResponseException extends Error {
       details?: string[];
     };
   } {
+    const message =
+      t(`ai.errors.${this.code}`, {
+        lng: locale,
+        defaultValue: this.message,
+      }) || this.message;
+
     return {
       error: {
         code: this.code,
-        message: this.message,
+        message,
         ...(this.correlationId ? { correlationId: this.correlationId } : {}),
         ...(this.details.length > 0 ? { details: this.details } : {}),
       },

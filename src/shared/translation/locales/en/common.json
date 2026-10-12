@@ -46,6 +46,16 @@
     "fallbackNarrative": "AI narrative generation is currently degraded. Certified structured reports remain fully available.",
     "fallbackPlanSummary": "Generated standard certified report template via structured fallback system during AI provider outage.",
     "narrativeDegraded": "Deterministic analytical calculations generated successfully. Executive narrative interpretation is currently degraded.",
-    "narrativeValidationFailed": "Standard certified analytical calculation results generated. AI interpretation did not meet fidelity verification standards."
+    "narrativeValidationFailed": "Standard certified analytical calculation results generated. AI interpretation did not meet fidelity verification standards.",
+    "errors": {
+      "COPILOT_INVALID_RESPONSE": "The AI response was invalid. Please try again.",
+      "COPILOT_MALFORMED_CANDIDATE": "The AI returned a malformed result. Please try again.",
+      "COPILOT_MODEL_UNAVAILABLE": "The AI service is currently unavailable. Please try again later.",
+      "COPILOT_MODEL_DEGRADED": "The AI service is currently degraded. Please try again later.",
+      "COPILOT_NARRATIVE_VALIDATION_FAILED": "The AI narrative could not be verified.",
+      "COPILOT_RESPONSE_TOO_LARGE": "The AI response was too large to process.",
+      "COPILOT_UNSAFE_AI_OUTPUT": "The AI response was rejected for safety reasons.",
+      "COPILOT_SERVICE_ERROR": "Something went wrong with the AI service. Please try again later."
+    }
   }
 }
