@@ -28,7 +28,7 @@ export class AnalyticsController {
       return ApiResponse.error(res, {
         statusCode: 400,
         code: "INVALID_REQUEST",
-        message: "A non-empty 'question' string is required in request body.",
+        messageKey: "ai.analytics.questionRequired",
       });
     }
 
@@ -160,7 +160,7 @@ export class AnalyticsController {
       if (isClarification) {
         return ApiResponse.success(res, {
           statusCode: 200,
-          message: "Clarification required",
+          messageKey: "ai.analytics.clarificationRequired",
           data: {
             ...result.uiAnswer,
             conversationId: activeConversationUuid,
@@ -173,7 +173,7 @@ export class AnalyticsController {
       const pipelineRes = result as PipelineExecutionResult;
       return ApiResponse.success(res, {
         statusCode: 200,
-        message: "Pipeline query executed successfully",
+        messageKey: "ai.analytics.pipelineExecuted",
         data: {
           ...pipelineRes.uiAnswer,
           conversationId: activeConversationUuid,
@@ -184,10 +184,13 @@ export class AnalyticsController {
         },
       });
     } catch (err: any) {
+      logger.error(
+        `[AnalyticsController] Pipeline execution failed: ${err?.message}`,
+      );
       return ApiResponse.error(res, {
         statusCode: 500,
         code: "ANALYTICS_EXECUTION_ERROR",
-        message: err.message || "Failed to execute pipeline query",
+        messageKey: "ai.analytics.executionFailed",
       });
     }
   };
@@ -208,7 +211,8 @@ export class AnalyticsController {
       return ApiResponse.error(res, {
         statusCode: 404,
         code: "CONVERSATION_NOT_FOUND",
-        message: `Conversation ${id} was not found in database`,
+        messageKey: "ai.analytics.conversationNotFound",
+        messageParams: { id },
       });
     }
 
@@ -221,7 +225,8 @@ export class AnalyticsController {
         return ApiResponse.error(res, {
           statusCode: 404,
           code: "CONVERSATION_NOT_FOUND",
-          message: `Conversation ${id} was not found in database`,
+          messageKey: "ai.analytics.conversationNotFound",
+          messageParams: { id },
         });
       }
 
@@ -265,17 +270,20 @@ export class AnalyticsController {
 
       return ApiResponse.success(res, {
         statusCode: 200,
-        message: "Conversation retrieved from database",
+        messageKey: "ai.analytics.conversationRetrieved",
         data: {
           conversationId: conv.conversation_uuid,
           messages,
         },
       });
     } catch (err: any) {
+      logger.error(
+        `[AnalyticsController] Conversation fetch failed: ${err?.message}`,
+      );
       return ApiResponse.error(res, {
         statusCode: 500,
         code: "CONVERSATION_FETCH_ERROR",
-        message: err.message || "Failed to retrieve conversation from database",
+        messageKey: "ai.analytics.conversationFetchFailed",
       });
     }
   };
@@ -299,7 +307,8 @@ export class AnalyticsController {
       return ApiResponse.error(res, {
         statusCode: 404,
         code: "COPILOT_JOURNEY_NOT_FOUND",
-        message: `No approved Track A demonstrator journey matches ID: '${rawId}'`,
+        messageKey: "ai.analytics.journeyNotFound",
+        messageParams: { id: rawId },
       });
     }
 
@@ -310,7 +319,7 @@ export class AnalyticsController {
       // and complete Blueprint AnswerResponse structure
       return ApiResponse.success(res, {
         statusCode: 200,
-        message: "Answer retrieved successfully",
+        messageKey: "ai.analytics.answerRetrieved",
         data: {
           ...result.uiAnswer, // id, question, summary, chart, table, meta
           blueprintResponse: result.blueprintResponse,
@@ -318,10 +327,13 @@ export class AnalyticsController {
         },
       });
     } catch (err: any) {
+      logger.error(
+        `[AnalyticsController] Journey execution failed: ${err?.message}`,
+      );
       return ApiResponse.error(res, {
         statusCode: 500,
         code: "ANALYTICS_EXECUTION_ERROR",
-        message: err.message || "Failed to execute analytical query",
+        messageKey: "ai.analytics.executionFailed",
       });
     }
   };
@@ -357,14 +369,17 @@ export class AnalyticsController {
 
       return ApiResponse.success(res, {
         statusCode: 200,
-        message: "Track A demonstrator answers retrieved",
+        messageKey: "ai.analytics.answersRetrieved",
         data: results,
       });
     } catch (err: any) {
+      logger.error(
+        `[AnalyticsController] List answers failed: ${err?.message}`,
+      );
       return ApiResponse.error(res, {
         statusCode: 500,
         code: "ANALYTICS_EXECUTION_ERROR",
-        message: err.message || "Failed to list analytical answers",
+        messageKey: "ai.analytics.executionFailed",
       });
     }
   };
@@ -385,14 +400,15 @@ export class AnalyticsController {
       const groups = await this.repo.getHistoryItems(locale);
       return ApiResponse.success(res, {
         statusCode: 200,
-        message: "Query history retrieved from database",
+        messageKey: "ai.analytics.historyRetrieved",
         data: groups,
       });
     } catch (err: any) {
+      logger.error(`[AnalyticsController] History failed: ${err?.message}`);
       return ApiResponse.error(res, {
         statusCode: 500,
         code: "ANALYTICS_HISTORY_ERROR",
-        message: err.message || "Failed to retrieve history",
+        messageKey: "ai.analytics.historyFailed",
       });
     }
   };
@@ -412,7 +428,8 @@ export class AnalyticsController {
       return ApiResponse.error(res, {
         statusCode: 404,
         code: "COPILOT_JOURNEY_NOT_FOUND",
-        message: `No approved Track A demonstrator journey matches ID: '${rawId}'`,
+        messageKey: "ai.analytics.journeyNotFound",
+        messageParams: { id: rawId },
       });
     }
 
@@ -424,14 +441,17 @@ export class AnalyticsController {
       );
       return ApiResponse.success(res, {
         statusCode: 200,
-        message: "Supporting records retrieved",
+        messageKey: "ai.analytics.recordsRetrieved",
         data: recordsData,
       });
     } catch (err: any) {
+      logger.error(
+        `[AnalyticsController] Supporting records failed: ${err?.message}`,
+      );
       return ApiResponse.error(res, {
         statusCode: 500,
         code: "SUPPORTING_RECORDS_ERROR",
-        message: err.message || "Failed to retrieve supporting records",
+        messageKey: "ai.analytics.recordsFailed",
       });
     }
   };
@@ -454,7 +474,7 @@ export class AnalyticsController {
 
       return ApiResponse.success(res, {
         statusCode: 200,
-        message: "Golden validation regression status",
+        messageKey: "ai.analytics.goldenValidation",
         data: {
           totalChecks,
           passedChecks,
@@ -467,10 +487,13 @@ export class AnalyticsController {
         },
       });
     } catch (err: any) {
+      logger.error(
+        `[AnalyticsController] Golden validation failed: ${err?.message}`,
+      );
       return ApiResponse.error(res, {
         statusCode: 500,
         code: "GOLDEN_VALIDATION_ERROR",
-        message: err.message || "Failed to run golden validation checks",
+        messageKey: "ai.analytics.goldenValidationFailed",
       });
     }
   };
@@ -589,13 +612,14 @@ export class AnalyticsController {
       return ApiResponse.error(res, {
         statusCode: 404,
         code: "COPILOT_METRIC_NOT_CERTIFIED",
-        message: `Metric '${metricId}' is not certified in Track A semantic registry.`,
+        messageKey: "ai.analytics.metricNotCertified",
+        messageParams: { id: metricId },
       });
     }
 
     return ApiResponse.success(res, {
       statusCode: 200,
-      message: "Metric definition retrieved",
+      messageKey: "ai.analytics.metricRetrieved",
       data: metric,
     });
   };

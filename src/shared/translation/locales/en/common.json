@@ -88,6 +88,26 @@
       "COPILOT_INVALID_CONTEXT": "The request information is invalid.",
       "COPILOT_SECURITY_VIOLATION": "Your request contains sensitive information and was rejected.",
       "COPILOT_PROMPT_INJECTION_DETECTED": "Your request was rejected for security reasons."
+    },
+    "analytics": {
+      "questionRequired": "A non-empty question is required.",
+      "clarificationRequired": "Clarification required",
+      "pipelineExecuted": "Query executed successfully",
+      "conversationNotFound": "Conversation {{id}} was not found",
+      "conversationRetrieved": "Conversation retrieved",
+      "journeyNotFound": "No approved journey matches ID '{{id}}'",
+      "answerRetrieved": "Answer retrieved successfully",
+      "answersRetrieved": "Answers retrieved",
+      "historyRetrieved": "Query history retrieved",
+      "recordsRetrieved": "Supporting records retrieved",
+      "goldenValidation": "Golden validation regression status",
+      "metricRetrieved": "Metric definition retrieved",
+      "metricNotCertified": "Metric '{{id}}' is not certified",
+      "executionFailed": "Could not execute the analytical query. Please try again later.",
+      "conversationFetchFailed": "Could not retrieve the conversation. Please try again later.",
+      "historyFailed": "Could not retrieve the query history. Please try again later.",
+      "recordsFailed": "Could not retrieve the supporting records. Please try again later.",
+      "goldenValidationFailed": "Could not run the validation checks. Please try again later."
     }
   }
 }

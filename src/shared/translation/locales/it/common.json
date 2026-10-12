@@ -88,6 +88,26 @@
       "COPILOT_INVALID_CONTEXT": "Le informazioni della richiesta non sono valide.",
       "COPILOT_SECURITY_VIOLATION": "La richiesta contiene informazioni sensibili ed è stata rifiutata.",
       "COPILOT_PROMPT_INJECTION_DETECTED": "La richiesta è stata rifiutata per motivi di sicurezza."
+    },
+    "analytics": {
+      "questionRequired": "È richiesta una domanda non vuota.",
+      "clarificationRequired": "Chiarimento richiesto",
+      "pipelineExecuted": "Query eseguita con successo",
+      "conversationNotFound": "Conversazione {{id}} non trovata",
+      "conversationRetrieved": "Conversazione recuperata",
+      "journeyNotFound": "Nessun percorso approvato corrisponde all'ID '{{id}}'",
+      "answerRetrieved": "Risposta recuperata con successo",
+      "answersRetrieved": "Risposte recuperate",
+      "historyRetrieved": "Cronologia delle query recuperata",
+      "recordsRetrieved": "Record di supporto recuperati",
+      "goldenValidation": "Stato della regressione di validazione golden",
+      "metricRetrieved": "Definizione della metrica recuperata",
+      "metricNotCertified": "La metrica '{{id}}' non è certificata",
+      "executionFailed": "Impossibile eseguire la query analitica. Riprova più tardi.",
+      "conversationFetchFailed": "Impossibile recuperare la conversazione. Riprova più tardi.",
+      "historyFailed": "Impossibile recuperare la cronologia delle query. Riprova più tardi.",
+      "recordsFailed": "Impossibile recuperare i record di supporto. Riprova più tardi.",
+      "goldenValidationFailed": "Impossibile eseguire i controlli di validazione. Riprova più tardi."
     }
   }
 }
