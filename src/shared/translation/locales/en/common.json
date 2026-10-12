@@ -124,6 +124,120 @@
       "supplier-spend": "Top 5 Suppliers by Procurement Spend",
       "delayed-orders": "Delayed Sales Commitments",
       "production-linkage": "Production Linkage & Exposure"
+    },
+    "periods": {
+      "currentQ3": "Jul 1 – Aug 15, 2026",
+      "asOf": "Aug 15, 2026, 08:30 Europe/Rome",
+      "elapsed46Days": "46 elapsed calendar days"
+    },
+    "clarification": {
+      "metric": "Clarification",
+      "howCalculated": "Clarification request due to semantic ambiguity.",
+      "delayedOrdersAmbiguous": "The request 'delayed orders' is ambiguous. Do you mean delayed sales orders or delayed production orders?"
+    },
+    "metrics": {
+      "netInvoicedSales": "Net invoiced sales",
+      "netInvoicedSalesVariance": "Net invoiced sales variance",
+      "approvedSupplierSpend": "Approved supplier spend",
+      "delayedBacklog": "Delayed sales order backlog",
+      "linkageCoverage": "Sales-production linkage coverage"
+    },
+    "columns": {
+      "customer": "Customer",
+      "netInvoicedSales": "Net invoiced sales (€)",
+      "netSales": "Net sales (€)",
+      "share": "Share",
+      "period": "Period",
+      "window": "Window",
+      "varianceVsCurrent": "Variance vs Current",
+      "supplier": "Supplier",
+      "spend": "Spend (€)",
+      "orderId": "Order ID",
+      "lineId": "Line ID",
+      "openQty": "Open Qty",
+      "unitPrice": "Unit Price",
+      "backlog": "Backlog (€)",
+      "productionOrder": "Production Order",
+      "salesLine": "Sales Line",
+      "allocationWeight": "Allocation Weight",
+      "linkedValue": "Linked Value (€)"
+    },
+    "journeys": {
+      "currentSales": {
+        "question": "Show sales performance for the current quarter",
+        "summary": "Net invoiced sales for Q3 2026 to date are **{{total}}**, net of VAT and credit notes across all customer accounts.",
+        "chartTitle": "Q3 Net Invoiced Sales",
+        "chartSubtitle": "Net invoiced sales (€) by customer",
+        "tableTitle": "Sales summary by customer",
+        "howCalculated": "Sum of posted invoice net amounts less posted credit notes in EUR, net of VAT, for the period July 1 – August 15, 2026.",
+        "blueprintSummary": "Net invoiced sales for Q3 2026 to date are {{total}}, net of VAT and credit notes.",
+        "vizTitle": "Q3 Net Invoiced Sales"
+      },
+      "salesComparison": {
+        "question": "Compare sales with previous quarter and same period last year",
+        "summary": "Current Q3 sales (**{{current}}**) are up **{{varQ2}}** ({{absQ2}}) compared to the equivalent 46-day window of Q2 2026 ({{q2}}), and up **{{varPY}}** ({{absPY}}) vs the equivalent Q3 2025 prior-year period ({{py}}).",
+        "chartTitle": "Equivalent-period sales comparison",
+        "chartSubtitle": "46-day elapsed window (€)",
+        "chartCurrent": "Q3 2026 (Current)",
+        "chartPrevQuarter": "Q2 2026 (Previous Qtr)",
+        "chartPriorYear": "Q3 2025 (Prior Year)",
+        "tableTitle": "Equivalent-period performance table",
+        "rowCurrent": "Current Q3 2026",
+        "rowQ2": "Equivalent Q2 2026",
+        "rowPY": "Equivalent Q3 2025",
+        "baseline": "Baseline",
+        "windows": {
+          "current": "Jul 1 – Aug 15 (46d)",
+          "q2": "Apr 1 – May 15 (46d)",
+          "py": "Jul 1 – Aug 15 (46d)"
+        },
+        "howCalculated": "Compares identical 46-calendar-day elapsed periods: Q3 2026 (Jul 1 – Aug 15) vs Q2 2026 (Apr 1 – May 15) and Q3 2025 (Jul 1 – Aug 15).",
+        "blueprintSummary": "Current Q3 sales ({{current}}) are up {{varQ2}} vs equivalent Q2 2026 and {{varPY}} vs equivalent Q3 2025.",
+        "vizTitle": "Period Comparisons"
+      },
+      "topCustomers": {
+        "question": "Give me the top 5 customers.",
+        "summary": "The top 5 customers generated **{{top5Total}}**, representing **{{share}}** of total net invoiced sales ({{total}}).",
+        "chartTitle": "Top 5 customers",
+        "chartSubtitle": "Net invoiced sales (€)",
+        "tableTitle": "Top 5 customers by net invoiced sales",
+        "howCalculated": "Net invoiced sales are invoice totals minus credit notes and discounts for the period, grouped by customer. Share = customer total ÷ total net invoiced sales of all customers ({{total}}).",
+        "blueprintSummary": "The top five customers generated {{top5Total}}, or {{share}} of {{total}} net invoiced sales, for the certified period.",
+        "vizTitle": "Top customers"
+      },
+      "supplierSpend": {
+        "question": "Supplier spend overview",
+        "summary": "Approved procurement spend was **{{total}}**; the top 5 suppliers account for **{{share}}** ({{top5Total}}) of it. SafeLogistics is ranked net of credit note (€50,000).",
+        "chartTitle": "Top 5 suppliers",
+        "chartSubtitle": "Approved spend (€)",
+        "tableTitle": "Top 5 suppliers by approved spend",
+        "howCalculated": "Spend is posted supplier invoices minus credits in EUR, excluding VAT. SafeLogistics is net €50,000 after €5,000 credit note. Share = supplier spend ÷ total approved procurement spend ({{total}}).",
+        "blueprintSummary": "Approved procurement spend was {{total}}; the top 5 suppliers account for {{top5Total}} ({{share}}) of spend.",
+        "vizTitle": "Top suppliers by spend"
+      },
+      "delayedOrders": {
+        "question": "Why are there delayed orders?",
+        "summary": "**{{orders}} sales orders** containing **{{lines}} lines** across **{{customers}} customers** are currently delayed, representing **{{backlog}}** in delayed backlog value.",
+        "chartTitle": "Delayed backlog by customer",
+        "chartSubtitle": "Delayed backlog value (€)",
+        "tableTitle": "Delayed sales order lines",
+        "howCalculated": "A sales order line is delayed when its approved commitment date has passed the local end of business day in Europe/Rome and open quantity > 0. Backlog is open qty × unit net price.",
+        "blueprintSummary": "There are {{orders}} delayed sales orders ({{lines}} lines, {{customers}} customers) with {{backlog}} delayed backlog value.",
+        "vizTitle": "Delayed orders by customer"
+      },
+      "productionLinkage": {
+        "question": "Production linkage summary",
+        "summary": "**{{orders}} delayed production orders** are explicitly linked to delayed customer orders across **{{customers}} customers**, accounting for **{{linked}}** (**{{coverage}}**) of total delayed backlog ({{total}}). **Warning:** {{unlinked}} ({{unlinkedPct}}) of delayed backlog has no linked production order. Explicit linkage is evidence of association, not verified causation.",
+        "chartTitle": "Production linkage exposure",
+        "chartSubtitle": "Linked vs unlinked delayed backlog (€)",
+        "chartLinked": "Linked Backlog ({{pct}})",
+        "chartUnlinked": "Unlinked Backlog ({{pct}})",
+        "tableTitle": "Production orders linked to delayed customer lines",
+        "howCalculated": "A production order is linked when explicitly allocated to an open delayed sales order line. Coverage = explicitly allocated delayed backlog ({{linked}}) ÷ total delayed backlog ({{total}}) = {{coverage}}.",
+        "blueprintSummary": "{{orders}} linked delayed production orders affect {{customers}} customers with {{linked}} linked backlog ({{coverage}} coverage). {{unlinked}} remains unlinked.",
+        "warning": "Partial linkage coverage: {{coverage}} coverage by value. {{unlinked}} in delayed backlog is currently unlinked to production orders. Explicit linkage indicates association, not causality.",
+        "vizTitle": "Production linkage coverage"
+      }
     }
   }
 }
