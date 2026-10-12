@@ -16,7 +16,7 @@ import { AIOperationType } from "../prompts/prompt.types.js";
 import { logger } from "../../../shared/utils/logger.js";
 
 /**
- * Secret and credential detection patterns.
+ * Secret and credential detection patterns (English + Italian).
  */
 const SENSITIVE_PATTERNS = [
   { pattern: /password\s*=\s*['"][^'"]+['"]/i, name: "password credential" },
@@ -29,16 +29,23 @@ const SENSITIVE_PATTERNS = [
     pattern: /-----BEGIN\s+([A-Z\s]+)?PRIVATE\s+KEY-----/i,
     name: "private key",
   },
+  {
+    pattern: /(parola\s+d'ordine|chiave\s+api|segreto)\s*=\s*['"][^'"]+['"]/i,
+    name: "credential (Italian)",
+  },
 ];
 
 /**
- * Prompt injection indicators attempting to hijack system instruction roles.
+ * Prompt injection indicators attempting to hijack system instruction roles (English + Italian).
  */
 const INJECTION_PATTERNS = [
   /<\/?system_instruction>/i,
   /<\/?system_prompt>/i,
   /\[SYSTEM_OVERRIDE\]/i,
   /\[ADMIN_OVERRIDE\]/i,
+  /ignora\s+(tutte\s+)?le\s+istruzioni(\s+precedenti)?/i,
+  /dimentica\s+(tutte\s+)?le\s+istruzioni/i,
+  /rivela\s+(il\s+)?prompt\s+di\s+sistema/i,
 ];
 
 /**
