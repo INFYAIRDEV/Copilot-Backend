@@ -45,6 +45,7 @@ import {
   StructuredOutputResult,
 } from "../structured/structured-output.types.js";
 import { LLMConfigManager } from "@/infrastructure/ai/llm-config.js";
+import { t } from "i18next";
 
 /**
  * Secret / credential sanitization patterns for model input minimization.
@@ -642,7 +643,9 @@ export class AIService implements IAIService {
         const text =
           rawResponse.narrative ||
           rawResponse.candidatePlan?.reasoningSummary ||
-          "Candidate plan generated.";
+          t("ai.defaultNarrative", {
+            lng: validatedRequest.context.locale ?? "en",
+          });
         const words = text.split(" ");
         for (let i = 0; i < words.length; i++) {
           if (signal?.aborted) break;
