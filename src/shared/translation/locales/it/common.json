@@ -56,6 +56,7 @@
       "COPILOT_RESPONSE_TOO_LARGE": "La risposta dell'AI è troppo grande per essere elaborata.",
       "COPILOT_UNSAFE_AI_OUTPUT": "La risposta dell'AI è stata rifiutata per motivi di sicurezza.",
       "COPILOT_SERVICE_ERROR": "Qualcosa è andato storto con il servizio AI. Riprova più tardi."
-    }
+    },
+    "narrativeFallback": "Risultati standard del calcolo analitico generati."
   }
 }
