@@ -12,6 +12,7 @@ import { z } from "zod";
 import { CopilotService } from "./copilot.service.js";
 import { AIProviderException, AIServiceException } from "@/modules/ai/index.js";
 import { logger } from "../../shared/utils/logger.js";
+import { t } from "i18next";
 
 import {
   CopilotStreamingService,
@@ -23,17 +24,51 @@ import {
   formatSseEvent,
 } from "./streaming.types.js";
 
-function fail(res: Response, error: unknown) {
+type Locale = "en" | "it";
+
+/**
+ * Resolves the response language: body.locale first, then Accept-Language.
+ */
+function getLocale(req: Request): Locale {
+  const bodyLocale = (req.body as any)?.locale;
+  if (bodyLocale === "it" || bodyLocale === "en") return bodyLocale;
+  const header = req.headers["accept-language"]
+    ?.split(",")[0]
+    ?.trim()
+    .toLowerCase();
+  return header?.startsWith("it") ? "it" : "en";
+}
+
+/**
+ * Translates messages that are i18n keys (e.g. "copilot.errors.X");
+ * plain messages are returned unchanged.
+ */
+function translateMessage(
+  message: string | undefined,
+  locale: Locale,
+  fallbackKey: string,
+): string {
+  if (message && message.startsWith("copilot.")) {
+    return t(message, { lng: locale, defaultValue: message });
+  }
+  return message || t(fallbackKey, { lng: locale });
+}
+
+function fail(res: Response, error: unknown, locale: Locale) {
   if (error instanceof CopilotError)
     return ApiResponse.error(res, {
       statusCode: error.statusCode,
       code: error.code,
-      message: error.message,
+      message: translateMessage(
+        error.message,
+        locale,
+        "copilot.errors.INTERNAL_ERROR",
+      ),
     });
   return ApiResponse.error(res, {
     statusCode: 500,
     code: "INTERNAL_ERROR",
-    message: "Internal server error",
+    message: t("copilot.errors.INTERNAL_ERROR", { lng: locale }),
   });
 }
 
@@ -43,6 +78,7 @@ export function createCopilotController(
 ) {
   return {
     async create(req: Request, res: Response) {
+      const locale = getLocale(req);
       const parsed = createConversationSchema.safeParse({
         body: req.body ?? {},
       });
@@ -50,7 +86,7 @@ export function createCopilotController(
         return ApiResponse.error(res, {
           statusCode: 400,
           code: "VALIDATION_ERROR",
-          message: "Invalid request body",
+          message: t("copilot.controller.invalidRequestBody", { lng: locale }),
         });
       try {
         const data = await service.createConversation(
@@ -59,20 +95,23 @@ export function createCopilotController(
         );
         return ApiResponse.success(res, {
           statusCode: 201,
-          message: "Conversation created",
+          message: t("copilot.controller.conversationCreated", {
+            lng: locale,
+          }),
           data,
         });
       } catch (error) {
-        return fail(res, error);
+        return fail(res, error, locale);
       }
     },
 
     async sendMessage(req: Request, res: Response) {
+      const locale = getLocale(req);
       if (!req.user || !req.user.user_id) {
         return ApiResponse.error(res, {
           statusCode: 401,
           code: "UNAUTHENTICATED",
-          message: "Authentication required",
+          message: t("copilot.errors.UNAUTHENTICATED", { lng: locale }),
         });
       }
 
@@ -89,7 +128,7 @@ export function createCopilotController(
         return ApiResponse.error(res, {
           statusCode: 400,
           code: "VALIDATION_ERROR",
-          message: "Invalid request",
+          message: t("copilot.validation.invalidRequest", { lng: locale }),
           error: parsed.error.issues,
         });
 
@@ -103,14 +142,18 @@ export function createCopilotController(
         return ApiResponse.error(res, {
           statusCode: 403,
           code: "COPILOT_PERMISSION_DENIED",
-          message: "Permission denied: copilot.ask required",
+          message: t("copilot.errors.PERMISSION_COPILOT_ASK_REQUIRED", {
+            lng: locale,
+          }),
         });
       }
       if (Array.isArray(userScopes) && !userScopes.includes("copilot.ask")) {
         return ApiResponse.error(res, {
           statusCode: 403,
           code: "COPILOT_PERMISSION_DENIED",
-          message: "Permission denied: copilot.ask required",
+          message: t("copilot.errors.PERMISSION_COPILOT_ASK_REQUIRED", {
+            lng: locale,
+          }),
         });
       }
 
@@ -128,20 +171,21 @@ export function createCopilotController(
         );
         return ApiResponse.success(res, {
           statusCode: 201,
-          message: "Message accepted",
+          message: t("copilot.controller.messageAccepted", { lng: locale }),
           data,
         });
       } catch (error) {
-        return fail(res, error);
+        return fail(res, error, locale);
       }
     },
 
     async streamMessage(req: Request, res: Response) {
+      const locale = getLocale(req);
       if (!req.user || !req.user.user_id) {
         return ApiResponse.error(res, {
           statusCode: 401,
           code: "UNAUTHENTICATED",
-          message: "Authentication required",
+          message: t("copilot.errors.UNAUTHENTICATED", { lng: locale }),
         });
       }
 
@@ -158,7 +202,7 @@ export function createCopilotController(
         return ApiResponse.error(res, {
           statusCode: 400,
           code: "VALIDATION_ERROR",
-          message: "Invalid request",
+          message: t("copilot.validation.invalidRequest", { lng: locale }),
           error: parsed.error.issues,
         });
       }
@@ -172,14 +216,18 @@ export function createCopilotController(
         return ApiResponse.error(res, {
           statusCode: 403,
           code: "COPILOT_PERMISSION_DENIED",
-          message: "Permission denied: copilot.ask required",
+          message: t("copilot.errors.PERMISSION_COPILOT_ASK_REQUIRED", {
+            lng: locale,
+          }),
         });
       }
       if (Array.isArray(userScopes) && !userScopes.includes("copilot.ask")) {
         return ApiResponse.error(res, {
           statusCode: 403,
           code: "COPILOT_PERMISSION_DENIED",
-          message: "Permission denied: copilot.ask required",
+          message: t("copilot.errors.PERMISSION_COPILOT_ASK_REQUIRED", {
+            lng: locale,
+          }),
         });
       }
 
@@ -196,7 +244,7 @@ export function createCopilotController(
           userScopes,
         );
       } catch (err: any) {
-        return fail(res, err);
+        return fail(res, err, locale);
       }
 
       // Establish SSE Response Headers (HTTP 200 OK)
@@ -248,7 +296,11 @@ export function createCopilotController(
         if (!aborted) {
           emitter.emitError({
             code: (error as any).code || "COPILOT_SERVICE_ERROR",
-            message: (error as any).message || "Streaming failed",
+            message: translateMessage(
+              (error as any).message,
+              locale,
+              "copilot.controller.streamingFailed",
+            ),
             status_code: (error as any).statusCode || 500,
           });
         }
@@ -260,11 +312,12 @@ export function createCopilotController(
     },
 
     async listConversations(req: Request, res: Response) {
+      const locale = getLocale(req);
       if (!req.user || !req.user.user_id) {
         return ApiResponse.error(res, {
           statusCode: 401,
           code: "UNAUTHENTICATED",
-          message: "Authentication required",
+          message: t("copilot.errors.UNAUTHENTICATED", { lng: locale }),
         });
       }
 
@@ -279,7 +332,7 @@ export function createCopilotController(
         return ApiResponse.error(res, {
           statusCode: 403,
           code: "COPILOT_PERMISSION_DENIED",
-          message: "Permission denied",
+          message: t("copilot.controller.permissionDenied", { lng: locale }),
         });
       }
       if (
@@ -291,7 +344,7 @@ export function createCopilotController(
         return ApiResponse.error(res, {
           statusCode: 403,
           code: "COPILOT_PERMISSION_DENIED",
-          message: "Permission denied",
+          message: t("copilot.controller.permissionDenied", { lng: locale }),
         });
       }
 
@@ -302,7 +355,9 @@ export function createCopilotController(
         return ApiResponse.error(res, {
           statusCode: 400,
           code: "VALIDATION_ERROR",
-          message: "Invalid query parameters",
+          message: t("copilot.controller.invalidQueryParameters", {
+            lng: locale,
+          }),
         });
 
       try {
@@ -315,20 +370,23 @@ export function createCopilotController(
           filters,
         );
         return ApiResponse.success(res, {
-          message: "Conversations retrieved",
+          message: t("copilot.controller.conversationsRetrieved", {
+            lng: locale,
+          }),
           data,
         });
       } catch (error) {
-        return fail(res, error);
+        return fail(res, error, locale);
       }
     },
 
     async history(req: Request, res: Response) {
+      const locale = getLocale(req);
       if (!req.user || !req.user.user_id) {
         return ApiResponse.error(res, {
           statusCode: 401,
           code: "UNAUTHENTICATED",
-          message: "Authentication required",
+          message: t("copilot.errors.UNAUTHENTICATED", { lng: locale }),
         });
       }
 
@@ -343,7 +401,7 @@ export function createCopilotController(
         return ApiResponse.error(res, {
           statusCode: 403,
           code: "COPILOT_PERMISSION_DENIED",
-          message: "Permission denied",
+          message: t("copilot.controller.permissionDenied", { lng: locale }),
         });
       }
       if (
@@ -355,7 +413,7 @@ export function createCopilotController(
         return ApiResponse.error(res, {
           statusCode: 403,
           code: "COPILOT_PERMISSION_DENIED",
-          message: "Permission denied",
+          message: t("copilot.controller.permissionDenied", { lng: locale }),
         });
       }
 
@@ -367,7 +425,9 @@ export function createCopilotController(
         return ApiResponse.error(res, {
           statusCode: 400,
           code: "VALIDATION_ERROR",
-          message: "Invalid history request",
+          message: t("copilot.controller.invalidHistoryRequest", {
+            lng: locale,
+          }),
         });
       try {
         const { id } = parsed.data.params;
@@ -381,11 +441,13 @@ export function createCopilotController(
           filters,
         );
         return ApiResponse.success(res, {
-          message: "Conversation history",
+          message: t("copilot.controller.conversationHistory", {
+            lng: locale,
+          }),
           data,
         });
       } catch (error) {
-        return fail(res, error);
+        return fail(res, error, locale);
       }
     },
   };
@@ -395,11 +457,12 @@ export const copilotController = createCopilotController(copilotService);
 
 import { analyticalCopilotService } from "./copilot.service.js";
 
+// Messages below are i18n keys; they are translated when the error is returned.
 const analyticalPlanSchema = z.object({
   prompt: z
-    .string({ required_error: "prompt is required" })
-    .min(3, "prompt must be at least 3 characters")
-    .max(2000, "prompt exceeds maximum allowed length of 2000 characters"),
+    .string({ required_error: "copilot.analytical.promptRequired" })
+    .min(3, "copilot.analytical.promptMin")
+    .max(2000, "copilot.analytical.promptMax"),
 });
 
 export class CopilotController {
@@ -415,15 +478,22 @@ export class CopilotController {
    * It must NOT be used to execute SQL directly — it feeds the Application-Owned AST.
    */
   generateAnalyticalPlan = async (req: Request, res: Response) => {
+    const lng = getLocale(req);
+
     // 1. Validate request body
     const validation = analyticalPlanSchema.safeParse(req.body);
     if (!validation.success) {
       return ApiResponse.error(res, {
         statusCode: 400,
-        message: validation.error.issues[0]?.message || "Invalid request",
+        message: validation.error.issues[0]
+          ? t(validation.error.issues[0].message, {
+              lng,
+              defaultValue: validation.error.issues[0].message,
+            })
+          : t("copilot.validation.invalidRequest", { lng }),
         error: validation.error.issues.map((i) => ({
           field: i.path.join("."),
-          message: i.message,
+          message: t(i.message, { lng, defaultValue: i.message }),
         })),
       });
     }
@@ -433,7 +503,7 @@ export class CopilotController {
     if (!authenticatedUser) {
       return ApiResponse.error(res, {
         statusCode: 401,
-        message: "Unauthorized",
+        message: t("copilot.analytical.unauthorized", { lng }),
       });
     }
 
@@ -457,7 +527,7 @@ export class CopilotController {
         );
         return ApiResponse.error(res, {
           statusCode: 422,
-          message: "Candidate plan failed policy validation",
+          message: t("copilot.analytical.policyValidationFailed", { lng }),
           error: semanticValidation.validationErrors,
         });
       }
@@ -465,7 +535,7 @@ export class CopilotController {
       // 4. Return validated candidate plan + usage telemetry
       return ApiResponse.success(res, {
         statusCode: 200,
-        message: "Candidate analytical plan generated successfully",
+        message: t("copilot.analytical.planGenerated", { lng }),
         data: {
           candidatePlan: semanticValidation.validatedPlan,
           fromFallback: response.fromFallback,
@@ -490,7 +560,10 @@ export class CopilotController {
 
         return ApiResponse.error(res, {
           statusCode: error.statusCode,
-          message: error.message,
+          message: t(`ai.serviceErrors.${error.code}`, {
+            lng,
+            defaultValue: error.message,
+          }),
           code: error.code,
           error: error.details,
         });
@@ -509,8 +582,8 @@ export class CopilotController {
 
         const clientMessage =
           error.category === "TOKEN_BUDGET_EXCEEDED"
-            ? "Request exceeds the configured token budget limit"
-            : "The AI service is temporarily unavailable. Certified reports remain available.";
+            ? t("ai.serviceErrors.COPILOT_TOKEN_BUDGET_EXCEEDED", { lng })
+            : t("ai.serviceErrors.COPILOT_MODEL_UNAVAILABLE", { lng });
 
         logger.error(
           `[CopilotController] AI provider error [${error.category}] for user_id [${userContext.userId}]: ${error.message}`,
@@ -529,7 +602,7 @@ export class CopilotController {
 
       return ApiResponse.error(res, {
         statusCode: 500,
-        message: "An unexpected error occurred while processing your request",
+        message: t("copilot.analytical.unexpectedError", { lng }),
       });
     }
   };

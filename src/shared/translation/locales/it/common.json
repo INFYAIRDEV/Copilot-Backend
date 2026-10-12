@@ -246,7 +246,8 @@
       "COPILOT_PERMISSION_DENIED": "Accesso alla conversazione negato",
       "CONVERSATION_VERSION_CONFLICT": "La conversazione è stata modificata altrove. Ricaricala e riprova.",
       "PERMISSION_COPILOT_ASK_REQUIRED": "Permesso negato: è richiesto copilot.ask",
-      "CONVERSATION_NOT_ACTIVE": "La conversazione non è attiva"
+      "CONVERSATION_NOT_ACTIVE": "La conversazione non è attiva",
+      "INTERNAL_ERROR": "Errore interno del server"
     },
     "contextValidation": {
       "forbiddenField": "Campo di sicurezza vietato nel contesto analitico: {{field}}",
@@ -279,6 +280,26 @@
       "aiFailed": "Impossibile generare la risposta AI",
       "degradedMode": "Funzionamento in modalità analitica degradata",
       "unauthorizedMetric": "Il ruolo '{{role}}' non può accedere alla metrica '{{metric}}'"
+    },
+    "controller": {
+      "conversationCreated": "Conversazione creata",
+      "invalidRequestBody": "Corpo della richiesta non valido",
+      "messageAccepted": "Messaggio accettato",
+      "permissionDenied": "Permesso negato",
+      "invalidQueryParameters": "Parametri di query non validi",
+      "conversationsRetrieved": "Conversazioni recuperate",
+      "invalidHistoryRequest": "Richiesta di cronologia non valida",
+      "conversationHistory": "Cronologia della conversazione",
+      "streamingFailed": "Streaming non riuscito"
+    },
+    "analytical": {
+      "promptRequired": "Il prompt è obbligatorio",
+      "promptMin": "Il prompt deve contenere almeno 3 caratteri",
+      "promptMax": "Il prompt supera la lunghezza massima consentita di 2000 caratteri",
+      "unauthorized": "Non autorizzato",
+      "policyValidationFailed": "Il piano candidato non ha superato la validazione delle policy",
+      "planGenerated": "Piano analitico candidato generato con successo",
+      "unexpectedError": "Si è verificato un errore imprevisto durante l'elaborazione della richiesta"
     }
   }
 }
