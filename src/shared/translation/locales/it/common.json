@@ -247,7 +247,9 @@
       "CONVERSATION_VERSION_CONFLICT": "La conversazione è stata modificata altrove. Ricaricala e riprova.",
       "PERMISSION_COPILOT_ASK_REQUIRED": "Permesso negato: è richiesto copilot.ask",
       "CONVERSATION_NOT_ACTIVE": "La conversazione non è attiva",
-      "INTERNAL_ERROR": "Errore interno del server"
+      "INTERNAL_ERROR": "Errore interno del server",
+      "IDEMPOTENCY_KEY_REUSED": "La chiave di idempotenza è stata usata con un corpo di richiesta diverso",
+      "INVALID_ANALYTICAL_CONTEXT": "Validazione del contesto non riuscita"
     },
     "contextValidation": {
       "forbiddenField": "Campo di sicurezza vietato nel contesto analitico: {{field}}",
@@ -299,7 +301,9 @@
       "unauthorized": "Non autorizzato",
       "policyValidationFailed": "Il piano candidato non ha superato la validazione delle policy",
       "planGenerated": "Piano analitico candidato generato con successo",
-      "unexpectedError": "Si è verificato un errore imprevisto durante l'elaborazione della richiesta"
+      "unexpectedError": "Si è verificato un errore imprevisto durante l'elaborazione della richiesta",
+      "noIntents": "Il piano candidato non contiene intenti di query validi",
+      "executiveMarginDenied": "Accesso non autorizzato alla metrica: il ruolo 'operator' non può accedere a 'executive_cost_margin'"
     }
   }
 }

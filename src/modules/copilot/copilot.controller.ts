@@ -54,6 +54,13 @@ function translateMessage(
   return message || t(fallbackKey, { lng: locale });
 }
 
+function translateIssues(issues: z.ZodIssue[], locale: Locale) {
+  return issues.map((i) => ({
+    ...i,
+    message: t(i.message, { lng: locale, defaultValue: i.message }),
+  }));
+}
+
 function fail(res: Response, error: unknown, locale: Locale) {
   if (error instanceof CopilotError)
     return ApiResponse.error(res, {
@@ -129,7 +136,7 @@ export function createCopilotController(
           statusCode: 400,
           code: "VALIDATION_ERROR",
           message: t("copilot.validation.invalidRequest", { lng: locale }),
-          error: parsed.error.issues,
+          error: translateIssues(parsed.error.issues, locale),
         });
 
       // Enforce copilot.ask authorization if permissions or scopes are configured on authenticated user
@@ -203,7 +210,7 @@ export function createCopilotController(
           statusCode: 400,
           code: "VALIDATION_ERROR",
           message: t("copilot.validation.invalidRequest", { lng: locale }),
-          error: parsed.error.issues,
+          error: translateIssues(parsed.error.issues, locale),
         });
       }
 
@@ -528,7 +535,9 @@ export class CopilotController {
         return ApiResponse.error(res, {
           statusCode: 422,
           message: t("copilot.analytical.policyValidationFailed", { lng }),
-          error: semanticValidation.validationErrors,
+          error: semanticValidation.validationErrors?.map((e) =>
+            t(e, { lng, defaultValue: e }),
+          ),
         });
       }
 

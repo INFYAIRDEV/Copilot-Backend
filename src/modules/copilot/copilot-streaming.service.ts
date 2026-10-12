@@ -319,10 +319,11 @@ export class CopilotStreamingService {
         candidateUpdate,
       );
 
-      const val = this.context.validateContext(mergedContext, {
-        userId,
-        roleId: params.userRoleId || "user",
-      });
+      const val = this.context.validateContext(
+        mergedContext,
+        { userId, roleId: params.userRoleId || "user" },
+        locale,
+      );
 
       if (val.isValid) {
         try {

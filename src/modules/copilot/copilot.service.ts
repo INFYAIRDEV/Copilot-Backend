@@ -211,7 +211,7 @@ export function createCopilotService(
         throw new CopilotError(
           401,
           "UNAUTHENTICATED",
-          "Authentication required",
+          "copilot.errors.UNAUTHENTICATED",
         );
       return repo.create(userId, locale as locale_code | undefined);
     },
@@ -226,7 +226,7 @@ export function createCopilotService(
         throw new CopilotError(
           401,
           "UNAUTHENTICATED",
-          "Authentication required",
+          "copilot.errors.UNAUTHENTICATED",
         );
 
       if (
@@ -238,18 +238,26 @@ export function createCopilotService(
         throw new CopilotError(
           400,
           "VALIDATION_ERROR",
-          "Valid Idempotency-Key header is required",
+          "copilot.validation.idempotencyKeyRequired",
         );
       }
 
       const roleStr = body.role || message_role.USER;
       if (roleStr !== message_role.USER && roleStr !== message_role.ASSISTANT) {
-        throw new CopilotError(400, "VALIDATION_ERROR", "Invalid message role");
+        throw new CopilotError(
+          400,
+          "VALIDATION_ERROR",
+          "copilot.validation.invalidRole",
+        );
       }
       const role = roleStr as message_role;
 
       if (!Object.values(message_kind).includes(body.kind as message_kind)) {
-        throw new CopilotError(400, "VALIDATION_ERROR", "Invalid message kind");
+        throw new CopilotError(
+          400,
+          "VALIDATION_ERROR",
+          "copilot.validation.invalidKind",
+        );
       }
       const kind = body.kind as message_kind;
 
@@ -258,7 +266,7 @@ export function createCopilotService(
         throw new CopilotError(
           403,
           "COPILOT_PERMISSION_DENIED",
-          "Conversation access denied",
+          "copilot.errors.COPILOT_PERMISSION_DENIED",
         );
       }
       if (
@@ -268,7 +276,7 @@ export function createCopilotService(
         throw new CopilotError(
           409,
           "CONVERSATION_NOT_ACTIVE",
-          "Conversation is not active",
+          "copilot.errors.CONVERSATION_NOT_ACTIVE",
         );
       }
 
@@ -294,7 +302,7 @@ export function createCopilotService(
           throw new CopilotError(
             409,
             "IDEMPOTENCY_KEY_REUSED",
-            "Idempotency-Key was used with a different request body",
+            "copilot.errors.IDEMPOTENCY_KEY_REUSED",
           );
         }
         return publicMessage(prior);
@@ -327,7 +335,7 @@ export function createCopilotService(
             throw new CopilotError(
               409,
               "IDEMPOTENCY_KEY_REUSED",
-              "Idempotency-Key was used with a different request body",
+              "copilot.errors.IDEMPOTENCY_KEY_REUSED",
             );
           }
           return publicMessage(raced);
@@ -387,7 +395,7 @@ export function createCopilotService(
         throw new CopilotError(
           403,
           "COPILOT_PERMISSION_DENIED",
-          "Conversation access denied",
+          "copilot.errors.COPILOT_PERMISSION_DENIED",
         );
       }
       if (
@@ -397,7 +405,7 @@ export function createCopilotService(
         throw new CopilotError(
           409,
           "CONVERSATION_NOT_ACTIVE",
-          "Conversation is not active",
+          "copilot.errors.CONVERSATION_NOT_ACTIVE",
         );
       }
 
@@ -438,7 +446,7 @@ export function createCopilotService(
         throw new CopilotError(
           401,
           "UNAUTHENTICATED",
-          "Authentication required",
+          "copilot.errors.UNAUTHENTICATED",
         );
 
       const conversation = await repo.findOwned(conversationUuid, userId);
@@ -446,7 +454,7 @@ export function createCopilotService(
         throw new CopilotError(
           403,
           "COPILOT_PERMISSION_DENIED",
-          "Conversation access denied",
+          "copilot.errors.COPILOT_PERMISSION_DENIED",
         );
       }
       if (
@@ -456,7 +464,7 @@ export function createCopilotService(
         throw new CopilotError(
           403,
           "COPILOT_PERMISSION_DENIED",
-          "Conversation access denied",
+          "copilot.errors.COPILOT_PERMISSION_DENIED",
         );
       }
 
@@ -474,7 +482,7 @@ export function createCopilotService(
         throw new CopilotError(
           401,
           "UNAUTHENTICATED",
-          "Authentication required",
+          "copilot.errors.UNAUTHENTICATED",
         );
 
       const filterHash = computeFilterHash(filters);
@@ -542,7 +550,7 @@ export function createCopilotService(
         throw new CopilotError(
           401,
           "UNAUTHENTICATED",
-          "Authentication required",
+          "copilot.errors.UNAUTHENTICATED",
         );
 
       const conversation = await repo.findOwned(conversationUuid, userId);
@@ -550,7 +558,7 @@ export function createCopilotService(
         throw new CopilotError(
           403,
           "COPILOT_PERMISSION_DENIED",
-          "Conversation access denied",
+          "copilot.errors.COPILOT_PERMISSION_DENIED",
         );
       }
       if (
@@ -560,7 +568,7 @@ export function createCopilotService(
         throw new CopilotError(
           403,
           "COPILOT_PERMISSION_DENIED",
-          "Conversation access denied",
+          "copilot.errors.COPILOT_PERMISSION_DENIED",
         );
       }
       const filterHash = computeFilterHash(filters);
@@ -638,6 +646,7 @@ export function createCopilotService(
         roleId?: string;
         requestUuid?: string;
         scopeHash?: string;
+        locale?: "en" | "it";
       },
     ) {
       const current = await contextSvc.retrieveContext(
@@ -645,15 +654,20 @@ export function createCopilotService(
         userId,
       );
       const merged = contextSvc.mergeContext(current.context, candidateUpdate);
-      const validation = contextSvc.validateContext(merged, {
-        userId,
-        roleId: userContext?.roleId || "user",
-      });
+      const validation = contextSvc.validateContext(
+        merged,
+        {
+          userId,
+          roleId: userContext?.roleId || "user",
+        },
+        userContext?.locale,
+      );
       if (!validation.isValid) {
         throw new CopilotError(
           400,
           "INVALID_ANALYTICAL_CONTEXT",
-          validation.errors?.join("; ") || "Context validation failed",
+          validation.errors?.join("; ") ||
+            "copilot.errors.INVALID_ANALYTICAL_CONTEXT",
         );
       }
       return contextSvc.persistContext(
@@ -756,16 +770,17 @@ export function createCopilotService(
           currentContextData.context,
           candidateUpdate,
         );
-        const validation = contextSvc.validateContext(merged, {
-          userId: args.userId,
-          roleId: args.roleId || "user",
-        });
-
+        const validation = contextSvc.validateContext(
+          merged,
+          { userId: args.userId, roleId: args.roleId || "user" },
+          userMessage.locale === "it" ? "it" : "en",
+        );
         if (!validation.isValid) {
           throw new CopilotError(
             400,
             "INVALID_ANALYTICAL_CONTEXT",
-            validation.errors?.join("; ") || "Context validation failed",
+            validation.errors?.join("; ") ||
+              "copilot.errors.INVALID_ANALYTICAL_CONTEXT",
           );
         }
 
@@ -871,6 +886,7 @@ export class CopilotService {
   /**
    * Server-owned Semantic & Policy Validation logic.
    * Ensures provider output cannot override RBAC/ABAC decisions or execute arbitrary SQL.
+   * Error strings are i18n keys, translated by the controller.
    */
   private performSemanticAndPolicyValidation(
     candidatePlan: ModelCandidatePlan,
@@ -883,7 +899,7 @@ export class CopilotService {
       !candidatePlan.candidateIntents ||
       candidatePlan.candidateIntents.length === 0
     ) {
-      errors.push("Candidate plan contains no valid query intents");
+      errors.push("copilot.analytical.noIntents");
     }
 
     // Role-based metric / entity boundary checks
@@ -892,9 +908,7 @@ export class CopilotService {
         userContext.roleId === "operator" &&
         intent.metrics.includes("executive_cost_margin")
       ) {
-        errors.push(
-          `Unauthorized metric access: role '${userContext.roleId}' cannot access 'executive_cost_margin'`,
-        );
+        errors.push("copilot.analytical.executiveMarginDenied");
       }
     }
 
