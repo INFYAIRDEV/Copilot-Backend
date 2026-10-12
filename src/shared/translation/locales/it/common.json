@@ -244,7 +244,9 @@
     "errors": {
       "UNAUTHENTICATED": "Autenticazione richiesta",
       "COPILOT_PERMISSION_DENIED": "Accesso alla conversazione negato",
-      "CONVERSATION_VERSION_CONFLICT": "La conversazione è stata modificata altrove. Ricaricala e riprova."
+      "CONVERSATION_VERSION_CONFLICT": "La conversazione è stata modificata altrove. Ricaricala e riprova.",
+      "PERMISSION_COPILOT_ASK_REQUIRED": "Permesso negato: è richiesto copilot.ask",
+      "CONVERSATION_NOT_ACTIVE": "La conversazione non è attiva"
     },
     "contextValidation": {
       "forbiddenField": "Campo di sicurezza vietato nel contesto analitico: {{field}}",
@@ -271,6 +273,12 @@
       "invalidLocale": "Lingua non supportata. Usa inglese o italiano.",
       "invalidLimit": "Il limite deve essere un numero tra 1 e 100",
       "invalidCursor": "Cursore non valido o troppo lungo"
+    },
+    "streaming": {
+      "queryProcessed": "Richiesta elaborata con successo.",
+      "aiFailed": "Impossibile generare la risposta AI",
+      "degradedMode": "Funzionamento in modalità analitica degradata",
+      "unauthorizedMetric": "Il ruolo '{{role}}' non può accedere alla metrica '{{metric}}'"
     }
   }
 }
