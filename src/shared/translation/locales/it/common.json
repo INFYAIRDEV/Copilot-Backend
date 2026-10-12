@@ -257,6 +257,20 @@
       "inRequiresNonEmpty": "L'operatore 'IN' su '{{field}}' richiede un array non vuoto",
       "scalarNoArray": "L'operatore scalare '{{operator}}' su '{{field}}' non può avere un array come valore",
       "unauthorizedMetric": "Il ruolo '{{role}}' non può accedere alla metrica '{{metric}}'"
+    },
+    "validation": {
+      "invalidRequest": "Richiesta non valida",
+      "invalidUuid": "ID conversazione non valido",
+      "idempotencyKeyRequired": "La chiave di idempotenza è obbligatoria",
+      "idempotencyKeyTooLong": "La chiave di idempotenza è troppo lunga",
+      "invalidRequestId": "ID richiesta non valido",
+      "invalidRole": "Ruolo del messaggio non valido",
+      "invalidKind": "Tipo di messaggio non valido",
+      "textRequired": "Il testo del messaggio è obbligatorio",
+      "textTooLong": "Il testo del messaggio è troppo lungo",
+      "invalidLocale": "Lingua non supportata. Usa inglese o italiano.",
+      "invalidLimit": "Il limite deve essere un numero tra 1 e 100",
+      "invalidCursor": "Cursore non valido o troppo lungo"
     }
   }
 }
