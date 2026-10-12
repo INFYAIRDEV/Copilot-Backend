@@ -44,6 +44,8 @@
     "defaultNarrative": "Piano analitico candidato generato.",
     "defaultPlanSummary": "Piano candidato generato",
     "fallbackNarrative": "La generazione della narrazione AI è attualmente degradata. I report strutturati certificati restano pienamente disponibili.",
-    "fallbackPlanSummary": "Modello di report standard certificato generato dal sistema di fallback strutturato durante un'interruzione del provider AI."
+    "fallbackPlanSummary": "Modello di report standard certificato generato dal sistema di fallback strutturato durante un'interruzione del provider AI.",
+    "narrativeDegraded": "I calcoli analitici deterministici sono stati generati con successo. L'interpretazione narrativa esecutiva è attualmente degradata.",
+    "narrativeValidationFailed": "Risultati standard certificati del calcolo analitico generati. L'interpretazione AI non ha soddisfatto gli standard di verifica di fedeltà."
   }
 }
