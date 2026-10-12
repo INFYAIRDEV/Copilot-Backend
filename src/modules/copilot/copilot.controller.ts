@@ -517,7 +517,7 @@ export class CopilotController {
     const userContext = {
       userId: authenticatedUser.user_id,
       roleId: authenticatedUser.role_id,
-      locale: req.headers["accept-language"]?.split(",")[0]?.trim() || "en",
+      locale: getLocale(req),
     };
 
     try {
@@ -581,13 +581,7 @@ export class CopilotController {
       if (error instanceof AIProviderException) {
         // Map provider error categories to HTTP/application error codes
         const statusCode =
-          error.category === "TOKEN_BUDGET_EXCEEDED"
-            ? 422
-            : error.category === "CONFIG_ERROR"
-              ? 503
-              : error.category === "UNAVAILABLE"
-                ? 503
-                : 503;
+          error.category === "TOKEN_BUDGET_EXCEEDED" ? 422 : 503;
 
         const clientMessage =
           error.category === "TOKEN_BUDGET_EXCEEDED"

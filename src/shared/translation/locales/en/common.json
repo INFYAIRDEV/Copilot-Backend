@@ -175,7 +175,7 @@
       },
       "salesComparison": {
         "question": "Compare sales with previous quarter and same period last year",
-        "summary": "Current Q3 sales (**{{current}}**) are up **{{varQ2}}** ({{absQ2}}) compared to the equivalent 46-day window of Q2 2026 ({{q2}}), and up **{{varPY}}** ({{absPY}}) vs the equivalent Q3 2025 prior-year period ({{py}}).",
+        "summary": "Current Q3 sales (**{{current}}**) are **{{varQ2}}** ({{absQ2}}) vs the equivalent 46-day window of Q2 2026 ({{q2}}), and **{{varPY}}** ({{absPY}}) vs the equivalent Q3 2025 prior-year period ({{py}}).",
         "chartTitle": "Equivalent-period sales comparison",
         "chartSubtitle": "46-day elapsed window (€)",
         "chartCurrent": "Q3 2026 (Current)",
@@ -192,11 +192,11 @@
           "py": "Jul 1 – Aug 15 (46d)"
         },
         "howCalculated": "Compares identical 46-calendar-day elapsed periods: Q3 2026 (Jul 1 – Aug 15) vs Q2 2026 (Apr 1 – May 15) and Q3 2025 (Jul 1 – Aug 15).",
-        "blueprintSummary": "Current Q3 sales ({{current}}) are up {{varQ2}} vs equivalent Q2 2026 and {{varPY}} vs equivalent Q3 2025.",
+        "blueprintSummary": "Current Q3 sales ({{current}}) are {{varQ2}} vs equivalent Q2 2026 and {{varPY}} vs equivalent Q3 2025.",
         "vizTitle": "Period Comparisons"
       },
       "topCustomers": {
-        "question": "Give me the top 5 customers.",
+        "question": "Who are the top 5 customers by sales?",
         "summary": "The top 5 customers generated **{{top5Total}}**, representing **{{share}}** of total net invoiced sales ({{total}}).",
         "chartTitle": "Top 5 customers",
         "chartSubtitle": "Net invoiced sales (€)",
@@ -207,7 +207,7 @@
       },
       "supplierSpend": {
         "question": "Supplier spend overview",
-        "summary": "Approved procurement spend was **{{total}}**; the top 5 suppliers account for **{{share}}** ({{top5Total}}) of it. SafeLogistics is ranked net of credit note (€50,000).",
+        "summary": "Approved procurement spend was **{{total}}**; the top 5 suppliers account for **{{share}}** ({{top5Total}}) of it. SafeLogistics is ranked at €50,000 net, after a €5,000 credit note. Spend reflects volume, not delivery performance.",
         "chartTitle": "Top 5 suppliers",
         "chartSubtitle": "Approved spend (€)",
         "tableTitle": "Top 5 suppliers by approved spend",
@@ -216,7 +216,7 @@
         "vizTitle": "Top suppliers by spend"
       },
       "delayedOrders": {
-        "question": "Why are there delayed orders?",
+        "question": "Which sales orders are delayed?",
         "summary": "**{{orders}} sales orders** containing **{{lines}} lines** across **{{customers}} customers** are currently delayed, representing **{{backlog}}** in delayed backlog value.",
         "chartTitle": "Delayed backlog by customer",
         "chartSubtitle": "Delayed backlog value (€)",
@@ -295,15 +295,21 @@
       "streamingFailed": "Streaming failed"
     },
     "analytical": {
-      "promptRequired": "prompt is required",
-      "promptMin": "prompt must be at least 3 characters",
-      "promptMax": "prompt exceeds maximum allowed length of 2000 characters",
+      "promptRequired": "Prompt is required",
+      "promptMin": "Prompt must be at least 3 characters",
+      "promptMax": "Prompt exceeds maximum allowed length of 2000 characters",
       "unauthorized": "Unauthorized",
       "policyValidationFailed": "Candidate plan failed policy validation",
       "planGenerated": "Candidate analytical plan generated successfully",
       "unexpectedError": "An unexpected error occurred while processing your request",
       "noIntents": "Candidate plan contains no valid query intents",
       "executiveMarginDenied": "Unauthorized metric access: role 'operator' cannot access 'executive_cost_margin'"
+    },
+    "pagination": {
+      "invalidCursorFormat": "Invalid cursor format",
+      "invalidCursorSignature": "Invalid cursor signature",
+      "tamperedCursor": "Invalid or tampered cursor signature",
+      "invalidOrExpiredCursor": "Invalid or expired cursor"
     }
   }
 }

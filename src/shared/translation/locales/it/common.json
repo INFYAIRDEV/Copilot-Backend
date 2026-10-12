@@ -175,7 +175,7 @@
       },
       "salesComparison": {
         "question": "Confronta le vendite con il trimestre precedente e lo stesso periodo dell'anno scorso",
-        "summary": "Le vendite del Q3 alla data odierna (**{{current}}**) registrano una crescita del **{{varQ2}}** ({{absQ2}}) rispetto all'analogo periodo di 46 giorni del Q2 2026 ({{q2}}) e del **{{varPY}}** ({{absPY}}) rispetto al Q3 2025 ({{py}}).",
+        "summary": "Le vendite del Q3 alla data odierna (**{{current}}**) variano di **{{varQ2}}** ({{absQ2}}) rispetto all'analogo periodo di 46 giorni del Q2 2026 ({{q2}}) e di **{{varPY}}** ({{absPY}}) rispetto al Q3 2025 ({{py}}).",
         "chartTitle": "Confronto vendite per periodi equivalenti",
         "chartSubtitle": "Finestra di 46 giorni trascorsi (€)",
         "chartCurrent": "Q3 2026 (attuale)",
@@ -192,7 +192,7 @@
           "py": "1 lug – 15 ago (46g)"
         },
         "howCalculated": "Confronto tra i primi 46 giorni di calendario di ciascun trimestre: Q3 2026 (1 lug – 15 ago) vs Q2 2026 (1 apr – 15 mag) e Q3 2025 (1 lug – 15 ago).",
-        "blueprintSummary": "Le vendite del Q3 ({{current}}) superano il periodo equivalente del Q2 2026 del {{varQ2}} e il Q3 2025 del {{varPY}}.",
+        "blueprintSummary": "Le vendite del Q3 ({{current}}) variano di {{varQ2}} rispetto al Q2 2026 equivalente e di {{varPY}} rispetto al Q3 2025 equivalente.",
         "vizTitle": "Confronto tra periodi"
       },
       "topCustomers": {
@@ -207,7 +207,7 @@
       },
       "supplierSpend": {
         "question": "Mostrami la spesa fornitori",
-        "summary": "La spesa totale per fornitori approvata è stata di **{{total}}**; i primi 5 fornitori rappresentano il **{{share}}** ({{top5Total}}). Nota: SafeLogistics è classificato al netto della nota di credito (€50.000). La spesa riflette i volumi e non le prestazioni di consegna.",
+        "summary": "La spesa totale per fornitori approvata è stata di **{{total}}**; i primi 5 fornitori rappresentano il **{{share}}** ({{top5Total}}). SafeLogistics è classificato a €50.000 al netto di una nota di credito di €5.000. La spesa riflette i volumi e non le prestazioni di consegna.",
         "chartTitle": "Primi 5 fornitori",
         "chartSubtitle": "Spesa approvata (€)",
         "tableTitle": "Primi 5 fornitori per spesa approvata",
@@ -221,13 +221,13 @@
         "chartTitle": "Backlog in ritardo per cliente",
         "chartSubtitle": "Valore backlog (€)",
         "tableTitle": "Righe ordini di vendita in ritardo",
-        "howCalculated": "Una riga è in ritardo quando la data di consegna concordata è passata rispetto all'orario as-of e la quantità aperta è > 0. Il valore residuo è q.tà aperta × prezzo unitario netto.",
+        "howCalculated": "Una riga è in ritardo quando la data di impegno approvata ha superato la fine della giornata lavorativa locale in Europe/Rome e la quantità aperta è > 0. Il backlog è q.tà aperta × prezzo unitario netto.",
         "blueprintSummary": "Sono presenti {{orders}} ordini di vendita in ritardo ({{lines}} righe, {{customers}} clienti) per un valore di backlog di {{backlog}}.",
         "vizTitle": "Ordini in ritardo per cliente"
       },
       "productionLinkage": {
         "question": "Quali ordini di produzione sono collegati ai ritardi?",
-        "summary": "**{{orders}} ordini di produzione in ritardo** risultano esplicitamente collegati a ordini cliente in ritardo per **{{customers}} clienti**, corrispondenti a **{{linked}}** (il **{{coverage}}**) del backlog totale in ritardo ({{total}}). **Attenzione:** {{unlinked}} di backlog in ritardo non hanno ordini di produzione associati. Il legame esplicito evidenzia associazione e non causalità.",
+        "summary": "**{{orders}} ordini di produzione in ritardo** risultano esplicitamente collegati a ordini cliente in ritardo per **{{customers}} clienti**, corrispondenti a **{{linked}}** (il **{{coverage}}**) del backlog totale in ritardo ({{total}}). **Attenzione:** {{unlinked}} ({{unlinkedPct}}) di backlog in ritardo non hanno ordini di produzione associati. Il legame esplicito evidenzia associazione e non causalità.",
         "chartTitle": "Copertura collegamento produzione",
         "chartSubtitle": "Valore backlog collegato vs non collegato (€)",
         "chartLinked": "Backlog collegato ({{pct}})",
@@ -304,6 +304,12 @@
       "unexpectedError": "Si è verificato un errore imprevisto durante l'elaborazione della richiesta",
       "noIntents": "Il piano candidato non contiene intenti di query validi",
       "executiveMarginDenied": "Accesso non autorizzato alla metrica: il ruolo 'operator' non può accedere a 'executive_cost_margin'"
+    },
+    "pagination": {
+      "invalidCursorFormat": "Formato del cursore non valido",
+      "invalidCursorSignature": "Firma del cursore non valida",
+      "tamperedCursor": "Firma del cursore non valida o manomessa",
+      "invalidOrExpiredCursor": "Cursore non valido o scaduto"
     }
   }
 }
