@@ -109,8 +109,7 @@ export class LLMProviderAdapter extends BaseAIProviderAdapter {
             },
           ],
           confidenceScore: 0.92,
-          reasoningSummary:
-            "Candidate plan generated for regional sales analysis",
+          reasoningSummary: t("ai.mockReasoningSummary", { lng: locale }),
           suggestedVisualization: "BAR_CHART",
           isFallback: false,
         });

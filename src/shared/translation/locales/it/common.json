@@ -47,6 +47,7 @@
     "fallbackPlanSummary": "Modello di report standard certificato generato dal sistema di fallback strutturato durante un'interruzione del provider AI.",
     "narrativeDegraded": "I calcoli analitici deterministici sono stati generati con successo. L'interpretazione narrativa esecutiva è attualmente degradata.",
     "narrativeValidationFailed": "Risultati standard certificati del calcolo analitico generati. L'interpretazione AI non ha soddisfatto gli standard di verifica di fedeltà.",
+    "mockReasoningSummary": "Piano candidato generato per l'analisi delle vendite regionali",
     "errors": {
       "COPILOT_INVALID_RESPONSE": "La risposta dell'AI non è valida. Riprova.",
       "COPILOT_MALFORMED_CANDIDATE": "L'AI ha restituito un risultato non valido. Riprova.",
@@ -88,26 +89,26 @@
       "COPILOT_INVALID_CONTEXT": "Le informazioni della richiesta non sono valide.",
       "COPILOT_SECURITY_VIOLATION": "La richiesta contiene informazioni sensibili ed è stata rifiutata.",
       "COPILOT_PROMPT_INJECTION_DETECTED": "La richiesta è stata rifiutata per motivi di sicurezza."
-    },
-    "analytics": {
-      "questionRequired": "È richiesta una domanda non vuota.",
-      "clarificationRequired": "Chiarimento richiesto",
-      "pipelineExecuted": "Query eseguita con successo",
-      "conversationNotFound": "Conversazione {{id}} non trovata",
-      "conversationRetrieved": "Conversazione recuperata",
-      "journeyNotFound": "Nessun percorso approvato corrisponde all'ID '{{id}}'",
-      "answerRetrieved": "Risposta recuperata con successo",
-      "answersRetrieved": "Risposte recuperate",
-      "historyRetrieved": "Cronologia delle query recuperata",
-      "recordsRetrieved": "Record di supporto recuperati",
-      "goldenValidation": "Stato della regressione di validazione golden",
-      "metricRetrieved": "Definizione della metrica recuperata",
-      "metricNotCertified": "La metrica '{{id}}' non è certificata",
-      "executionFailed": "Impossibile eseguire la query analitica. Riprova più tardi.",
-      "conversationFetchFailed": "Impossibile recuperare la conversazione. Riprova più tardi.",
-      "historyFailed": "Impossibile recuperare la cronologia delle query. Riprova più tardi.",
-      "recordsFailed": "Impossibile recuperare i record di supporto. Riprova più tardi.",
-      "goldenValidationFailed": "Impossibile eseguire i controlli di validazione. Riprova più tardi."
     }
+  },
+  "analytics": {
+    "questionRequired": "È richiesta una domanda non vuota.",
+    "clarificationRequired": "Chiarimento richiesto",
+    "pipelineExecuted": "Query eseguita con successo",
+    "conversationNotFound": "Conversazione {{id}} non trovata",
+    "conversationRetrieved": "Conversazione recuperata",
+    "journeyNotFound": "Nessun percorso approvato corrisponde all'ID '{{id}}'",
+    "answerRetrieved": "Risposta recuperata con successo",
+    "answersRetrieved": "Risposte recuperate",
+    "historyRetrieved": "Cronologia delle query recuperata",
+    "recordsRetrieved": "Record di supporto recuperati",
+    "goldenValidation": "Stato della regressione di validazione golden",
+    "metricRetrieved": "Definizione della metrica recuperata",
+    "metricNotCertified": "La metrica '{{id}}' non è certificata",
+    "executionFailed": "Impossibile eseguire la query analitica. Riprova più tardi.",
+    "conversationFetchFailed": "Impossibile recuperare la conversazione. Riprova più tardi.",
+    "historyFailed": "Impossibile recuperare la cronologia delle query. Riprova più tardi.",
+    "recordsFailed": "Impossibile recuperare i record di supporto. Riprova più tardi.",
+    "goldenValidationFailed": "Impossibile eseguire i controlli di validazione. Riprova più tardi."
   }
 }

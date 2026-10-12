@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { randomUUID } from "node:crypto";
+import { t } from "i18next";
 import { ApiResponse } from "../../shared/types/response.js";
 import { prisma } from "../../shared/utils/prismaClient.js";
 import { logger } from "../../shared/utils/logger.js";
@@ -23,21 +24,21 @@ export class AnalyticsController {
    * to analytics.conversation and analytics.conversation_message tables in PostgreSQL.
    */
   queryPipeline = async (req: Request, res: Response) => {
-    const question = req.body.question || req.body.prompt || req.body.text;
-    if (!question || typeof question !== "string") {
-      return ApiResponse.error(res, {
-        statusCode: 400,
-        code: "INVALID_REQUEST",
-        messageKey: "ai.analytics.questionRequired",
-      });
-    }
-
     const locale =
       req.body.locale === "it" ||
       (req.query.locale as string) === "it" ||
       req.headers["accept-language"]?.startsWith("it")
         ? "it"
         : "en";
+
+    const question = req.body.question || req.body.prompt || req.body.text;
+    if (!question || typeof question !== "string") {
+      return ApiResponse.error(res, {
+        statusCode: 400,
+        code: "INVALID_REQUEST",
+        message: t("analytics.questionRequired", { lng: locale }),
+      });
+    }
 
     const incomingConversationId = req.body.conversationId;
 
@@ -160,7 +161,7 @@ export class AnalyticsController {
       if (isClarification) {
         return ApiResponse.success(res, {
           statusCode: 200,
-          messageKey: "ai.analytics.clarificationRequired",
+          message: t("analytics.clarificationRequired", { lng: locale }),
           data: {
             ...result.uiAnswer,
             conversationId: activeConversationUuid,
@@ -173,7 +174,7 @@ export class AnalyticsController {
       const pipelineRes = result as PipelineExecutionResult;
       return ApiResponse.success(res, {
         statusCode: 200,
-        messageKey: "ai.analytics.pipelineExecuted",
+        message: t("analytics.pipelineExecuted", { lng: locale }),
         data: {
           ...pipelineRes.uiAnswer,
           conversationId: activeConversationUuid,
@@ -190,7 +191,7 @@ export class AnalyticsController {
       return ApiResponse.error(res, {
         statusCode: 500,
         code: "ANALYTICS_EXECUTION_ERROR",
-        messageKey: "ai.analytics.executionFailed",
+        message: t("analytics.executionFailed", { lng: locale }),
       });
     }
   };
@@ -202,6 +203,11 @@ export class AnalyticsController {
    */
   getConversation = async (req: Request, res: Response) => {
     const { id } = req.params;
+    const locale =
+      (req.query.locale as string) === "it" ||
+      req.headers["accept-language"]?.startsWith("it")
+        ? "it"
+        : "en";
 
     const isValidUuid =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
@@ -211,8 +217,7 @@ export class AnalyticsController {
       return ApiResponse.error(res, {
         statusCode: 404,
         code: "CONVERSATION_NOT_FOUND",
-        messageKey: "ai.analytics.conversationNotFound",
-        messageParams: { id },
+        message: t("analytics.conversationNotFound", { lng: locale, id }),
       });
     }
 
@@ -225,8 +230,7 @@ export class AnalyticsController {
         return ApiResponse.error(res, {
           statusCode: 404,
           code: "CONVERSATION_NOT_FOUND",
-          messageKey: "ai.analytics.conversationNotFound",
-          messageParams: { id },
+          message: t("analytics.conversationNotFound", { lng: locale, id }),
         });
       }
 
@@ -270,7 +274,7 @@ export class AnalyticsController {
 
       return ApiResponse.success(res, {
         statusCode: 200,
-        messageKey: "ai.analytics.conversationRetrieved",
+        message: t("analytics.conversationRetrieved", { lng: locale }),
         data: {
           conversationId: conv.conversation_uuid,
           messages,
@@ -283,7 +287,7 @@ export class AnalyticsController {
       return ApiResponse.error(res, {
         statusCode: 500,
         code: "CONVERSATION_FETCH_ERROR",
-        messageKey: "ai.analytics.conversationFetchFailed",
+        message: t("analytics.conversationFetchFailed", { lng: locale }),
       });
     }
   };
@@ -307,8 +311,7 @@ export class AnalyticsController {
       return ApiResponse.error(res, {
         statusCode: 404,
         code: "COPILOT_JOURNEY_NOT_FOUND",
-        messageKey: "ai.analytics.journeyNotFound",
-        messageParams: { id: rawId },
+        message: t("analytics.journeyNotFound", { lng: locale, id: rawId }),
       });
     }
 
@@ -319,7 +322,7 @@ export class AnalyticsController {
       // and complete Blueprint AnswerResponse structure
       return ApiResponse.success(res, {
         statusCode: 200,
-        messageKey: "ai.analytics.answerRetrieved",
+        message: t("analytics.answerRetrieved", { lng: locale }),
         data: {
           ...result.uiAnswer, // id, question, summary, chart, table, meta
           blueprintResponse: result.blueprintResponse,
@@ -333,7 +336,7 @@ export class AnalyticsController {
       return ApiResponse.error(res, {
         statusCode: 500,
         code: "ANALYTICS_EXECUTION_ERROR",
-        messageKey: "ai.analytics.executionFailed",
+        message: t("analytics.executionFailed", { lng: locale }),
       });
     }
   };
@@ -369,7 +372,7 @@ export class AnalyticsController {
 
       return ApiResponse.success(res, {
         statusCode: 200,
-        messageKey: "ai.analytics.answersRetrieved",
+        message: t("analytics.answersRetrieved", { lng: locale }),
         data: results,
       });
     } catch (err: any) {
@@ -379,7 +382,7 @@ export class AnalyticsController {
       return ApiResponse.error(res, {
         statusCode: 500,
         code: "ANALYTICS_EXECUTION_ERROR",
-        messageKey: "ai.analytics.executionFailed",
+        message: t("analytics.executionFailed", { lng: locale }),
       });
     }
   };
@@ -400,7 +403,7 @@ export class AnalyticsController {
       const groups = await this.repo.getHistoryItems(locale);
       return ApiResponse.success(res, {
         statusCode: 200,
-        messageKey: "ai.analytics.historyRetrieved",
+        message: t("analytics.historyRetrieved", { lng: locale }),
         data: groups,
       });
     } catch (err: any) {
@@ -408,7 +411,7 @@ export class AnalyticsController {
       return ApiResponse.error(res, {
         statusCode: 500,
         code: "ANALYTICS_HISTORY_ERROR",
-        messageKey: "ai.analytics.historyFailed",
+        message: t("analytics.historyFailed", { lng: locale }),
       });
     }
   };
@@ -420,6 +423,11 @@ export class AnalyticsController {
    */
   getSupportingRecords = async (req: Request, res: Response) => {
     const rawId = req.params.id;
+    const locale =
+      (req.query.locale as string) === "it" ||
+      req.headers["accept-language"]?.startsWith("it")
+        ? "it"
+        : "en";
     const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 100);
     const offset = Math.max(Number(req.query.offset) || 0, 0);
 
@@ -428,8 +436,7 @@ export class AnalyticsController {
       return ApiResponse.error(res, {
         statusCode: 404,
         code: "COPILOT_JOURNEY_NOT_FOUND",
-        messageKey: "ai.analytics.journeyNotFound",
-        messageParams: { id: rawId },
+        message: t("analytics.journeyNotFound", { lng: locale, id: rawId }),
       });
     }
 
@@ -441,7 +448,7 @@ export class AnalyticsController {
       );
       return ApiResponse.success(res, {
         statusCode: 200,
-        messageKey: "ai.analytics.recordsRetrieved",
+        message: t("analytics.recordsRetrieved", { lng: locale }),
         data: recordsData,
       });
     } catch (err: any) {
@@ -451,7 +458,7 @@ export class AnalyticsController {
       return ApiResponse.error(res, {
         statusCode: 500,
         code: "SUPPORTING_RECORDS_ERROR",
-        messageKey: "ai.analytics.recordsFailed",
+        message: t("analytics.recordsFailed", { lng: locale }),
       });
     }
   };
@@ -461,7 +468,13 @@ export class AnalyticsController {
    *
    * Returns the 18/18 PASS golden validation test checks.
    */
-  getGoldenValidation = async (_req: Request, res: Response) => {
+  getGoldenValidation = async (req: Request, res: Response) => {
+    const locale =
+      (req.query.locale as string) === "it" ||
+      req.headers["accept-language"]?.startsWith("it")
+        ? "it"
+        : "en";
+
     try {
       const checks = await this.repo.getGoldenValidation();
       const totalChecks = checks.length;
@@ -474,7 +487,7 @@ export class AnalyticsController {
 
       return ApiResponse.success(res, {
         statusCode: 200,
-        messageKey: "ai.analytics.goldenValidation",
+        message: t("analytics.goldenValidation", { lng: locale }),
         data: {
           totalChecks,
           passedChecks,
@@ -493,7 +506,7 @@ export class AnalyticsController {
       return ApiResponse.error(res, {
         statusCode: 500,
         code: "GOLDEN_VALIDATION_ERROR",
-        messageKey: "ai.analytics.goldenValidationFailed",
+        message: t("analytics.goldenValidationFailed", { lng: locale }),
       });
     }
   };
@@ -505,6 +518,11 @@ export class AnalyticsController {
    */
   getMetricDefinition = async (req: Request, res: Response) => {
     const metricId = req.params.id;
+    const locale =
+      (req.query.locale as string) === "it" ||
+      req.headers["accept-language"]?.startsWith("it")
+        ? "it"
+        : "en";
     const certifiedMetrics: Record<string, any> = {
       "sales.invoiced_net": {
         metric_id: "sales.invoiced_net",
@@ -612,14 +630,16 @@ export class AnalyticsController {
       return ApiResponse.error(res, {
         statusCode: 404,
         code: "COPILOT_METRIC_NOT_CERTIFIED",
-        messageKey: "ai.analytics.metricNotCertified",
-        messageParams: { id: metricId },
+        message: t("analytics.metricNotCertified", {
+          lng: locale,
+          id: metricId,
+        }),
       });
     }
 
     return ApiResponse.success(res, {
       statusCode: 200,
-      messageKey: "ai.analytics.metricRetrieved",
+      message: t("analytics.metricRetrieved", { lng: locale }),
       data: metric,
     });
   };
