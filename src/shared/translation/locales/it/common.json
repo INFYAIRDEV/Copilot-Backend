@@ -42,6 +42,8 @@
   },
   "ai": {
     "defaultNarrative": "Piano analitico candidato generato.",
-    "defaultPlanSummary": "Piano candidato generato"
+    "defaultPlanSummary": "Piano candidato generato",
+    "fallbackNarrative": "La generazione della narrazione AI è attualmente degradata. I report strutturati certificati restano pienamente disponibili.",
+    "fallbackPlanSummary": "Modello di report standard certificato generato dal sistema di fallback strutturato durante un'interruzione del provider AI."
   }
 }

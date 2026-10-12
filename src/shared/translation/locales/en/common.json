@@ -42,6 +42,8 @@
   },
   "ai": {
     "defaultNarrative": "Generated candidate analytical plan.",
-    "defaultPlanSummary": "Generated candidate plan"
+    "defaultPlanSummary": "Generated candidate plan",
+    "fallbackNarrative": "AI narrative generation is currently degraded. Certified structured reports remain fully available.",
+    "fallbackPlanSummary": "Generated standard certified report template via structured fallback system during AI provider outage."
   }
 }
