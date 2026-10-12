@@ -7,6 +7,7 @@ import type {
   ProductionOrderDelayFact,
   AllocationFact,
 } from "./analytics.fixtures.js";
+import { t } from "i18next";
 
 function normalizeFixtureWindow(
   val: string | null | undefined,
@@ -340,7 +341,7 @@ export class AnalyticsRepository {
    * formatted with real dynamic timestamps into temporal groups.
    */
   async getHistoryItems(locale: "en" | "it" = "en"): Promise<any[]> {
-    const isIt = locale === "it";
+    // const isIt = locale === "it";
 
     // 1. First attempt to query distinct conversations from analytics.conversation table
     try {
@@ -356,7 +357,7 @@ export class AnalyticsRepository {
               ORDER BY cm.created_at ASC
               LIMIT 1
             ),
-            'Conversation'
+            NULL
           ) AS title
         FROM analytics.conversation c
         WHERE c.state != 'DELETED'
@@ -368,7 +369,9 @@ export class AnalyticsRepository {
         return this.groupHistoryByDate(
           conversations.map((c: any) => ({
             id: String(c.id),
-            title: String(c.title),
+            title: c.title
+              ? String(c.title)
+              : t("analytics.history.conversationTitle", { lng: locale }),
             created_at: c.created_at,
           })),
           locale,
@@ -398,9 +401,10 @@ export class AnalyticsRepository {
         return this.groupHistoryByDate(
           catalogRows.map((q: any) => ({
             id: q.query_id,
-            title: isIt
-              ? this.getLocalizedTitle(q.query_id)
-              : q.display_name || q.query_id,
+            title: t(`analytics.journeyTitles.${q.query_id}`, {
+              lng: locale,
+              defaultValue: q.display_name || q.query_id,
+            }),
             created_at: new Date(),
           })),
           locale,
@@ -444,20 +448,24 @@ export class AnalyticsRepository {
 
     const groups: Record<string, { key: string; label: string; items: any[] }> =
       {
-        today: { key: "today", label: isIt ? "Oggi" : "Today", items: [] },
+        today: {
+          key: "today",
+          label: t("analytics.history.today", { lng: locale }),
+          items: [],
+        },
         yesterday: {
           key: "yesterday",
-          label: isIt ? "Ieri" : "Yesterday",
+          label: t("analytics.history.yesterday", { lng: locale }),
           items: [],
         },
         previous7: {
           key: "previous7",
-          label: isIt ? "Ultimi 7 giorni" : "Previous 7 days",
+          label: t("analytics.history.previous7", { lng: locale }),
           items: [],
         },
         older: {
           key: "older",
-          label: isIt ? "Precedenti" : "Older",
+          label: t("analytics.history.older", { lng: locale }),
           items: [],
         },
       };
@@ -489,7 +497,7 @@ export class AnalyticsRepository {
     return Object.values(groups).filter((g) => g.items.length > 0);
   }
 
-  private getLocalizedTitle(id: string): string {
+  /* private getLocalizedTitle(id: string): string {
     switch (id) {
       case "current-sales":
         return "Fatturato netto Q3 (attuale)";
@@ -506,7 +514,7 @@ export class AnalyticsRepository {
       default:
         return id;
     }
-  }
+  }*/
 }
 
 export const analyticsRepository = new AnalyticsRepository();

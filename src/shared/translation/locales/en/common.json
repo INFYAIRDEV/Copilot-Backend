@@ -109,6 +109,21 @@
     "conversationFetchFailed": "Could not retrieve the conversation. Please try again later.",
     "historyFailed": "Could not retrieve the query history. Please try again later.",
     "recordsFailed": "Could not retrieve the supporting records. Please try again later.",
-    "goldenValidationFailed": "Could not run the validation checks. Please try again later."
+    "goldenValidationFailed": "Could not run the validation checks. Please try again later.",
+    "history": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "previous7": "Previous 7 days",
+      "older": "Older",
+      "conversationTitle": "Conversation"
+    },
+    "journeyTitles": {
+      "current-sales": "Current Q3 Net Invoiced Sales",
+      "sales-comparison": "Equivalent-Period Sales Comparison",
+      "top-customers": "Top 5 Customers by Sales",
+      "supplier-spend": "Top 5 Suppliers by Procurement Spend",
+      "delayed-orders": "Delayed Sales Commitments",
+      "production-linkage": "Production Linkage & Exposure"
+    }
   }
 }

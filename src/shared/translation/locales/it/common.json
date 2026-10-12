@@ -109,6 +109,21 @@
     "conversationFetchFailed": "Impossibile recuperare la conversazione. Riprova più tardi.",
     "historyFailed": "Impossibile recuperare la cronologia delle query. Riprova più tardi.",
     "recordsFailed": "Impossibile recuperare i record di supporto. Riprova più tardi.",
-    "goldenValidationFailed": "Impossibile eseguire i controlli di validazione. Riprova più tardi."
+    "goldenValidationFailed": "Impossibile eseguire i controlli di validazione. Riprova più tardi.",
+    "history": {
+      "today": "Oggi",
+      "yesterday": "Ieri",
+      "previous7": "Ultimi 7 giorni",
+      "older": "Precedenti",
+      "conversationTitle": "Conversazione"
+    },
+    "journeyTitles": {
+      "current-sales": "Fatturato netto Q3 (attuale)",
+      "sales-comparison": "Confronto vendite per periodi equivalenti",
+      "top-customers": "Primi 5 clienti per fatturato",
+      "supplier-spend": "Primi 5 fornitori per spesa",
+      "delayed-orders": "Impegni di vendita in ritardo",
+      "production-linkage": "Collegamento ordini di produzione"
+    }
   }
 }
