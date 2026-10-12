@@ -239,5 +239,24 @@
         "vizTitle": "Copertura collegamento produzione"
       }
     }
+  },
+  "copilot": {
+    "errors": {
+      "UNAUTHENTICATED": "Autenticazione richiesta",
+      "COPILOT_PERMISSION_DENIED": "Accesso alla conversazione negato",
+      "CONVERSATION_VERSION_CONFLICT": "La conversazione è stata modificata altrove. Ricaricala e riprova."
+    },
+    "contextValidation": {
+      "forbiddenField": "Campo di sicurezza vietato nel contesto analitico: {{field}}",
+      "rawSql": "Le istruzioni SQL non sono consentite nel contesto analitico",
+      "metricNotCertified": "Riferimento metrica non valido: '{{ref}}' non è certificata",
+      "dimensionNotCertified": "Riferimento dimensione non valido: '{{ref}}' non è certificata",
+      "groupByNotCertified": "Dimensione groupBy non valida: '{{ref}}' non è certificata",
+      "filterNotCertified": "Dimensione del filtro non valida: '{{ref}}' non è certificata",
+      "betweenRequiresTwo": "L'operatore 'BETWEEN' su '{{field}}' richiede un array di 2 valori",
+      "inRequiresNonEmpty": "L'operatore 'IN' su '{{field}}' richiede un array non vuoto",
+      "scalarNoArray": "L'operatore scalare '{{operator}}' su '{{field}}' non può avere un array come valore",
+      "unauthorizedMetric": "Il ruolo '{{role}}' non può accedere alla metrica '{{metric}}'"
+    }
   }
 }

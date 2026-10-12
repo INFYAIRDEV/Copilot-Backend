@@ -239,5 +239,24 @@
         "vizTitle": "Production linkage coverage"
       }
     }
+  },
+  "copilot": {
+    "errors": {
+      "UNAUTHENTICATED": "Authentication required",
+      "COPILOT_PERMISSION_DENIED": "Conversation access denied",
+      "CONVERSATION_VERSION_CONFLICT": "The conversation was modified elsewhere. Reload and try again."
+    },
+    "contextValidation": {
+      "forbiddenField": "Forbidden security field in analytical context: {{field}}",
+      "rawSql": "Raw SQL statements are not allowed in analytical context",
+      "metricNotCertified": "Invalid metric reference: '{{ref}}' is not certified",
+      "dimensionNotCertified": "Invalid dimension reference: '{{ref}}' is not certified",
+      "groupByNotCertified": "Invalid groupBy dimension reference: '{{ref}}' is not certified",
+      "filterNotCertified": "Invalid filter dimension: '{{ref}}' is not certified",
+      "betweenRequiresTwo": "Operator 'BETWEEN' on '{{field}}' requires an array of 2 values",
+      "inRequiresNonEmpty": "Operator 'IN' on '{{field}}' requires a non-empty array",
+      "scalarNoArray": "Scalar operator '{{operator}}' on '{{field}}' cannot have an array value",
+      "unauthorizedMetric": "Role '{{role}}' cannot access metric '{{metric}}'"
+    }
   }
 }
