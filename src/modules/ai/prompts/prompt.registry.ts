@@ -2,6 +2,12 @@ import { PromptDefinition } from "./prompt.types.js";
 import { PromptValidator } from "./prompt.validator.js";
 
 /**
+ * Tells the model which language to use for free-text output.
+ * The language comes from "Locale" in the prompt context (en or it, default English).
+ */
+const LANGUAGE_RULE = `LANGUAGE: Write all free-text output (for example reasoningSummary, clarifying questions, narrative text) in the language given by "Locale" in the analytical context: "en" = English, "it" = Italian. If the locale is missing or unsupported, use English. Keep JSON keys, enum values, and entity, metric and dimension names exactly as defined.`;
+
+/**
  * Approved system instruction for producing Candidate Typed Analytical Plans.
  * Enforces architectural boundaries: candidate-only, untrusted output, strict JSON schema.
  */
@@ -56,7 +62,7 @@ const DEFAULT_PROMPT_CATALOG: PromptDefinition[] = [
     operation: "CANDIDATE_PLAN",
     description:
       "Standard production prompt for generating candidate typed analytical plans",
-    systemInstruction: CANDIDATE_PLAN_SYSTEM_INSTRUCTION,
+    systemInstruction: `${CANDIDATE_PLAN_SYSTEM_INSTRUCTION}\n\n${LANGUAGE_RULE}`,
     userTemplate: CANDIDATE_PLAN_USER_TEMPLATE,
     requiredVariables: ["userQuery", "roleId", "userId"],
     isActive: true,
@@ -71,7 +77,7 @@ const DEFAULT_PROMPT_CATALOG: PromptDefinition[] = [
     operation: "CANDIDATE_PLAN",
     description:
       "Enhanced prompt definition with enriched reasoning heuristics for evaluation runs",
-    systemInstruction: `${CANDIDATE_PLAN_SYSTEM_INSTRUCTION}\n6. REASONING ENRICHMENT: Ensure reasoningSummary concisely explains dimension-metric alignment.`,
+    systemInstruction: `${CANDIDATE_PLAN_SYSTEM_INSTRUCTION}\n6. REASONING ENRICHMENT: Ensure reasoningSummary concisely explains dimension-metric alignment.\n\n${LANGUAGE_RULE}`,
     userTemplate: CANDIDATE_PLAN_USER_TEMPLATE,
     requiredVariables: ["userQuery", "roleId", "userId"],
     isActive: true,
@@ -103,9 +109,12 @@ Do not execute queries or make authorization decisions.`,
       "Generates clarifying questions when the analytical intent is ambiguous",
     systemInstruction: `You are the Copilot Clarification Assistant.
 If an analytical query is underspecified or ambiguous, provide clear, concise clarifying questions.
-Never reveal backend database schemas, secrets, or implementation details.`,
+Never reveal backend database schemas, secrets, or implementation details.
+
+${LANGUAGE_RULE}`,
     userTemplate: `<analytical_context>
 User Role: {{roleId}}
+Locale: {{locale}}
 </analytical_context>
 <ambiguous_query>
 {{userQuery}}
@@ -121,8 +130,13 @@ User Role: {{roleId}}
       "Narrates and explains structured analytical results without performing deterministic calculations",
     systemInstruction: `You are the Copilot Analytical Narrator.
 Your job is to provide clear narrative insights on validated calculation results.
-DO NOT recalculate metrics or alter numbers. Rely strictly on the provided calculation outputs.`,
-    userTemplate: `<analytical_results>
+DO NOT recalculate metrics or alter numbers. Rely strictly on the provided calculation outputs.
+
+${LANGUAGE_RULE}`,
+    userTemplate: `<analytical_context>
+Locale: {{locale}}
+</analytical_context>
+<analytical_results>
 {{additionalContext}}
 </analytical_results>
 <user_question>

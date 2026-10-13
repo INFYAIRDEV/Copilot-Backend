@@ -31,6 +31,7 @@ import {
 } from "@/modules/ai/usage/index.js";
 import { CandidateContextUpdate } from "./context.types.js";
 import { logger } from "../../shared/utils/logger.js";
+import { t } from "i18next";
 
 export interface StreamChatRequest {
   userId: number;
@@ -80,14 +81,18 @@ export class CopilotStreamingService {
     scopes?: string[],
   ) {
     if (!Number.isSafeInteger(userId) || userId <= 0) {
-      throw new CopilotError(401, "UNAUTHENTICATED", "Authentication required");
+      throw new CopilotError(
+        401,
+        "UNAUTHENTICATED",
+        "copilot.errors.UNAUTHENTICATED",
+      );
     }
 
     if (Array.isArray(permissions) && !permissions.includes("copilot.ask")) {
       throw new CopilotError(
         403,
         "COPILOT_PERMISSION_DENIED",
-        "Permission denied: copilot.ask required",
+        "copilot.errors.PERMISSION_COPILOT_ASK_REQUIRED",
       );
     }
 
@@ -95,7 +100,7 @@ export class CopilotStreamingService {
       throw new CopilotError(
         403,
         "COPILOT_PERMISSION_DENIED",
-        "Permission denied: copilot.ask required",
+        "copilot.errors.PERMISSION_COPILOT_ASK_REQUIRED",
       );
     }
 
@@ -104,7 +109,7 @@ export class CopilotStreamingService {
       throw new CopilotError(
         403,
         "COPILOT_PERMISSION_DENIED",
-        "Conversation access denied",
+        "copilot.errors.COPILOT_PERMISSION_DENIED",
       );
     }
 
@@ -115,7 +120,7 @@ export class CopilotStreamingService {
       throw new CopilotError(
         403,
         "COPILOT_PERMISSION_DENIED",
-        "Conversation access denied",
+        "copilot.errors.COPILOT_PERMISSION_DENIED",
       );
     }
 
@@ -123,7 +128,7 @@ export class CopilotStreamingService {
       throw new CopilotError(
         409,
         "CONVERSATION_NOT_ACTIVE",
-        "Conversation is not active",
+        "copilot.errors.CONVERSATION_NOT_ACTIVE",
       );
     }
 
@@ -152,6 +157,8 @@ export class CopilotStreamingService {
       idempotencyKey,
       message,
     );
+
+    const locale: "en" | "it" = userMessage.locale === "it" ? "it" : "en";
 
     if (emitter.isAborted()) {
       return;
@@ -216,7 +223,7 @@ export class CopilotStreamingService {
         const narrative =
           aiResult.narrative ||
           aiResult.candidatePlan?.reasoningSummary ||
-          "Query processed successfully.";
+          t("copilot.streaming.queryProcessed", { lng: locale });
         const words = narrative.split(" ");
         for (let i = 0; i < words.length; i++) {
           if (emitter.isAborted()) break;
@@ -247,7 +254,10 @@ export class CopilotStreamingService {
 
       emitter.emitError({
         code: errorCode,
-        message: error.message || "Failed to generate AI response",
+        message: t(`ai.serviceErrors.${errorCode}`, {
+          lng: locale,
+          defaultValue: t("copilot.streaming.aiFailed", { lng: locale }),
+        }),
         status_code: error.statusCode || 503,
       });
       return;
@@ -267,6 +277,7 @@ export class CopilotStreamingService {
       const validationResult = this.performSemanticAndPolicyValidation(
         aiResult.candidatePlan,
         { userId, roleId: params.userRoleId || "user" },
+        locale,
       );
 
       if (validationResult.isValid) {
@@ -285,7 +296,8 @@ export class CopilotStreamingService {
     if (aiResult.isDegraded || aiResult.fromFallback) {
       emitter.emitDegraded({
         reason:
-          aiResult.fallbackReason || "Operating in degraded analytical mode",
+          aiResult.fallbackReason ||
+          t("copilot.streaming.degradedMode", { lng: locale }),
       });
     }
 
@@ -307,10 +319,11 @@ export class CopilotStreamingService {
         candidateUpdate,
       );
 
-      const val = this.context.validateContext(mergedContext, {
-        userId,
-        roleId: params.userRoleId || "user",
-      });
+      const val = this.context.validateContext(
+        mergedContext,
+        { userId, roleId: params.userRoleId || "user" },
+        locale,
+      );
 
       if (val.isValid) {
         try {
@@ -333,7 +346,7 @@ export class CopilotStreamingService {
       streamedNarrative ||
       aiResult.narrative ||
       aiResult.candidatePlan.reasoningSummary ||
-      "Query processed successfully.";
+      t("copilot.streaming.queryProcessed", { lng: locale });
 
     const assistantMessage = await this.copilot.storeAssistantMessage(
       userId,
@@ -369,6 +382,7 @@ export class CopilotStreamingService {
   private performSemanticAndPolicyValidation(
     candidatePlan: ModelCandidatePlan,
     userContext: { userId: number; roleId: string },
+    locale: "en" | "it" = "en",
   ): { isValid: boolean; errors?: string[] } {
     const errors: string[] = [];
 
@@ -378,7 +392,11 @@ export class CopilotStreamingService {
         intent.metrics.includes("executive_cost_margin")
       ) {
         errors.push(
-          `Unauthorized metric access: role '${userContext.roleId}' cannot access 'executive_cost_margin'`,
+          t("copilot.streaming.unauthorizedMetric", {
+            lng: locale,
+            role: userContext.roleId,
+            metric: "executive_cost_margin",
+          }),
         );
       }
     }

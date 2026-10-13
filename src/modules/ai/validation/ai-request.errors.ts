@@ -1,3 +1,5 @@
+import { t } from "i18next";
+
 /**
  * Standardized error codes for AI Request Validation failures.
  * Aligns with Copilot architecture error contracts.
@@ -42,5 +44,18 @@ export class AIRequestValidationException extends Error {
     this.correlationId = options.correlationId;
 
     Object.setPrototypeOf(this, AIRequestValidationException.prototype);
+  }
+
+  /**
+   * Client-safe message translated by error code.
+   * Pass the request language (e.g. req.lang). this.message stays English for logs.
+   */
+  public getClientMessage(locale: string = "en"): string {
+    return (
+      t(`ai.validationErrors.${this.code}`, {
+        lng: locale,
+        defaultValue: this.message,
+      }) || this.message
+    );
   }
 }

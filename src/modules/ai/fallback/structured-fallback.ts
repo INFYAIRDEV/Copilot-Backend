@@ -8,6 +8,7 @@ import {
   ModelCandidatePlan,
 } from "../types/ai-provider.types.js";
 import { logger } from "../../../shared/utils/logger.js";
+import { t } from "i18next";
 
 export class StructuredFallbackProvider implements IAIProvider {
   private readonly metadata: AIProviderMetadata = {
@@ -24,6 +25,7 @@ export class StructuredFallbackProvider implements IAIProvider {
     request: AIProviderRequest,
   ): Promise<AIProviderResponse> {
     const startTime = Date.now();
+    const lng = request.context?.locale ?? "en";
     logger.info(
       `[StructuredFallbackProvider] Executing deterministic fallback template for prompt: "${request.prompt.substring(0, 50)}..."`,
     );
@@ -41,8 +43,7 @@ export class StructuredFallbackProvider implements IAIProvider {
         },
       ],
       confidenceScore: 1.0,
-      reasoningSummary:
-        "Generated standard certified report template via structured fallback system during AI provider outage.",
+      reasoningSummary: t("ai.fallbackPlanSummary", { lng }),
       suggestedVisualization: "TABLE",
       isFallback: true,
     };
@@ -51,8 +52,7 @@ export class StructuredFallbackProvider implements IAIProvider {
 
     return {
       candidatePlan: fallbackPlan,
-      narrative:
-        "AI narrative generation is currently degraded. Certified structured reports remain fully available.",
+      narrative: t("ai.fallbackNarrative", { lng }),
       fromFallback: true,
       fallbackReason:
         "Primary AI provider is unavailable or circuit breaker triggered.",

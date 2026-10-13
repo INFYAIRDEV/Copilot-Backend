@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { randomUUID } from "node:crypto";
+import { t } from "i18next";
 import { ApiResponse } from "../../shared/types/response.js";
 import { prisma } from "../../shared/utils/prismaClient.js";
 import { logger } from "../../shared/utils/logger.js";
@@ -9,6 +10,51 @@ import {
   AnalyticsRepository,
 } from "./analytics.repository.js";
 import { JourneyId, PipelineExecutionResult } from "./analytics.types.js";
+
+const JOURNEY_IDS: JourneyId[] = [
+  "current-sales",
+  "sales-comparison",
+  "top-customers",
+  "supplier-spend",
+  "delayed-orders",
+  "production-linkage",
+];
+
+const JOURNEY_I18N_KEYS: Record<JourneyId, string> = {
+  "current-sales": "currentSales",
+  "sales-comparison": "salesComparison",
+  "top-customers": "topCustomers",
+  "supplier-spend": "supplierSpend",
+  "delayed-orders": "delayedOrders",
+  "production-linkage": "productionLinkage",
+};
+
+const OLD_WORDINGS: Record<string, string> = {
+  "why are there delayed orders?": "delayedOrders",
+  "give me the top 5 customers.": "topCustomers",
+};
+
+// If the text is an approved journey question (EN or IT), show it in the requested language.
+const translateJourneyQuestion = (
+  text: string,
+  locale: "en" | "it",
+): string => {
+  const needle = (text || "").trim().toLowerCase();
+  const alias = OLD_WORDINGS[needle];
+  if (alias)
+    return t(`analytics.journeys.${alias}.question`, {
+      lng: locale,
+    }) as string;
+  for (const id of JOURNEY_IDS) {
+    const key = `analytics.journeys.${JOURNEY_I18N_KEYS[id]}.question`;
+    for (const lng of ["en", "it"]) {
+      if ((t(key, { lng }) as string).trim().toLowerCase() === needle) {
+        return t(key, { lng: locale }) as string;
+      }
+    }
+  }
+  return text;
+};
 
 export class AnalyticsController {
   constructor(
@@ -23,21 +69,21 @@ export class AnalyticsController {
    * to analytics.conversation and analytics.conversation_message tables in PostgreSQL.
    */
   queryPipeline = async (req: Request, res: Response) => {
-    const question = req.body.question || req.body.prompt || req.body.text;
-    if (!question || typeof question !== "string") {
-      return ApiResponse.error(res, {
-        statusCode: 400,
-        code: "INVALID_REQUEST",
-        message: "A non-empty 'question' string is required in request body.",
-      });
-    }
-
     const locale =
       req.body.locale === "it" ||
       (req.query.locale as string) === "it" ||
       req.headers["accept-language"]?.startsWith("it")
         ? "it"
         : "en";
+
+    const question = req.body.question || req.body.prompt || req.body.text;
+    if (!question || typeof question !== "string") {
+      return ApiResponse.error(res, {
+        statusCode: 400,
+        code: "INVALID_REQUEST",
+        message: t("analytics.questionRequired", { lng: locale }),
+      });
+    }
 
     const incomingConversationId = req.body.conversationId;
 
@@ -160,7 +206,7 @@ export class AnalyticsController {
       if (isClarification) {
         return ApiResponse.success(res, {
           statusCode: 200,
-          message: "Clarification required",
+          message: t("analytics.clarificationRequired", { lng: locale }),
           data: {
             ...result.uiAnswer,
             conversationId: activeConversationUuid,
@@ -173,7 +219,7 @@ export class AnalyticsController {
       const pipelineRes = result as PipelineExecutionResult;
       return ApiResponse.success(res, {
         statusCode: 200,
-        message: "Pipeline query executed successfully",
+        message: t("analytics.pipelineExecuted", { lng: locale }),
         data: {
           ...pipelineRes.uiAnswer,
           conversationId: activeConversationUuid,
@@ -184,10 +230,13 @@ export class AnalyticsController {
         },
       });
     } catch (err: any) {
+      logger.error(
+        `[AnalyticsController] Pipeline execution failed: ${err?.message}`,
+      );
       return ApiResponse.error(res, {
         statusCode: 500,
         code: "ANALYTICS_EXECUTION_ERROR",
-        message: err.message || "Failed to execute pipeline query",
+        message: t("analytics.executionFailed", { lng: locale }),
       });
     }
   };
@@ -199,6 +248,11 @@ export class AnalyticsController {
    */
   getConversation = async (req: Request, res: Response) => {
     const { id } = req.params;
+    const locale =
+      (req.query.locale as string) === "it" ||
+      req.headers["accept-language"]?.startsWith("it")
+        ? "it"
+        : "en";
 
     const isValidUuid =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
@@ -208,7 +262,7 @@ export class AnalyticsController {
       return ApiResponse.error(res, {
         statusCode: 404,
         code: "CONVERSATION_NOT_FOUND",
-        message: `Conversation ${id} was not found in database`,
+        message: t("analytics.conversationNotFound", { lng: locale, id }),
       });
     }
 
@@ -221,7 +275,7 @@ export class AnalyticsController {
         return ApiResponse.error(res, {
           statusCode: 404,
           code: "CONVERSATION_NOT_FOUND",
-          message: `Conversation ${id} was not found in database`,
+          message: t("analytics.conversationNotFound", { lng: locale, id }),
         });
       }
 
@@ -230,52 +284,65 @@ export class AnalyticsController {
         orderBy: { created_at: "asc" },
       });
 
-      const messages = rawMessages.map((m: any) => {
-        let parsedAnswer = null;
-        if (m.role === "ASSISTANT" && m.text) {
-          try {
-            parsedAnswer = JSON.parse(m.text);
-            if (parsedAnswer && typeof parsedAnswer === "object") {
-              if (!parsedAnswer.syntheticLabel) {
-                parsedAnswer.syntheticLabel = this.repo.getDataSourceLabel();
+      const messages = await Promise.all(
+        rawMessages.map(async (m: any) => {
+          let parsedAnswer: any = null;
+          if (m.role === "ASSISTANT" && m.text) {
+            try {
+              parsedAnswer = JSON.parse(m.text);
+              if (parsedAnswer && typeof parsedAnswer === "object") {
+                // Re-render approved journey answers in the requested language
+                if (JOURNEY_IDS.includes(parsedAnswer.id)) {
+                  const fresh = await this.service.executeJourney(
+                    parsedAnswer.id,
+                    locale,
+                  );
+                  parsedAnswer = { ...parsedAnswer, ...fresh.uiAnswer };
+                }
+                if (!parsedAnswer.syntheticLabel) {
+                  parsedAnswer.syntheticLabel = this.repo.getDataSourceLabel();
+                }
+                if (!parsedAnswer.conversationId) {
+                  parsedAnswer.conversationId = conv.conversation_uuid;
+                }
               }
-              if (!parsedAnswer.conversationId) {
-                parsedAnswer.conversationId = conv.conversation_uuid;
-              }
+            } catch {
+              parsedAnswer = null;
             }
-          } catch {
-            parsedAnswer = null;
           }
-        }
-        return {
-          id: String(m.id),
-          role: String(m.role).toLowerCase(),
-          text:
-            m.role === "USER"
-              ? m.text
-              : parsedAnswer?.summary?.map((s: any) => s.text).join("") ||
-                m.text,
-          answer: parsedAnswer,
-          createdAt:
-            m.created_at instanceof Date
-              ? m.created_at.toISOString()
-              : String(m.created_at),
-        };
-      });
+          return {
+            id: String(m.id),
+            role: String(m.role).toLowerCase(),
+            text:
+              m.role === "USER"
+                ? translateJourneyQuestion(m.text, locale)
+                : parsedAnswer?.summary?.map((s: any) => s.text).join("") ||
+                  m.text,
+            answer: parsedAnswer,
+            createdAt:
+              m.created_at instanceof Date
+                ? m.created_at.toISOString()
+                : String(m.created_at),
+          };
+        }),
+      );
 
       return ApiResponse.success(res, {
         statusCode: 200,
-        message: "Conversation retrieved from database",
+        message: t("analytics.conversationRetrieved", { lng: locale }),
         data: {
           conversationId: conv.conversation_uuid,
           messages,
         },
       });
     } catch (err: any) {
+      logger.error(
+        `[AnalyticsController] Conversation fetch failed: ${err?.message}`,
+      );
       return ApiResponse.error(res, {
         statusCode: 500,
         code: "CONVERSATION_FETCH_ERROR",
-        message: err.message || "Failed to retrieve conversation from database",
+        message: t("analytics.conversationFetchFailed", { lng: locale }),
       });
     }
   };
@@ -299,7 +366,7 @@ export class AnalyticsController {
       return ApiResponse.error(res, {
         statusCode: 404,
         code: "COPILOT_JOURNEY_NOT_FOUND",
-        message: `No approved Track A demonstrator journey matches ID: '${rawId}'`,
+        message: t("analytics.journeyNotFound", { lng: locale, id: rawId }),
       });
     }
 
@@ -310,7 +377,7 @@ export class AnalyticsController {
       // and complete Blueprint AnswerResponse structure
       return ApiResponse.success(res, {
         statusCode: 200,
-        message: "Answer retrieved successfully",
+        message: t("analytics.answerRetrieved", { lng: locale }),
         data: {
           ...result.uiAnswer, // id, question, summary, chart, table, meta
           blueprintResponse: result.blueprintResponse,
@@ -318,10 +385,13 @@ export class AnalyticsController {
         },
       });
     } catch (err: any) {
+      logger.error(
+        `[AnalyticsController] Journey execution failed: ${err?.message}`,
+      );
       return ApiResponse.error(res, {
         statusCode: 500,
         code: "ANALYTICS_EXECUTION_ERROR",
-        message: err.message || "Failed to execute analytical query",
+        message: t("analytics.executionFailed", { lng: locale }),
       });
     }
   };
@@ -357,14 +427,17 @@ export class AnalyticsController {
 
       return ApiResponse.success(res, {
         statusCode: 200,
-        message: "Track A demonstrator answers retrieved",
+        message: t("analytics.answersRetrieved", { lng: locale }),
         data: results,
       });
     } catch (err: any) {
+      logger.error(
+        `[AnalyticsController] List answers failed: ${err?.message}`,
+      );
       return ApiResponse.error(res, {
         statusCode: 500,
         code: "ANALYTICS_EXECUTION_ERROR",
-        message: err.message || "Failed to list analytical answers",
+        message: t("analytics.executionFailed", { lng: locale }),
       });
     }
   };
@@ -385,14 +458,15 @@ export class AnalyticsController {
       const groups = await this.repo.getHistoryItems(locale);
       return ApiResponse.success(res, {
         statusCode: 200,
-        message: "Query history retrieved from database",
+        message: t("analytics.historyRetrieved", { lng: locale }),
         data: groups,
       });
     } catch (err: any) {
+      logger.error(`[AnalyticsController] History failed: ${err?.message}`);
       return ApiResponse.error(res, {
         statusCode: 500,
         code: "ANALYTICS_HISTORY_ERROR",
-        message: err.message || "Failed to retrieve history",
+        message: t("analytics.historyFailed", { lng: locale }),
       });
     }
   };
@@ -404,6 +478,11 @@ export class AnalyticsController {
    */
   getSupportingRecords = async (req: Request, res: Response) => {
     const rawId = req.params.id;
+    const locale =
+      (req.query.locale as string) === "it" ||
+      req.headers["accept-language"]?.startsWith("it")
+        ? "it"
+        : "en";
     const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 100);
     const offset = Math.max(Number(req.query.offset) || 0, 0);
 
@@ -412,7 +491,7 @@ export class AnalyticsController {
       return ApiResponse.error(res, {
         statusCode: 404,
         code: "COPILOT_JOURNEY_NOT_FOUND",
-        message: `No approved Track A demonstrator journey matches ID: '${rawId}'`,
+        message: t("analytics.journeyNotFound", { lng: locale, id: rawId }),
       });
     }
 
@@ -424,14 +503,17 @@ export class AnalyticsController {
       );
       return ApiResponse.success(res, {
         statusCode: 200,
-        message: "Supporting records retrieved",
+        message: t("analytics.recordsRetrieved", { lng: locale }),
         data: recordsData,
       });
     } catch (err: any) {
+      logger.error(
+        `[AnalyticsController] Supporting records failed: ${err?.message}`,
+      );
       return ApiResponse.error(res, {
         statusCode: 500,
         code: "SUPPORTING_RECORDS_ERROR",
-        message: err.message || "Failed to retrieve supporting records",
+        message: t("analytics.recordsFailed", { lng: locale }),
       });
     }
   };
@@ -441,7 +523,13 @@ export class AnalyticsController {
    *
    * Returns the 18/18 PASS golden validation test checks.
    */
-  getGoldenValidation = async (_req: Request, res: Response) => {
+  getGoldenValidation = async (req: Request, res: Response) => {
+    const locale =
+      (req.query.locale as string) === "it" ||
+      req.headers["accept-language"]?.startsWith("it")
+        ? "it"
+        : "en";
+
     try {
       const checks = await this.repo.getGoldenValidation();
       const totalChecks = checks.length;
@@ -454,7 +542,7 @@ export class AnalyticsController {
 
       return ApiResponse.success(res, {
         statusCode: 200,
-        message: "Golden validation regression status",
+        message: t("analytics.goldenValidation", { lng: locale }),
         data: {
           totalChecks,
           passedChecks,
@@ -467,10 +555,13 @@ export class AnalyticsController {
         },
       });
     } catch (err: any) {
+      logger.error(
+        `[AnalyticsController] Golden validation failed: ${err?.message}`,
+      );
       return ApiResponse.error(res, {
         statusCode: 500,
         code: "GOLDEN_VALIDATION_ERROR",
-        message: err.message || "Failed to run golden validation checks",
+        message: t("analytics.goldenValidationFailed", { lng: locale }),
       });
     }
   };
@@ -482,6 +573,11 @@ export class AnalyticsController {
    */
   getMetricDefinition = async (req: Request, res: Response) => {
     const metricId = req.params.id;
+    const locale =
+      (req.query.locale as string) === "it" ||
+      req.headers["accept-language"]?.startsWith("it")
+        ? "it"
+        : "en";
     const certifiedMetrics: Record<string, any> = {
       "sales.invoiced_net": {
         metric_id: "sales.invoiced_net",
@@ -589,13 +685,16 @@ export class AnalyticsController {
       return ApiResponse.error(res, {
         statusCode: 404,
         code: "COPILOT_METRIC_NOT_CERTIFIED",
-        message: `Metric '${metricId}' is not certified in Track A semantic registry.`,
+        message: t("analytics.metricNotCertified", {
+          lng: locale,
+          id: metricId,
+        }),
       });
     }
 
     return ApiResponse.success(res, {
       statusCode: 200,
-      message: "Metric definition retrieved",
+      message: t("analytics.metricRetrieved", { lng: locale }),
       data: metric,
     });
   };
