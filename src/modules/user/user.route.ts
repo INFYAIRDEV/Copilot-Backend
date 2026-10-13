@@ -11,6 +11,17 @@ router.post("/register", asyncHandler(userController.register));
 // Public route: no token needed to log in.
 router.post("/login", asyncHandler(userController.login));
 
+router.post("/verify-email", asyncHandler(userController.verifyEmail));
+router.post("/resend-otp", asyncHandler(userController.resendOtp));
+router.post("/forgot-password", asyncHandler(userController.forgotPassword));
+router.post("/reset-password", asyncHandler(userController.resetPassword));
+
+// Protected: needs a Bearer token.
+router.post(
+  "/change-password",
+  authenticate,
+  asyncHandler(userController.changePassword),
+);
 // Protected route: requires a valid Bearer token.
 router.get("/profile", authenticate, asyncHandler(userController.profile));
 

@@ -3,10 +3,35 @@ import { Request, Response } from "express";
 import { ApiResponse } from "../../shared/types/response.js";
 import { APIResponse } from "../../shared/errors/error.js";
 import { logger } from "../../shared/utils/logger.js";
-import { registerSchema, loginSchema } from "./user.validation.js";
+import {
+  registerSchema,
+  loginSchema,
+  verifyEmailSchema,
+  emailOnlySchema,
+  resetPasswordSchema,
+  changePasswordSchema,
+} from "./user.validation.js";
 import { userService } from "./user.services.js";
 import { z } from "zod";
 
+const respondError = (
+  res: Response,
+  error: unknown,
+  label: string,
+  fallbackKey: string,
+) => {
+  if (error instanceof APIResponse) {
+    return ApiResponse.error(res, {
+      messageKey: error.messageKey,
+      statusCode: error.statusCode,
+    });
+  }
+  logger.error(label, {
+    name: error instanceof Error ? error.name : "unknown",
+    code: (error as { code?: string })?.code,
+  });
+  return ApiResponse.error(res, { messageKey: fallbackKey, statusCode: 500 });
+};
 export const userController = {
   async register(req: Request, res: Response) {
     // The messages are translation keys, which ApiResponse translates.
@@ -19,7 +44,7 @@ export const userController = {
     }
 
     try {
-      const data = await userService.register(parsed.data);
+      const data = await userService.register(parsed.data, req.lang);
       return ApiResponse.success(res, {
         messageKey: "user.registered",
         statusCode: 201,
@@ -111,6 +136,130 @@ export const userController = {
         messageKey: "user.profileFailed",
         statusCode: 500,
       });
+    }
+  },
+
+  async verifyEmail(req: Request, res: Response) {
+    const parsed = verifyEmailSchema(z).safeParse(req.body ?? {});
+    if (!parsed.success) {
+      return ApiResponse.error(res, {
+        messageKey: parsed.error.issues[0].message,
+        statusCode: 400,
+      });
+    }
+    try {
+      const data = await userService.verifyEmail(parsed.data);
+      return ApiResponse.success(res, {
+        messageKey: "user.emailVerified",
+        statusCode: 200,
+        data,
+      });
+    } catch (error) {
+      return respondError(
+        res,
+        error,
+        "Verify email failed",
+        "user.verifyEmailFailed",
+      );
+    }
+  },
+  async resendOtp(req: Request, res: Response) {
+    const parsed = emailOnlySchema(z).safeParse(req.body ?? {});
+    if (!parsed.success) {
+      return ApiResponse.error(res, {
+        messageKey: parsed.error.issues[0].message,
+        statusCode: 400,
+      });
+    }
+    try {
+      await userService.resendOtp(parsed.data, req.lang);
+      return ApiResponse.success(res, {
+        messageKey: "user.otpResent",
+        statusCode: 200,
+      });
+    } catch (error) {
+      return respondError(
+        res,
+        error,
+        "Resend OTP failed",
+        "user.resendOtpFailed",
+      );
+    }
+  },
+  async forgotPassword(req: Request, res: Response) {
+    const parsed = emailOnlySchema(z).safeParse(req.body ?? {});
+    if (!parsed.success) {
+      return ApiResponse.error(res, {
+        messageKey: parsed.error.issues[0].message,
+        statusCode: 400,
+      });
+    }
+    try {
+      await userService.forgotPassword(parsed.data, req.lang);
+      return ApiResponse.success(res, {
+        messageKey: "user.forgotPasswordSent",
+        statusCode: 200,
+      });
+    } catch (error) {
+      return respondError(
+        res,
+        error,
+        "Forgot password failed",
+        "user.forgotPasswordFailed",
+      );
+    }
+  },
+  async resetPassword(req: Request, res: Response) {
+    const parsed = resetPasswordSchema(z).safeParse(req.body ?? {});
+    if (!parsed.success) {
+      return ApiResponse.error(res, {
+        messageKey: parsed.error.issues[0].message,
+        statusCode: 400,
+      });
+    }
+    try {
+      await userService.resetPassword(parsed.data);
+      return ApiResponse.success(res, {
+        messageKey: "user.passwordReset",
+        statusCode: 200,
+      });
+    } catch (error) {
+      return respondError(
+        res,
+        error,
+        "Reset password failed",
+        "user.resetPasswordFailed",
+      );
+    }
+  },
+  async changePassword(req: Request, res: Response) {
+    const authenticated = req.authenticatedUser;
+    if (!authenticated) {
+      return ApiResponse.error(res, {
+        messageKey: "user.unauthorized",
+        statusCode: 401,
+      });
+    }
+    const parsed = changePasswordSchema(z).safeParse(req.body ?? {});
+    if (!parsed.success) {
+      return ApiResponse.error(res, {
+        messageKey: parsed.error.issues[0].message,
+        statusCode: 400,
+      });
+    }
+    try {
+      await userService.changePassword(authenticated.id, parsed.data);
+      return ApiResponse.success(res, {
+        messageKey: "user.passwordChanged",
+        statusCode: 200,
+      });
+    } catch (error) {
+      return respondError(
+        res,
+        error,
+        "Change password failed",
+        "user.changePasswordFailed",
+      );
     }
   },
 };

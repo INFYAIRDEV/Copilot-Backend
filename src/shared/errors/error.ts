@@ -96,3 +96,8 @@ export class ExcelInvalidFormat extends APIResponse {
     this.name = "ExcelInvalidFormat";
   }
 }
+export class TooManyRequestsError extends APIResponse {
+  constructor(message: string) {
+    super(message, 429);
+  }
+}
