@@ -9,6 +9,39 @@ import type {
 } from "./analytics.fixtures.js";
 import { t } from "i18next";
 
+const JOURNEY_I18N_KEYS = [
+  "currentSales",
+  "salesComparison",
+  "topCustomers",
+  "supplierSpend",
+  "delayedOrders",
+  "productionLinkage",
+];
+
+const OLD_WORDINGS: Record<string, string> = {
+  "why are there delayed orders?": "delayedOrders",
+  "give me the top 5 customers.": "topCustomers",
+};
+
+// If the text is an approved journey question (EN or IT), return it in the requested language.
+function translateJourneyQuestion(text: string, locale: "en" | "it"): string {
+  const needle = (text || "").trim().toLowerCase();
+  const alias = OLD_WORDINGS[needle];
+  if (alias)
+    return t(`analytics.journeys.${alias}.question`, {
+      lng: locale,
+    }) as string;
+  for (const k of JOURNEY_I18N_KEYS) {
+    const key = `analytics.journeys.${k}.question`;
+    for (const lng of ["en", "it"]) {
+      if ((t(key, { lng }) as string).trim().toLowerCase() === needle) {
+        return t(key, { lng: locale }) as string;
+      }
+    }
+  }
+  return text;
+}
+
 function normalizeFixtureWindow(
   val: string | null | undefined,
 ): "Q3-CURRENT" | "Q2-46D" | "PY-46D" {
@@ -370,7 +403,7 @@ export class AnalyticsRepository {
           conversations.map((c: any) => ({
             id: String(c.id),
             title: c.title
-              ? String(c.title)
+              ? translateJourneyQuestion(String(c.title), locale)
               : t("analytics.history.conversationTitle", { lng: locale }),
             created_at: c.created_at,
           })),

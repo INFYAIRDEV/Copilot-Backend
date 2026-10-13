@@ -11,6 +11,51 @@ import {
 } from "./analytics.repository.js";
 import { JourneyId, PipelineExecutionResult } from "./analytics.types.js";
 
+const JOURNEY_IDS: JourneyId[] = [
+  "current-sales",
+  "sales-comparison",
+  "top-customers",
+  "supplier-spend",
+  "delayed-orders",
+  "production-linkage",
+];
+
+const JOURNEY_I18N_KEYS: Record<JourneyId, string> = {
+  "current-sales": "currentSales",
+  "sales-comparison": "salesComparison",
+  "top-customers": "topCustomers",
+  "supplier-spend": "supplierSpend",
+  "delayed-orders": "delayedOrders",
+  "production-linkage": "productionLinkage",
+};
+
+const OLD_WORDINGS: Record<string, string> = {
+  "why are there delayed orders?": "delayedOrders",
+  "give me the top 5 customers.": "topCustomers",
+};
+
+// If the text is an approved journey question (EN or IT), show it in the requested language.
+const translateJourneyQuestion = (
+  text: string,
+  locale: "en" | "it",
+): string => {
+  const needle = (text || "").trim().toLowerCase();
+  const alias = OLD_WORDINGS[needle];
+  if (alias)
+    return t(`analytics.journeys.${alias}.question`, {
+      lng: locale,
+    }) as string;
+  for (const id of JOURNEY_IDS) {
+    const key = `analytics.journeys.${JOURNEY_I18N_KEYS[id]}.question`;
+    for (const lng of ["en", "it"]) {
+      if ((t(key, { lng }) as string).trim().toLowerCase() === needle) {
+        return t(key, { lng: locale }) as string;
+      }
+    }
+  }
+  return text;
+};
+
 export class AnalyticsController {
   constructor(
     private readonly service: AnalyticsService = analyticsService,
@@ -239,38 +284,48 @@ export class AnalyticsController {
         orderBy: { created_at: "asc" },
       });
 
-      const messages = rawMessages.map((m: any) => {
-        let parsedAnswer = null;
-        if (m.role === "ASSISTANT" && m.text) {
-          try {
-            parsedAnswer = JSON.parse(m.text);
-            if (parsedAnswer && typeof parsedAnswer === "object") {
-              if (!parsedAnswer.syntheticLabel) {
-                parsedAnswer.syntheticLabel = this.repo.getDataSourceLabel();
+      const messages = await Promise.all(
+        rawMessages.map(async (m: any) => {
+          let parsedAnswer: any = null;
+          if (m.role === "ASSISTANT" && m.text) {
+            try {
+              parsedAnswer = JSON.parse(m.text);
+              if (parsedAnswer && typeof parsedAnswer === "object") {
+                // Re-render approved journey answers in the requested language
+                if (JOURNEY_IDS.includes(parsedAnswer.id)) {
+                  const fresh = await this.service.executeJourney(
+                    parsedAnswer.id,
+                    locale,
+                  );
+                  parsedAnswer = { ...parsedAnswer, ...fresh.uiAnswer };
+                }
+                if (!parsedAnswer.syntheticLabel) {
+                  parsedAnswer.syntheticLabel = this.repo.getDataSourceLabel();
+                }
+                if (!parsedAnswer.conversationId) {
+                  parsedAnswer.conversationId = conv.conversation_uuid;
+                }
               }
-              if (!parsedAnswer.conversationId) {
-                parsedAnswer.conversationId = conv.conversation_uuid;
-              }
+            } catch {
+              parsedAnswer = null;
             }
-          } catch {
-            parsedAnswer = null;
           }
-        }
-        return {
-          id: String(m.id),
-          role: String(m.role).toLowerCase(),
-          text:
-            m.role === "USER"
-              ? m.text
-              : parsedAnswer?.summary?.map((s: any) => s.text).join("") ||
-                m.text,
-          answer: parsedAnswer,
-          createdAt:
-            m.created_at instanceof Date
-              ? m.created_at.toISOString()
-              : String(m.created_at),
-        };
-      });
+          return {
+            id: String(m.id),
+            role: String(m.role).toLowerCase(),
+            text:
+              m.role === "USER"
+                ? translateJourneyQuestion(m.text, locale)
+                : parsedAnswer?.summary?.map((s: any) => s.text).join("") ||
+                  m.text,
+            answer: parsedAnswer,
+            createdAt:
+              m.created_at instanceof Date
+                ? m.created_at.toISOString()
+                : String(m.created_at),
+          };
+        }),
+      );
 
       return ApiResponse.success(res, {
         statusCode: 200,
