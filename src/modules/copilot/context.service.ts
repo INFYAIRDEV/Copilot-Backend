@@ -9,6 +9,7 @@ import {
   FORBIDDEN_CONTEXT_KEYS,
 } from "./context.types.js";
 import { createHash, randomUUID } from "node:crypto";
+import { t } from "i18next";
 
 const CANONICAL_TERM_MAP: Record<string, string> = {
   // Metrics
@@ -110,7 +111,11 @@ export class ContextService {
     context: NormalizedAnalyticalContext;
   }> {
     if (!Number.isSafeInteger(userId) || userId <= 0) {
-      throw new CopilotError(401, "UNAUTHENTICATED", "Authentication required");
+      throw new CopilotError(
+        401,
+        "UNAUTHENTICATED",
+        "copilot.errors.UNAUTHENTICATED",
+      );
     }
 
     const conversation =
@@ -122,7 +127,7 @@ export class ContextService {
       throw new CopilotError(
         403,
         "COPILOT_PERMISSION_DENIED",
-        "Conversation access denied",
+        "copilot.errors.COPILOT_PERMISSION_DENIED",
       );
     }
 
@@ -133,7 +138,7 @@ export class ContextService {
       throw new CopilotError(
         403,
         "COPILOT_PERMISSION_DENIED",
-        "Conversation access denied",
+        "copilot.errors.COPILOT_PERMISSION_DENIED",
       );
     }
 
@@ -312,10 +317,12 @@ export class ContextService {
   validateContext(
     context: NormalizedAnalyticalContext,
     userContext: { userId: number; roleId: string },
+    locale: "en" | "it" = "en",
   ): { isValid: boolean; errors?: string[] } {
     const errors: string[] = [];
+    const tr = (key: string, opts: Record<string, unknown> = {}) =>
+      t(`copilot.contextValidation.${key}`, { lng: locale, ...opts });
 
-    // Structural validation
     const parsed = normalizedAnalyticalContextSchema.safeParse(context);
     if (!parsed.success) {
       return {
@@ -326,94 +333,77 @@ export class ContextService {
       };
     }
 
-    // Security check: inspect JSON string for forbidden patterns / SQL injection
     const jsonStr = JSON.stringify(context);
     for (const forbidden of FORBIDDEN_CONTEXT_KEYS) {
       if (jsonStr.toLowerCase().includes(`"${forbidden}"`)) {
-        errors.push(
-          `Forbidden security field in analytical context: ${forbidden}`,
-        );
+        errors.push(tr("forbiddenField", { field: forbidden }));
       }
     }
 
     if (/\b(SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|CREATE)\b/i.test(jsonStr)) {
-      errors.push(
-        "Raw SQL statements are strictly forbidden in analytical context",
-      );
+      errors.push(tr("rawSql"));
     }
 
-    // Metric existence/certification
     for (const m of context.metricRefs) {
-      if (!CERTIFIED_METRICS.has(m)) {
-        errors.push(`Invalid metric reference: '${m}' is not certified`);
-      }
+      if (!CERTIFIED_METRICS.has(m))
+        errors.push(tr("metricNotCertified", { ref: m }));
     }
-
-    // Dimension existence/certification
     for (const d of context.dimensionRefs) {
-      if (!CERTIFIED_DIMENSIONS.has(d)) {
-        errors.push(`Invalid dimension reference: '${d}' is not certified`);
-      }
+      if (!CERTIFIED_DIMENSIONS.has(d))
+        errors.push(tr("dimensionNotCertified", { ref: d }));
     }
-
-    // GroupBy existence/certification
     for (const g of context.groupBy) {
-      if (!CERTIFIED_DIMENSIONS.has(g)) {
-        errors.push(
-          `Invalid groupBy dimension reference: '${g}' is not certified`,
-        );
-      }
+      if (!CERTIFIED_DIMENSIONS.has(g))
+        errors.push(tr("groupByNotCertified", { ref: g }));
     }
-
     // Filter validity and combination checks
+
     for (const f of context.filters) {
       if (
         !CERTIFIED_DIMENSIONS.has(f.field) &&
         !CERTIFIED_METRICS.has(f.field)
       ) {
-        errors.push(`Invalid filter dimension: '${f.field}' is not certified`);
+        errors.push(tr("filterNotCertified", { ref: f.field }));
       }
-
-      if (f.operator === "BETWEEN") {
-        if (!Array.isArray(f.value) || f.value.length !== 2) {
-          errors.push(
-            `Invalid filter combination: operator 'BETWEEN' on '${f.field}' requires an array of 2 values`,
-          );
-        }
+      if (
+        f.operator === "BETWEEN" &&
+        (!Array.isArray(f.value) || f.value.length !== 2)
+      ) {
+        errors.push(tr("betweenRequiresTwo", { field: f.field }));
       }
-
-      if (f.operator === "IN") {
-        if (!Array.isArray(f.value) || f.value.length === 0) {
-          errors.push(
-            `Invalid filter combination: operator 'IN' on '${f.field}' requires a non-empty array`,
-          );
-        }
+      if (
+        f.operator === "IN" &&
+        (!Array.isArray(f.value) || f.value.length === 0)
+      ) {
+        errors.push(tr("inRequiresNonEmpty", { field: f.field }));
       }
-
-      if (["=", "!=", ">", "<", ">=", "<="].includes(f.operator)) {
-        if (Array.isArray(f.value)) {
-          errors.push(
-            `Invalid filter combination: scalar operator '${f.operator}' on '${f.field}' cannot have an array value`,
-          );
-        }
-      }
-    }
-
-    // Policy & RBAC checks: role 'operator' cannot access executive metrics
-    if (userContext.roleId === "operator") {
-      if (context.metricRefs.includes("executive_cost_margin")) {
+      if (
+        ["=", "!=", ">", "<", ">=", "<="].includes(f.operator) &&
+        Array.isArray(f.value)
+      ) {
         errors.push(
-          `Unauthorized metric access: role '${userContext.roleId}' cannot access 'executive_cost_margin'`,
+          tr("scalarNoArray", { operator: f.operator, field: f.field }),
         );
       }
     }
 
+    if (
+      userContext.roleId === "operator" &&
+      context.metricRefs.includes("executive_cost_margin")
+    ) {
+      errors.push(
+        tr("unauthorizedMetric", {
+          role: userContext.roleId,
+          metric: "executive_cost_margin",
+        }),
+      );
+    }
+
     return {
       isValid: errors.length === 0,
-      errors: errors.length > 0 ? errors : undefined,
+      errors: errors.length ? errors : undefined,
     };
   }
-
   /**
    * Persists the validated normalized analytical context into the database
    * using optimistic concurrency version checking.
@@ -451,7 +441,7 @@ export class ContextService {
       throw new CopilotError(
         409,
         "CONVERSATION_VERSION_CONFLICT",
-        "Optimistic concurrency conflict: conversation version has changed",
+        "copilot.errors.CONVERSATION_VERSION_CONFLICT",
       );
     }
 

@@ -1,13 +1,13 @@
 {
   "common": {
-    "created": "{{entity}} Creato Successivamente",
-    "updated": "{{entity}} Aggiornato Successivamente",
-    "deleted": "{{entity}} Eliminato Successivamente",
-    "filtered": "{{entity}} Filtrato Successivamente",
-    "fetched": "{{entity}} Recuperato Successivamente",
-    "mapped": "{{entity}} Mappato Successivamente",
-    "found": "{{entity}} Trovato Successivamente",
-    "notFound": "{{entity}} Non Trovato",
+    "created": "{{entity}} creato con successo",
+    "updated": "{{entity}} aggiornato con successo",
+    "deleted": "{{entity}} eliminato con successo",
+    "filtered": "{{entity}} filtrato con successo",
+    "fetched": "{{entity}} recuperato con successo",
+    "mapped": "{{entity}} mappato con successo",
+    "found": "{{entity}} trovato con successo",
+    "notFound": "{{entity}} non trovato",
     "serverIssue": "Qualcosa è andato storto. Riprova più tardi."
   },
   "user": {
@@ -60,5 +60,277 @@
     "loginFailed": "Accesso non riuscito. Riprova più tardi.",
     "profileFetched": "Profilo recuperato",
     "profileFailed": "Impossibile recuperare il profilo. Riprova più tardi."
+  },
+  "ai": {
+    "defaultNarrative": "Piano analitico candidato generato.",
+    "defaultPlanSummary": "Piano candidato generato",
+    "fallbackNarrative": "La generazione della narrazione AI è attualmente degradata. I report strutturati certificati restano pienamente disponibili.",
+    "fallbackPlanSummary": "Modello di report standard certificato generato dal sistema di fallback strutturato durante un'interruzione del provider AI.",
+    "narrativeDegraded": "I calcoli analitici deterministici sono stati generati con successo. L'interpretazione narrativa esecutiva è attualmente degradata.",
+    "narrativeValidationFailed": "Risultati standard certificati del calcolo analitico generati. L'interpretazione AI non ha soddisfatto gli standard di verifica di fedeltà.",
+    "mockReasoningSummary": "Piano candidato generato per l'analisi delle vendite regionali",
+    "errors": {
+      "COPILOT_INVALID_RESPONSE": "La risposta dell'AI non è valida. Riprova.",
+      "COPILOT_MALFORMED_CANDIDATE": "L'AI ha restituito un risultato non valido. Riprova.",
+      "COPILOT_MODEL_UNAVAILABLE": "Il servizio AI non è al momento disponibile. Riprova più tardi.",
+      "COPILOT_MODEL_DEGRADED": "Il servizio AI è attualmente degradato. Riprova più tardi.",
+      "COPILOT_NARRATIVE_VALIDATION_FAILED": "Non è stato possibile verificare la narrazione dell'AI.",
+      "COPILOT_RESPONSE_TOO_LARGE": "La risposta dell'AI è troppo grande per essere elaborata.",
+      "COPILOT_UNSAFE_AI_OUTPUT": "La risposta dell'AI è stata rifiutata per motivi di sicurezza.",
+      "COPILOT_SERVICE_ERROR": "Qualcosa è andato storto con il servizio AI. Riprova più tardi."
+    },
+    "narrativeFallback": "Risultati standard del calcolo analitico generati.",
+    "serviceErrors": {
+      "COPILOT_MODEL_UNAVAILABLE": "Il servizio AI è temporaneamente non disponibile. I report certificati restano disponibili.",
+      "COPILOT_MODEL_DEGRADED": "Il servizio AI è attualmente degradato. Riprova più tardi.",
+      "COPILOT_MODEL_TIMEOUT": "Il servizio AI ha impiegato troppo tempo a rispondere. Riprova.",
+      "COPILOT_INVALID_RESPONSE": "L'AI ha restituito una risposta non valida. Riprova.",
+      "COPILOT_TOKEN_BUDGET_EXCEEDED": "La richiesta è troppo lunga. Accorciala e riprova.",
+      "COPILOT_CONFIG_ERROR": "Il servizio AI non è configurato correttamente. Contatta l'amministratore.",
+      "COPILOT_PROMPT_ERROR": "Non è stato possibile preparare la richiesta. Riprova.",
+      "COPILOT_INVALID_REQUEST": "Richiesta non valida. Controlla i dati inseriti.",
+      "COPILOT_SERVICE_ERROR": "Qualcosa è andato storto con il servizio AI. Riprova più tardi.",
+      "AI_OUTPUT_SCHEMA_NOT_FOUND": "Il formato di output richiesto non è disponibile.",
+      "AI_OUTPUT_SCHEMA_INVALID": "Il formato di output non è configurato correttamente.",
+      "AI_STRUCTURED_OUTPUT_UNSUPPORTED": "L'output strutturato non è supportato dalla configurazione AI attuale.",
+      "AI_OUTPUT_PARSE_FAILED": "Non è stato possibile leggere la risposta dell'AI. Riprova.",
+      "AI_OUTPUT_VALIDATION_FAILED": "La risposta dell'AI non corrisponde al formato richiesto. Riprova.",
+      "AI_OUTPUT_EMPTY": "L'AI ha restituito una risposta vuota. Riprova.",
+      "AI_OUTPUT_INCOMPLETE": "La risposta dell'AI era incompleta. Riprova.",
+      "AI_OUTPUT_REFUSED": "L'AI non ha potuto elaborare questa richiesta.",
+      "AI_OUTPUT_RECOVERY_EXHAUSTED": "L'AI non è riuscita a produrre una risposta valida. Riprova più tardi."
+    },
+    "validationErrors": {
+      "COPILOT_INVALID_REQUEST": "Richiesta non valida. Controlla i dati inseriti.",
+      "COPILOT_UNSUPPORTED_OPERATION": "Questa operazione non è supportata.",
+      "COPILOT_INVALID_LOCALE": "Lingua non supportata. Usa inglese o italiano.",
+      "COPILOT_TOKEN_BUDGET_EXCEEDED": "La richiesta è troppo lunga. Accorciala e riprova.",
+      "COPILOT_PROMPT_TOO_LONG": "La domanda è troppo lunga. Accorciala.",
+      "COPILOT_MISSING_CONTEXT": "Mancano informazioni obbligatorie nella richiesta.",
+      "COPILOT_INVALID_CONTEXT": "Le informazioni della richiesta non sono valide.",
+      "COPILOT_SECURITY_VIOLATION": "La richiesta contiene informazioni sensibili ed è stata rifiutata.",
+      "COPILOT_PROMPT_INJECTION_DETECTED": "La richiesta è stata rifiutata per motivi di sicurezza."
+    }
+  },
+  "analytics": {
+    "questionRequired": "È richiesta una domanda non vuota.",
+    "clarificationRequired": "Chiarimento richiesto",
+    "pipelineExecuted": "Query eseguita con successo",
+    "conversationNotFound": "Conversazione {{id}} non trovata",
+    "conversationRetrieved": "Conversazione recuperata",
+    "journeyNotFound": "Nessun percorso approvato corrisponde all'ID '{{id}}'",
+    "answerRetrieved": "Risposta recuperata con successo",
+    "answersRetrieved": "Risposte recuperate",
+    "historyRetrieved": "Cronologia delle query recuperata",
+    "recordsRetrieved": "Record di supporto recuperati",
+    "goldenValidation": "Stato della regressione di validazione golden",
+    "metricRetrieved": "Definizione della metrica recuperata",
+    "metricNotCertified": "La metrica '{{id}}' non è certificata",
+    "executionFailed": "Impossibile eseguire la query analitica. Riprova più tardi.",
+    "conversationFetchFailed": "Impossibile recuperare la conversazione. Riprova più tardi.",
+    "historyFailed": "Impossibile recuperare la cronologia delle query. Riprova più tardi.",
+    "recordsFailed": "Impossibile recuperare i record di supporto. Riprova più tardi.",
+    "goldenValidationFailed": "Impossibile eseguire i controlli di validazione. Riprova più tardi.",
+    "history": {
+      "today": "Oggi",
+      "yesterday": "Ieri",
+      "previous7": "Ultimi 7 giorni",
+      "older": "Precedenti",
+      "conversationTitle": "Conversazione"
+    },
+    "journeyTitles": {
+      "current-sales": "Fatturato netto Q3 (attuale)",
+      "sales-comparison": "Confronto vendite per periodi equivalenti",
+      "top-customers": "Primi 5 clienti per fatturato",
+      "supplier-spend": "Primi 5 fornitori per spesa",
+      "delayed-orders": "Impegni di vendita in ritardo",
+      "production-linkage": "Collegamento ordini di produzione"
+    },
+    "periods": {
+      "currentQ3": "1 lug – 15 ago 2026",
+      "asOf": "15 ago 2026, 08:30 Europe/Rome",
+      "elapsed46Days": "Finestra di 46 giorni trascorsi"
+    },
+    "clarification": {
+      "metric": "Chiarimento",
+      "howCalculated": "Richiesta chiarimento per ambiguità semantica.",
+      "delayedOrdersAmbiguous": "La richiesta 'ordini in ritardo' è ambigua. Intendi ordini di vendita in ritardo o ordini di produzione in ritardo?"
+    },
+    "metrics": {
+      "netInvoicedSales": "Vendite nette fatturate",
+      "netInvoicedSalesVariance": "Variazione vendite nette fatturate",
+      "approvedSupplierSpend": "Spesa fornitori approvata",
+      "delayedBacklog": "Backlog ordini di vendita in ritardo",
+      "linkageCoverage": "Copertura collegamento produzione-vendite"
+    },
+    "columns": {
+      "customer": "Cliente",
+      "netInvoicedSales": "Fatturato netto (€)",
+      "netSales": "Fatturato netto (€)",
+      "share": "Quota",
+      "period": "Periodo",
+      "window": "Finestra",
+      "varianceVsCurrent": "Variazione vs attuale",
+      "supplier": "Fornitore",
+      "spend": "Spesa (€)",
+      "orderId": "Ordine",
+      "lineId": "Riga",
+      "openQty": "Q.tà aperta",
+      "unitPrice": "Prezzo unitario",
+      "backlog": "Valore backlog (€)",
+      "productionOrder": "Ordine prod.",
+      "salesLine": "Riga cliente",
+      "allocationWeight": "Pesi alloc.",
+      "linkedValue": "Valore collegato (€)"
+    },
+    "journeys": {
+      "currentSales": {
+        "question": "Mostrami le prestazioni di vendita del trimestre corrente",
+        "summary": "Le vendite nette fatturate per il terzo trimestre 2026 alla data odierna ammontano a **{{total}}**, al netto di IVA e note di accredito.",
+        "chartTitle": "Vendite nette fatturate Q3",
+        "chartSubtitle": "Importo (€) per cliente",
+        "tableTitle": "Riepilogo vendite per cliente",
+        "howCalculated": "Somma degli importi netti delle fatture registrate meno le note di accredito, al netto di IVA, per il periodo 1 lug – 15 ago 2026.",
+        "blueprintSummary": "Le vendite nette fatturate per il terzo trimestre 2026 ammontano a {{total}}.",
+        "vizTitle": "Vendite nette fatturate Q3"
+      },
+      "salesComparison": {
+        "question": "Confronta le vendite con il trimestre precedente e lo stesso periodo dell'anno scorso",
+        "summary": "Le vendite del Q3 alla data odierna (**{{current}}**) variano di **{{varQ2}}** ({{absQ2}}) rispetto all'analogo periodo di 46 giorni del Q2 2026 ({{q2}}) e di **{{varPY}}** ({{absPY}}) rispetto al Q3 2025 ({{py}}).",
+        "chartTitle": "Confronto vendite per periodi equivalenti",
+        "chartSubtitle": "Finestra di 46 giorni trascorsi (€)",
+        "chartCurrent": "Q3 2026 (attuale)",
+        "chartPrevQuarter": "Q2 2026 (trim. prec.)",
+        "chartPriorYear": "Q3 2025 (stesso periodo)",
+        "tableTitle": "Dettaglio confronto periodi equivalenti",
+        "rowCurrent": "Q3 2026 (attuale)",
+        "rowQ2": "Q2 2026 (trim. prec.)",
+        "rowPY": "Q3 2025 (anno prec.)",
+        "baseline": "Base di riferimento",
+        "windows": {
+          "current": "1 lug – 15 ago (46g)",
+          "q2": "1 apr – 15 mag (46g)",
+          "py": "1 lug – 15 ago (46g)"
+        },
+        "howCalculated": "Confronto tra i primi 46 giorni di calendario di ciascun trimestre: Q3 2026 (1 lug – 15 ago) vs Q2 2026 (1 apr – 15 mag) e Q3 2025 (1 lug – 15 ago).",
+        "blueprintSummary": "Le vendite del Q3 ({{current}}) variano di {{varQ2}} rispetto al Q2 2026 equivalente e di {{varPY}} rispetto al Q3 2025 equivalente.",
+        "vizTitle": "Confronto tra periodi"
+      },
+      "topCustomers": {
+        "question": "Quali sono i primi 5 clienti per fatturato?",
+        "summary": "I primi 5 clienti hanno generato **{{top5Total}}**, pari al **{{share}}** delle vendite nette fatturate complessive ({{total}}).",
+        "chartTitle": "Primi 5 clienti",
+        "chartSubtitle": "Vendite nette fatturate (€)",
+        "tableTitle": "Classifica dei primi 5 clienti per vendite nette fatturate",
+        "howCalculated": "Vendite nette fatturate meno note di accredito e sconti per il periodo corrente, raggruppate per cliente. Quota = fatturato del cliente ÷ totale vendite ({{total}}).",
+        "blueprintSummary": "I primi 5 clienti hanno generato {{top5Total}}, rappresentando il {{share}} del fatturato netto complessivo ({{total}}).",
+        "vizTitle": "Primi clienti"
+      },
+      "supplierSpend": {
+        "question": "Mostrami la spesa fornitori",
+        "summary": "La spesa totale per fornitori approvata è stata di **{{total}}**; i primi 5 fornitori rappresentano il **{{share}}** ({{top5Total}}). SafeLogistics è classificato a €50.000 al netto di una nota di credito di €5.000. La spesa riflette i volumi e non le prestazioni di consegna.",
+        "chartTitle": "Primi 5 fornitori",
+        "chartSubtitle": "Spesa approvata (€)",
+        "tableTitle": "Primi 5 fornitori per spesa approvata",
+        "howCalculated": "Spesa derivante da fatture fornitori registrate meno note di credito, al netto di IVA. SafeLogistics include la nota di accredito di -€5.000 (netto €50.000). Quota = spesa fornitore ÷ spesa complessiva ({{total}}).",
+        "blueprintSummary": "La spesa fornitori approvata per il Q3 è stata di {{total}}; i primi 5 fornitori rappresentano {{top5Total}} ({{share}}).",
+        "vizTitle": "Primi fornitori per spesa"
+      },
+      "delayedOrders": {
+        "question": "Quali ordini di vendita sono in ritardo?",
+        "summary": "**{{orders}} ordini di vendita** contenenti **{{lines}} righe** su **{{customers}} clienti** risultano attualmente in ritardo, per un valore totale di backlog in ritardo di **{{backlog}}**.",
+        "chartTitle": "Backlog in ritardo per cliente",
+        "chartSubtitle": "Valore backlog (€)",
+        "tableTitle": "Righe ordini di vendita in ritardo",
+        "howCalculated": "Una riga è in ritardo quando la data di impegno approvata ha superato la fine della giornata lavorativa locale in Europe/Rome e la quantità aperta è > 0. Il backlog è q.tà aperta × prezzo unitario netto.",
+        "blueprintSummary": "Sono presenti {{orders}} ordini di vendita in ritardo ({{lines}} righe, {{customers}} clienti) per un valore di backlog di {{backlog}}.",
+        "vizTitle": "Ordini in ritardo per cliente"
+      },
+      "productionLinkage": {
+        "question": "Quali ordini di produzione sono collegati ai ritardi?",
+        "summary": "**{{orders}} ordini di produzione in ritardo** risultano esplicitamente collegati a ordini cliente in ritardo per **{{customers}} clienti**, corrispondenti a **{{linked}}** (il **{{coverage}}**) del backlog totale in ritardo ({{total}}). **Attenzione:** {{unlinked}} ({{unlinkedPct}}) di backlog in ritardo non hanno ordini di produzione associati. Il legame esplicito evidenzia associazione e non causalità.",
+        "chartTitle": "Copertura collegamento produzione",
+        "chartSubtitle": "Valore backlog collegato vs non collegato (€)",
+        "chartLinked": "Backlog collegato ({{pct}})",
+        "chartUnlinked": "Backlog non collegato ({{pct}})",
+        "tableTitle": "Ordini di produzione collegati a righe cliente in ritardo",
+        "howCalculated": "Un ordine di produzione è collegato quando esiste un'allocazione esplicita a una riga d'ordine cliente in ritardo. Copertura = backlog collegato ({{linked}}) ÷ backlog totale in ritardo ({{total}}) = {{coverage}}.",
+        "blueprintSummary": "{{orders}} ordini di produzione in ritardo sono collegati a {{customers}} clienti per un valore di {{linked}} ({{coverage}} del backlog in ritardo). {{unlinked}} non sono collegati.",
+        "warning": "Copertura parziale del {{coverage}}: {{unlinked}} di backlog in ritardo non risultano collegati ad ordini di produzione. Il collegamento esplicito indica associazione e non causalità.",
+        "vizTitle": "Copertura collegamento produzione"
+      }
+    }
+  },
+  "copilot": {
+    "errors": {
+      "UNAUTHENTICATED": "Autenticazione richiesta",
+      "COPILOT_PERMISSION_DENIED": "Accesso alla conversazione negato",
+      "CONVERSATION_VERSION_CONFLICT": "La conversazione è stata modificata altrove. Ricaricala e riprova.",
+      "PERMISSION_COPILOT_ASK_REQUIRED": "Permesso negato: è richiesto copilot.ask",
+      "CONVERSATION_NOT_ACTIVE": "La conversazione non è attiva",
+      "INTERNAL_ERROR": "Errore interno del server",
+      "IDEMPOTENCY_KEY_REUSED": "La chiave di idempotenza è stata usata con un corpo di richiesta diverso",
+      "INVALID_ANALYTICAL_CONTEXT": "Validazione del contesto non riuscita"
+    },
+    "contextValidation": {
+      "forbiddenField": "Campo di sicurezza vietato nel contesto analitico: {{field}}",
+      "rawSql": "Le istruzioni SQL non sono consentite nel contesto analitico",
+      "metricNotCertified": "Riferimento metrica non valido: '{{ref}}' non è certificata",
+      "dimensionNotCertified": "Riferimento dimensione non valido: '{{ref}}' non è certificata",
+      "groupByNotCertified": "Dimensione groupBy non valida: '{{ref}}' non è certificata",
+      "filterNotCertified": "Dimensione del filtro non valida: '{{ref}}' non è certificata",
+      "betweenRequiresTwo": "L'operatore 'BETWEEN' su '{{field}}' richiede un array di 2 valori",
+      "inRequiresNonEmpty": "L'operatore 'IN' su '{{field}}' richiede un array non vuoto",
+      "scalarNoArray": "L'operatore scalare '{{operator}}' su '{{field}}' non può avere un array come valore",
+      "unauthorizedMetric": "Il ruolo '{{role}}' non può accedere alla metrica '{{metric}}'"
+    },
+    "validation": {
+      "invalidRequest": "Richiesta non valida",
+      "invalidUuid": "ID conversazione non valido",
+      "idempotencyKeyRequired": "La chiave di idempotenza è obbligatoria",
+      "idempotencyKeyTooLong": "La chiave di idempotenza è troppo lunga",
+      "invalidRequestId": "ID richiesta non valido",
+      "invalidRole": "Ruolo del messaggio non valido",
+      "invalidKind": "Tipo di messaggio non valido",
+      "textRequired": "Il testo del messaggio è obbligatorio",
+      "textTooLong": "Il testo del messaggio è troppo lungo",
+      "invalidLocale": "Lingua non supportata. Usa inglese o italiano.",
+      "invalidLimit": "Il limite deve essere un numero tra 1 e 100",
+      "invalidCursor": "Cursore non valido o troppo lungo"
+    },
+    "streaming": {
+      "queryProcessed": "Richiesta elaborata con successo.",
+      "aiFailed": "Impossibile generare la risposta AI",
+      "degradedMode": "Funzionamento in modalità analitica degradata",
+      "unauthorizedMetric": "Il ruolo '{{role}}' non può accedere alla metrica '{{metric}}'"
+    },
+    "controller": {
+      "conversationCreated": "Conversazione creata",
+      "invalidRequestBody": "Corpo della richiesta non valido",
+      "messageAccepted": "Messaggio accettato",
+      "permissionDenied": "Permesso negato",
+      "invalidQueryParameters": "Parametri di query non validi",
+      "conversationsRetrieved": "Conversazioni recuperate",
+      "invalidHistoryRequest": "Richiesta di cronologia non valida",
+      "conversationHistory": "Cronologia della conversazione",
+      "streamingFailed": "Streaming non riuscito"
+    },
+    "analytical": {
+      "promptRequired": "Il prompt è obbligatorio",
+      "promptMin": "Il prompt deve contenere almeno 3 caratteri",
+      "promptMax": "Il prompt supera la lunghezza massima consentita di 2000 caratteri",
+      "unauthorized": "Non autorizzato",
+      "policyValidationFailed": "Il piano candidato non ha superato la validazione delle policy",
+      "planGenerated": "Piano analitico candidato generato con successo",
+      "unexpectedError": "Si è verificato un errore imprevisto durante l'elaborazione della richiesta",
+      "noIntents": "Il piano candidato non contiene intenti di query validi",
+      "executiveMarginDenied": "Accesso non autorizzato alla metrica: il ruolo 'operator' non può accedere a 'executive_cost_margin'"
+    },
+    "pagination": {
+      "invalidCursorFormat": "Formato del cursore non valido",
+      "invalidCursorSignature": "Firma del cursore non valida",
+      "tamperedCursor": "Firma del cursore non valida o manomessa",
+      "invalidOrExpiredCursor": "Cursore non valido o scaduto"
+    }
   }
 }

@@ -35,7 +35,7 @@ WITH checks AS (
   UNION
   ALL
   SELECT
-    'DQ-SALES-TX-002' :: text,
+    'DQ-SALES-TX-002' :: text AS text,
     count(*) AS count
   FROM
     analytics.v_sales_transaction_fact
@@ -49,7 +49,7 @@ WITH checks AS (
   UNION
   ALL
   SELECT
-    'DQ-SALES-TX-003' :: text,
+    'DQ-SALES-TX-003' :: text AS text,
     count(*) AS count
   FROM
     analytics.v_sales_transaction_fact
@@ -65,7 +65,7 @@ WITH checks AS (
   UNION
   ALL
   SELECT
-    'DQ-SUPPLIER-TX-001' :: text,
+    'DQ-SUPPLIER-TX-001' :: text AS text,
     (
       (
         (
@@ -102,7 +102,7 @@ WITH checks AS (
   UNION
   ALL
   SELECT
-    'DQ-SUPPLIER-TX-002' :: text,
+    'DQ-SUPPLIER-TX-002' :: text AS text,
     count(*) AS count
   FROM
     analytics.v_supplier_transaction_fact
@@ -116,7 +116,7 @@ WITH checks AS (
   UNION
   ALL
   SELECT
-    'DQ-SUPPLIER-TX-003' :: text,
+    'DQ-SUPPLIER-TX-003' :: text AS text,
     count(*) AS count
   FROM
     analytics.v_supplier_transaction_fact
@@ -132,7 +132,7 @@ WITH checks AS (
   UNION
   ALL
   SELECT
-    'DQ-SALES-DELAY-001' :: text,
+    'DQ-SALES-DELAY-001' :: text AS text,
     (
       (
         (
@@ -169,7 +169,7 @@ WITH checks AS (
   UNION
   ALL
   SELECT
-    'DQ-SALES-DELAY-002' :: text,
+    'DQ-SALES-DELAY-002' :: text AS text,
     count(*) AS count
   FROM
     analytics.v_sales_order_delay_current
@@ -185,7 +185,7 @@ WITH checks AS (
   UNION
   ALL
   SELECT
-    'DQ-SALES-DELAY-003' :: text,
+    'DQ-SALES-DELAY-003' :: text AS text,
     count(*) AS count
   FROM
     analytics.v_sales_order_delay_current
@@ -199,7 +199,7 @@ WITH checks AS (
   UNION
   ALL
   SELECT
-    'DQ-PROD-DELAY-001' :: text,
+    'DQ-PROD-DELAY-001' :: text AS text,
     (
       (
         (
@@ -236,7 +236,7 @@ WITH checks AS (
   UNION
   ALL
   SELECT
-    'DQ-PROD-DELAY-002' :: text,
+    'DQ-PROD-DELAY-002' :: text AS text,
     count(*) AS count
   FROM
     analytics.v_production_order_delay_current
@@ -247,7 +247,7 @@ WITH checks AS (
   UNION
   ALL
   SELECT
-    'DQ-PROD-DELAY-003' :: text,
+    'DQ-PROD-DELAY-003' :: text AS text,
     count(*) AS count
   FROM
     analytics.v_production_order_delay_current
@@ -263,7 +263,7 @@ WITH checks AS (
   UNION
   ALL
   SELECT
-    'DQ-ALLOC-001' :: text,
+    'DQ-ALLOC-001' :: text AS text,
     (
       (
         (
@@ -300,7 +300,7 @@ WITH checks AS (
   UNION
   ALL
   SELECT
-    'DQ-ALLOC-002' :: text,
+    'DQ-ALLOC-002' :: text AS text,
     count(*) AS count
   FROM
     analytics.v_sales_production_allocation_current
@@ -319,7 +319,7 @@ WITH checks AS (
   UNION
   ALL
   SELECT
-    'DQ-ALLOC-003' :: text,
+    'DQ-ALLOC-003' :: text AS text,
     count(*) AS count
   FROM
     (
@@ -343,7 +343,7 @@ WITH checks AS (
   UNION
   ALL
   SELECT
-    'DQ-EXPOSURE-001' :: text,
+    'DQ-EXPOSURE-001' :: text AS text,
     count(*) AS count
   FROM
     analytics.v_customer_delay_exposure_current
@@ -362,7 +362,7 @@ WITH checks AS (
   UNION
   ALL
   SELECT
-    'DQ-EXPOSURE-002' :: text,
+    'DQ-EXPOSURE-002' :: text AS text,
     count(*) AS count
   FROM
     analytics.v_customer_delay_exposure_current
@@ -378,7 +378,7 @@ WITH checks AS (
   UNION
   ALL
   SELECT
-    'DQ-EXPOSURE-003' :: text,
+    'DQ-EXPOSURE-003' :: text AS text,
     COALESCE(sum((x.cnt - 1)), (0) :: numeric) AS "coalesce"
   FROM
     (

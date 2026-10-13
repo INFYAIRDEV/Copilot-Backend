@@ -8,6 +8,14 @@ export const CURSOR_TTL_MS = 15 * 60 * 1000; // 15 minutes
 const cursorSecret = () =>
   process.env.ACCESS_TOKEN_SECRET || process.env.JWT_SECRET;
 
+const CURSOR_ERRORS = {
+  config: "copilot.errors.INTERNAL_ERROR",
+  format: "copilot.pagination.invalidCursorFormat",
+  signature: "copilot.pagination.invalidCursorSignature",
+  tampered: "copilot.pagination.tamperedCursor",
+  invalidOrExpired: "copilot.pagination.invalidOrExpiredCursor",
+} as const;
+
 export interface MessageCursorData {
   v: 1;
   res?: "msg_history";
@@ -118,11 +126,11 @@ export class PaginationService {
   ): { created_at: Date; id: number } {
     const secret = this.getSecret();
     if (!cursor || typeof cursor !== "string") {
-      throw new CopilotError(400, "INVALID_CURSOR", "Invalid cursor format");
+      throw new CopilotError(400, "INVALID_CURSOR", CURSOR_ERRORS.format);
     }
     const parts = cursor.split(".");
     if (parts.length !== 2 || !secret) {
-      throw new CopilotError(400, "INVALID_CURSOR", "Invalid cursor format");
+      throw new CopilotError(400, "INVALID_CURSOR", CURSOR_ERRORS.format);
     }
     const [payload, signature] = parts;
     const expected = createHmac("sha256", secret).update(payload).digest();
@@ -130,17 +138,13 @@ export class PaginationService {
     try {
       actual = Buffer.from(signature, "base64url");
     } catch {
-      throw new CopilotError(400, "INVALID_CURSOR", "Invalid cursor signature");
+      throw new CopilotError(400, "INVALID_CURSOR", CURSOR_ERRORS.signature);
     }
     if (
       actual.length !== expected.length ||
       !timingSafeEqual(actual, expected)
     ) {
-      throw new CopilotError(
-        400,
-        "INVALID_CURSOR",
-        "Invalid or tampered cursor signature",
-      );
+      throw new CopilotError(400, "INVALID_CURSOR", CURSOR_ERRORS.tampered);
     }
 
     try {
@@ -190,7 +194,7 @@ export class PaginationService {
       throw new CopilotError(
         400,
         "INVALID_CURSOR",
-        "Invalid or expired cursor",
+        CURSOR_ERRORS.invalidOrExpired,
       );
     }
   }
@@ -243,11 +247,11 @@ export class PaginationService {
   ): { created_at: Date; id: number } {
     const secret = this.getSecret();
     if (!cursor || typeof cursor !== "string") {
-      throw new CopilotError(400, "INVALID_CURSOR", "Invalid cursor format");
+      throw new CopilotError(400, "INVALID_CURSOR", CURSOR_ERRORS.format);
     }
     const parts = cursor.split(".");
     if (parts.length !== 2 || !secret) {
-      throw new CopilotError(400, "INVALID_CURSOR", "Invalid cursor format");
+      throw new CopilotError(400, "INVALID_CURSOR", CURSOR_ERRORS.format);
     }
     const [payload, signature] = parts;
     const expected = createHmac("sha256", secret).update(payload).digest();
@@ -255,17 +259,13 @@ export class PaginationService {
     try {
       actual = Buffer.from(signature, "base64url");
     } catch {
-      throw new CopilotError(400, "INVALID_CURSOR", "Invalid cursor signature");
+      throw new CopilotError(400, "INVALID_CURSOR", CURSOR_ERRORS.signature);
     }
     if (
       actual.length !== expected.length ||
       !timingSafeEqual(actual, expected)
     ) {
-      throw new CopilotError(
-        400,
-        "INVALID_CURSOR",
-        "Invalid or tampered cursor signature",
-      );
+      throw new CopilotError(400, "INVALID_CURSOR", CURSOR_ERRORS.tampered);
     }
 
     try {
@@ -312,7 +312,7 @@ export class PaginationService {
       throw new CopilotError(
         400,
         "INVALID_CURSOR",
-        "Invalid or expired cursor",
+        CURSOR_ERRORS.invalidOrExpired,
       );
     }
   }

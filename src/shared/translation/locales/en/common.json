@@ -60,5 +60,277 @@
     "loginFailed": "Login failed. Please try again later.",
     "profileFetched": "Profile retrieved",
     "profileFailed": "Could not retrieve the profile. Please try again later."
+  },
+  "ai": {
+    "defaultNarrative": "Generated candidate analytical plan.",
+    "defaultPlanSummary": "Generated candidate plan",
+    "fallbackNarrative": "AI narrative generation is currently degraded. Certified structured reports remain fully available.",
+    "fallbackPlanSummary": "Generated standard certified report template via structured fallback system during AI provider outage.",
+    "narrativeDegraded": "Deterministic analytical calculations generated successfully. Executive narrative interpretation is currently degraded.",
+    "narrativeValidationFailed": "Standard certified analytical calculation results generated. AI interpretation did not meet fidelity verification standards.",
+    "mockReasoningSummary": "Candidate plan generated for regional sales analysis",
+    "errors": {
+      "COPILOT_INVALID_RESPONSE": "The AI response was invalid. Please try again.",
+      "COPILOT_MALFORMED_CANDIDATE": "The AI returned a malformed result. Please try again.",
+      "COPILOT_MODEL_UNAVAILABLE": "The AI service is currently unavailable. Please try again later.",
+      "COPILOT_MODEL_DEGRADED": "The AI service is currently degraded. Please try again later.",
+      "COPILOT_NARRATIVE_VALIDATION_FAILED": "The AI narrative could not be verified.",
+      "COPILOT_RESPONSE_TOO_LARGE": "The AI response was too large to process.",
+      "COPILOT_UNSAFE_AI_OUTPUT": "The AI response was rejected for safety reasons.",
+      "COPILOT_SERVICE_ERROR": "Something went wrong with the AI service. Please try again later."
+    },
+    "narrativeFallback": "Standard analytical calculation results generated.",
+    "serviceErrors": {
+      "COPILOT_MODEL_UNAVAILABLE": "The AI service is temporarily unavailable. Certified reports remain available.",
+      "COPILOT_MODEL_DEGRADED": "The AI service is currently degraded. Please try again later.",
+      "COPILOT_MODEL_TIMEOUT": "The AI service took too long to respond. Please try again.",
+      "COPILOT_INVALID_RESPONSE": "The AI returned an invalid response. Please try again.",
+      "COPILOT_TOKEN_BUDGET_EXCEEDED": "Your request is too long. Please shorten it and try again.",
+      "COPILOT_CONFIG_ERROR": "The AI service is not configured correctly. Contact your administrator.",
+      "COPILOT_PROMPT_ERROR": "The request could not be prepared. Please try again.",
+      "COPILOT_INVALID_REQUEST": "Invalid request. Please check your input.",
+      "COPILOT_SERVICE_ERROR": "Something went wrong with the AI service. Please try again later.",
+      "AI_OUTPUT_SCHEMA_NOT_FOUND": "The requested output format is not available.",
+      "AI_OUTPUT_SCHEMA_INVALID": "The output format is not configured correctly.",
+      "AI_STRUCTURED_OUTPUT_UNSUPPORTED": "Structured output is not supported by the current AI configuration.",
+      "AI_OUTPUT_PARSE_FAILED": "The AI response could not be read. Please try again.",
+      "AI_OUTPUT_VALIDATION_FAILED": "The AI response did not match the required format. Please try again.",
+      "AI_OUTPUT_EMPTY": "The AI returned an empty response. Please try again.",
+      "AI_OUTPUT_INCOMPLETE": "The AI response was incomplete. Please try again.",
+      "AI_OUTPUT_REFUSED": "The AI could not process this request.",
+      "AI_OUTPUT_RECOVERY_EXHAUSTED": "The AI could not produce a valid response. Please try again later."
+    },
+    "validationErrors": {
+      "COPILOT_INVALID_REQUEST": "Invalid request. Please check your input.",
+      "COPILOT_UNSUPPORTED_OPERATION": "This operation is not supported.",
+      "COPILOT_INVALID_LOCALE": "Unsupported language. Use English or Italian.",
+      "COPILOT_TOKEN_BUDGET_EXCEEDED": "Your request is too long. Please shorten it and try again.",
+      "COPILOT_PROMPT_TOO_LONG": "Your question is too long. Please shorten it.",
+      "COPILOT_MISSING_CONTEXT": "Required request information is missing.",
+      "COPILOT_INVALID_CONTEXT": "The request information is invalid.",
+      "COPILOT_SECURITY_VIOLATION": "Your request contains sensitive information and was rejected.",
+      "COPILOT_PROMPT_INJECTION_DETECTED": "Your request was rejected for security reasons."
+    }
+  },
+  "analytics": {
+    "questionRequired": "A non-empty question is required.",
+    "clarificationRequired": "Clarification required",
+    "pipelineExecuted": "Query executed successfully",
+    "conversationNotFound": "Conversation {{id}} was not found",
+    "conversationRetrieved": "Conversation retrieved",
+    "journeyNotFound": "No approved journey matches ID '{{id}}'",
+    "answerRetrieved": "Answer retrieved successfully",
+    "answersRetrieved": "Answers retrieved",
+    "historyRetrieved": "Query history retrieved",
+    "recordsRetrieved": "Supporting records retrieved",
+    "goldenValidation": "Golden validation regression status",
+    "metricRetrieved": "Metric definition retrieved",
+    "metricNotCertified": "Metric '{{id}}' is not certified",
+    "executionFailed": "Could not execute the analytical query. Please try again later.",
+    "conversationFetchFailed": "Could not retrieve the conversation. Please try again later.",
+    "historyFailed": "Could not retrieve the query history. Please try again later.",
+    "recordsFailed": "Could not retrieve the supporting records. Please try again later.",
+    "goldenValidationFailed": "Could not run the validation checks. Please try again later.",
+    "history": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "previous7": "Previous 7 days",
+      "older": "Older",
+      "conversationTitle": "Conversation"
+    },
+    "journeyTitles": {
+      "current-sales": "Current Q3 Net Invoiced Sales",
+      "sales-comparison": "Equivalent-Period Sales Comparison",
+      "top-customers": "Top 5 Customers by Sales",
+      "supplier-spend": "Top 5 Suppliers by Procurement Spend",
+      "delayed-orders": "Delayed Sales Commitments",
+      "production-linkage": "Production Linkage & Exposure"
+    },
+    "periods": {
+      "currentQ3": "Jul 1 – Aug 15, 2026",
+      "asOf": "Aug 15, 2026, 08:30 Europe/Rome",
+      "elapsed46Days": "46 elapsed calendar days"
+    },
+    "clarification": {
+      "metric": "Clarification",
+      "howCalculated": "Clarification request due to semantic ambiguity.",
+      "delayedOrdersAmbiguous": "The request 'delayed orders' is ambiguous. Do you mean delayed sales orders or delayed production orders?"
+    },
+    "metrics": {
+      "netInvoicedSales": "Net invoiced sales",
+      "netInvoicedSalesVariance": "Net invoiced sales variance",
+      "approvedSupplierSpend": "Approved supplier spend",
+      "delayedBacklog": "Delayed sales order backlog",
+      "linkageCoverage": "Sales-production linkage coverage"
+    },
+    "columns": {
+      "customer": "Customer",
+      "netInvoicedSales": "Net invoiced sales (€)",
+      "netSales": "Net sales (€)",
+      "share": "Share",
+      "period": "Period",
+      "window": "Window",
+      "varianceVsCurrent": "Variance vs Current",
+      "supplier": "Supplier",
+      "spend": "Spend (€)",
+      "orderId": "Order ID",
+      "lineId": "Line ID",
+      "openQty": "Open Qty",
+      "unitPrice": "Unit Price",
+      "backlog": "Backlog (€)",
+      "productionOrder": "Production Order",
+      "salesLine": "Sales Line",
+      "allocationWeight": "Allocation Weight",
+      "linkedValue": "Linked Value (€)"
+    },
+    "journeys": {
+      "currentSales": {
+        "question": "Show sales performance for the current quarter",
+        "summary": "Net invoiced sales for Q3 2026 to date are **{{total}}**, net of VAT and credit notes across all customer accounts.",
+        "chartTitle": "Q3 Net Invoiced Sales",
+        "chartSubtitle": "Net invoiced sales (€) by customer",
+        "tableTitle": "Sales summary by customer",
+        "howCalculated": "Sum of posted invoice net amounts less posted credit notes in EUR, net of VAT, for the period July 1 – August 15, 2026.",
+        "blueprintSummary": "Net invoiced sales for Q3 2026 to date are {{total}}, net of VAT and credit notes.",
+        "vizTitle": "Q3 Net Invoiced Sales"
+      },
+      "salesComparison": {
+        "question": "Compare sales with previous quarter and same period last year",
+        "summary": "Current Q3 sales (**{{current}}**) are **{{varQ2}}** ({{absQ2}}) vs the equivalent 46-day window of Q2 2026 ({{q2}}), and **{{varPY}}** ({{absPY}}) vs the equivalent Q3 2025 prior-year period ({{py}}).",
+        "chartTitle": "Equivalent-period sales comparison",
+        "chartSubtitle": "46-day elapsed window (€)",
+        "chartCurrent": "Q3 2026 (Current)",
+        "chartPrevQuarter": "Q2 2026 (Previous Qtr)",
+        "chartPriorYear": "Q3 2025 (Prior Year)",
+        "tableTitle": "Equivalent-period performance table",
+        "rowCurrent": "Current Q3 2026",
+        "rowQ2": "Equivalent Q2 2026",
+        "rowPY": "Equivalent Q3 2025",
+        "baseline": "Baseline",
+        "windows": {
+          "current": "Jul 1 – Aug 15 (46d)",
+          "q2": "Apr 1 – May 15 (46d)",
+          "py": "Jul 1 – Aug 15 (46d)"
+        },
+        "howCalculated": "Compares identical 46-calendar-day elapsed periods: Q3 2026 (Jul 1 – Aug 15) vs Q2 2026 (Apr 1 – May 15) and Q3 2025 (Jul 1 – Aug 15).",
+        "blueprintSummary": "Current Q3 sales ({{current}}) are {{varQ2}} vs equivalent Q2 2026 and {{varPY}} vs equivalent Q3 2025.",
+        "vizTitle": "Period Comparisons"
+      },
+      "topCustomers": {
+        "question": "Who are the top 5 customers by sales?",
+        "summary": "The top 5 customers generated **{{top5Total}}**, representing **{{share}}** of total net invoiced sales ({{total}}).",
+        "chartTitle": "Top 5 customers",
+        "chartSubtitle": "Net invoiced sales (€)",
+        "tableTitle": "Top 5 customers by net invoiced sales",
+        "howCalculated": "Net invoiced sales are invoice totals minus credit notes and discounts for the period, grouped by customer. Share = customer total ÷ total net invoiced sales of all customers ({{total}}).",
+        "blueprintSummary": "The top five customers generated {{top5Total}}, or {{share}} of {{total}} net invoiced sales, for the certified period.",
+        "vizTitle": "Top customers"
+      },
+      "supplierSpend": {
+        "question": "Supplier spend overview",
+        "summary": "Approved procurement spend was **{{total}}**; the top 5 suppliers account for **{{share}}** ({{top5Total}}) of it. SafeLogistics is ranked at €50,000 net, after a €5,000 credit note. Spend reflects volume, not delivery performance.",
+        "chartTitle": "Top 5 suppliers",
+        "chartSubtitle": "Approved spend (€)",
+        "tableTitle": "Top 5 suppliers by approved spend",
+        "howCalculated": "Spend is posted supplier invoices minus credits in EUR, excluding VAT. SafeLogistics is net €50,000 after €5,000 credit note. Share = supplier spend ÷ total approved procurement spend ({{total}}).",
+        "blueprintSummary": "Approved procurement spend was {{total}}; the top 5 suppliers account for {{top5Total}} ({{share}}) of spend.",
+        "vizTitle": "Top suppliers by spend"
+      },
+      "delayedOrders": {
+        "question": "Which sales orders are delayed?",
+        "summary": "**{{orders}} sales orders** containing **{{lines}} lines** across **{{customers}} customers** are currently delayed, representing **{{backlog}}** in delayed backlog value.",
+        "chartTitle": "Delayed backlog by customer",
+        "chartSubtitle": "Delayed backlog value (€)",
+        "tableTitle": "Delayed sales order lines",
+        "howCalculated": "A sales order line is delayed when its approved commitment date has passed the local end of business day in Europe/Rome and open quantity > 0. Backlog is open qty × unit net price.",
+        "blueprintSummary": "There are {{orders}} delayed sales orders ({{lines}} lines, {{customers}} customers) with {{backlog}} delayed backlog value.",
+        "vizTitle": "Delayed orders by customer"
+      },
+      "productionLinkage": {
+        "question": "Production linkage summary",
+        "summary": "**{{orders}} delayed production orders** are explicitly linked to delayed customer orders across **{{customers}} customers**, accounting for **{{linked}}** (**{{coverage}}**) of total delayed backlog ({{total}}). **Warning:** {{unlinked}} ({{unlinkedPct}}) of delayed backlog has no linked production order. Explicit linkage is evidence of association, not verified causation.",
+        "chartTitle": "Production linkage exposure",
+        "chartSubtitle": "Linked vs unlinked delayed backlog (€)",
+        "chartLinked": "Linked Backlog ({{pct}})",
+        "chartUnlinked": "Unlinked Backlog ({{pct}})",
+        "tableTitle": "Production orders linked to delayed customer lines",
+        "howCalculated": "A production order is linked when explicitly allocated to an open delayed sales order line. Coverage = explicitly allocated delayed backlog ({{linked}}) ÷ total delayed backlog ({{total}}) = {{coverage}}.",
+        "blueprintSummary": "{{orders}} linked delayed production orders affect {{customers}} customers with {{linked}} linked backlog ({{coverage}} coverage). {{unlinked}} remains unlinked.",
+        "warning": "Partial linkage coverage: {{coverage}} coverage by value. {{unlinked}} in delayed backlog is currently unlinked to production orders. Explicit linkage indicates association, not causality.",
+        "vizTitle": "Production linkage coverage"
+      }
+    }
+  },
+  "copilot": {
+    "errors": {
+      "UNAUTHENTICATED": "Authentication required",
+      "COPILOT_PERMISSION_DENIED": "Conversation access denied",
+      "CONVERSATION_VERSION_CONFLICT": "The conversation was modified elsewhere. Reload and try again.",
+      "PERMISSION_COPILOT_ASK_REQUIRED": "Permission denied: copilot.ask required",
+      "CONVERSATION_NOT_ACTIVE": "Conversation is not active",
+      "INTERNAL_ERROR": "Internal server error",
+      "IDEMPOTENCY_KEY_REUSED": "Idempotency-Key was used with a different request body",
+      "INVALID_ANALYTICAL_CONTEXT": "Context validation failed"
+    },
+    "contextValidation": {
+      "forbiddenField": "Forbidden security field in analytical context: {{field}}",
+      "rawSql": "Raw SQL statements are not allowed in analytical context",
+      "metricNotCertified": "Invalid metric reference: '{{ref}}' is not certified",
+      "dimensionNotCertified": "Invalid dimension reference: '{{ref}}' is not certified",
+      "groupByNotCertified": "Invalid groupBy dimension reference: '{{ref}}' is not certified",
+      "filterNotCertified": "Invalid filter dimension: '{{ref}}' is not certified",
+      "betweenRequiresTwo": "Operator 'BETWEEN' on '{{field}}' requires an array of 2 values",
+      "inRequiresNonEmpty": "Operator 'IN' on '{{field}}' requires a non-empty array",
+      "scalarNoArray": "Scalar operator '{{operator}}' on '{{field}}' cannot have an array value",
+      "unauthorizedMetric": "Role '{{role}}' cannot access metric '{{metric}}'"
+    },
+    "validation": {
+      "invalidRequest": "Invalid request",
+      "invalidUuid": "Invalid conversation ID",
+      "idempotencyKeyRequired": "Idempotency key is required",
+      "idempotencyKeyTooLong": "Idempotency key is too long",
+      "invalidRequestId": "Invalid request ID",
+      "invalidRole": "Invalid message role",
+      "invalidKind": "Invalid message type",
+      "textRequired": "Message text is required",
+      "textTooLong": "Message text is too long",
+      "invalidLocale": "Unsupported language. Use English or Italian.",
+      "invalidLimit": "Limit must be a number between 1 and 100",
+      "invalidCursor": "Invalid or too long cursor"
+    },
+    "streaming": {
+      "queryProcessed": "Query processed successfully.",
+      "aiFailed": "Failed to generate AI response",
+      "degradedMode": "Operating in degraded analytical mode",
+      "unauthorizedMetric": "Role '{{role}}' cannot access metric '{{metric}}'"
+    },
+    "controller": {
+      "conversationCreated": "Conversation created",
+      "invalidRequestBody": "Invalid request body",
+      "messageAccepted": "Message accepted",
+      "permissionDenied": "Permission denied",
+      "invalidQueryParameters": "Invalid query parameters",
+      "conversationsRetrieved": "Conversations retrieved",
+      "invalidHistoryRequest": "Invalid history request",
+      "conversationHistory": "Conversation history",
+      "streamingFailed": "Streaming failed"
+    },
+    "analytical": {
+      "promptRequired": "Prompt is required",
+      "promptMin": "Prompt must be at least 3 characters",
+      "promptMax": "Prompt exceeds maximum allowed length of 2000 characters",
+      "unauthorized": "Unauthorized",
+      "policyValidationFailed": "Candidate plan failed policy validation",
+      "planGenerated": "Candidate analytical plan generated successfully",
+      "unexpectedError": "An unexpected error occurred while processing your request",
+      "noIntents": "Candidate plan contains no valid query intents",
+      "executiveMarginDenied": "Unauthorized metric access: role 'operator' cannot access 'executive_cost_margin'"
+    },
+    "pagination": {
+      "invalidCursorFormat": "Invalid cursor format",
+      "invalidCursorSignature": "Invalid cursor signature",
+      "tamperedCursor": "Invalid or tampered cursor signature",
+      "invalidOrExpiredCursor": "Invalid or expired cursor"
+    }
   }
 }

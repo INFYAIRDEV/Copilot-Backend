@@ -3,6 +3,7 @@ import {
   AIResilienceMetrics,
 } from "./resilience-metrics.js";
 import { logger } from "../../../shared/utils/logger.js";
+import { t } from "i18next";
 
 export interface DegradedNarrativeResult {
   narrative: string;
@@ -31,6 +32,7 @@ export class NarrativeFallbackHandler {
    */
   public handleProviderDegraded(
     reason: string = "AI narrative generation unavailable",
+    locale: string = "en",
   ): DegradedNarrativeResult {
     logger.warn(
       `[NarrativeFallback] Immediate degraded mode activated: ${reason}. Authoritative analytics preserved.`,
@@ -38,8 +40,7 @@ export class NarrativeFallbackHandler {
     this.metrics.recordDegraded();
 
     return {
-      narrative:
-        "Deterministic analytical calculations generated successfully. Executive narrative interpretation is currently degraded.",
+      narrative: t("ai.narrativeDegraded", { lng: locale }),
       isDegraded: true,
       status: "COPILOT_MODEL_DEGRADED",
       httpStatusCode: 200,
@@ -52,6 +53,7 @@ export class NarrativeFallbackHandler {
    */
   public handleValidationFailure(
     discrepancyDetails?: string,
+    locale: string = "en",
   ): DegradedNarrativeResult {
     logger.warn(
       `[NarrativeFallback] Narrative validation failure: ${discrepancyDetails || "Unverified claims detected"}. Reverting to certified server narrative.`,
@@ -59,8 +61,7 @@ export class NarrativeFallbackHandler {
     this.metrics.recordDegraded();
 
     return {
-      narrative:
-        "Standard certified analytical calculation results generated. AI interpretation did not meet fidelity verification standards.",
+      narrative: t("ai.narrativeValidationFailed", { lng: locale }),
       isDegraded: true,
       status: "COPILOT_NARRATIVE_VALIDATION_FAILED",
       httpStatusCode: 200,
