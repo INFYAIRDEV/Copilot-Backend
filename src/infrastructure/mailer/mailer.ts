@@ -1,4 +1,5 @@
 import nodemailer, { Transporter } from "nodemailer";
+import { logger } from "../../shared/utils/logger.js";
 
 let transporter: Transporter | undefined;
 
@@ -53,4 +54,23 @@ export const sendMail = async (
     text,
     html,
   });
+};
+
+// Tests the SMTP login once at startup so a bad password shows up in the console right away.
+export const verifyMailConnection = async (): Promise<void> => {
+  try {
+    await getTransporter().verify();
+    console.log("Mail server connection OK");
+  } catch (error) {
+    const e = error as {
+      code?: string;
+      responseCode?: number;
+      message?: string;
+    };
+    logger.error("Mail server connection FAILED", {
+      code: e.code,
+      responseCode: e.responseCode,
+      reason: e.message,
+    });
+  }
 };

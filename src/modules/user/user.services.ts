@@ -33,7 +33,7 @@ import {
 import { sendMail } from "../../infrastructure/mailer/mailer.js";
 import { buildOtpEmail } from "../../infrastructure/mailer/otpEmail.js";
 
-// Creates a new code, stores its hash and emails it. Enforces cooldown and hourly cap.
+// Creates a code, stores its hash and emails it. Throws if the email cannot be sent.
 const issueOtp = async (
   user: { user_id: number; email: string },
   purpose: OtpPurpose,
@@ -57,7 +57,8 @@ const issueOtp = async (
   }
 
   const otp = generateOtp();
-  await userRepository.createOtp(
+  // createOtp returns [cancelledOldCodes, newCode]. Keep the new row so it can be removed if the mail fails.
+  const [, created] = await userRepository.createOtp(
     user.user_id,
     purpose,
     hashOtp(user.user_id, purpose, otp),
@@ -68,14 +69,29 @@ const issueOtp = async (
     const mail = buildOtpEmail(purpose, otp, lang, OTP_TTL_MINUTES);
     await sendMail(user.email, mail.subject, mail.text, mail.html);
   } catch (error) {
+    const e = error as {
+      code?: string;
+      command?: string;
+      responseCode?: number;
+      message?: string;
+    };
+    // Real SMTP reason (contains no secrets). EAUTH = bad login, ETIMEDOUT/ECONNECTION = network.
     logger.error("OTP email failed", {
-      name: error instanceof Error ? error.name : "unknown",
+      purpose,
+      name: e instanceof Error ? e.name : "unknown",
+      code: e.code,
+      command: e.command,
+      responseCode: e.responseCode,
+      reason: e.message,
     });
+    // An unsent code is useless and would count toward the cooldown and hourly cap.
+    await userRepository.deleteOtp(created.id).catch(() => undefined);
     throw new APIResponse("user.emailSendFailed", 500);
   }
 };
 
 // Same as issueOtp but never throws, so the response cannot reveal if an email exists.
+// The real email failure is already logged inside issueOtp.
 const sendOtpQuietly = async (
   user: { user_id: number; email: string },
   purpose: OtpPurpose,
@@ -87,6 +103,8 @@ const sendOtpQuietly = async (
     logger.warn("OTP not sent", {
       purpose,
       reason: error instanceof APIResponse ? error.messageKey : "unexpected",
+      name: error instanceof Error ? error.name : "unknown",
+      code: (error as { code?: string })?.code,
     });
   }
 };
@@ -108,11 +126,17 @@ const checkOtp = async (userId: number, purpose: OtpPurpose, otp: string) => {
 
 export const userService = {
   async register(input: RegisterInput, lang?: string) {
-    const existing = await userRepository.findByUsernameOrEmail(
+    const conflicts = await userRepository.findConflicts(
       input.username,
       input.email,
     );
-    if (existing) throw new ConflictError("user.alreadyExists");
+    // A verified account owns the name and email. Unverified leftovers do not.
+    if (conflicts.some((u) => u.is_email_verified)) {
+      throw new ConflictError("user.alreadyExists");
+    }
+    if (conflicts.length > 0) {
+      await userRepository.deleteUnverified(conflicts.map((u) => u.user_id));
+    }
 
     const password_hash = await hashPassword(input.password);
 
@@ -124,12 +148,17 @@ export const userService = {
         password_hash,
       });
 
-      // If the email fails, the user can use "resend code" later.
-      await sendOtpQuietly(
-        { user_id: user.user_id, email: input.email },
-        "VERIFY_EMAIL",
-        lang,
-      );
+      try {
+        await issueOtp(
+          { user_id: user.user_id, email: input.email },
+          "VERIFY_EMAIL",
+          lang,
+        );
+      } catch (error) {
+        // No code means no way to verify, so remove the account and fail the signup.
+        await userRepository.deleteUnverified([user.user_id]);
+        throw error;
+      }
 
       return {
         userId: user.user_id,
@@ -149,7 +178,6 @@ export const userService = {
       throw error;
     }
   },
-
   async login(input: LoginInput) {
     const user = await userRepository.findForLogin(input.username);
 

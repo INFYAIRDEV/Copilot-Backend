@@ -20,6 +20,21 @@ export const userRepository = {
       select: { user_id: true },
     }),
 
+  // Finds every user using this username or email (they can be two different rows).
+  findConflicts: (username: string, email: string) =>
+    prisma.users.findMany({
+      where: { OR: [{ username }, { email }] },
+      select: { user_id: true, is_email_verified: true },
+    }),
+
+  // Deletes accounts that never verified. The guard stops it from ever deleting a verified user.
+  deleteUnverified: (userIds: number[]) =>
+    prisma.users.deleteMany({
+      where: { user_id: { in: userIds }, is_email_verified: false },
+    }),
+
+  deleteOtp: (id: number) => prisma.user_otp.delete({ where: { id } }),
+
   // Creates the user. The role is always set here, never by the client.
   create: (data: {
     username: string;
@@ -146,7 +161,7 @@ export const userRepository = {
       }),
     ]),
 
-  // Forgot-password reset. Also clears the refresh token.
+  // Forgot-password reset. Also clears the refresh token and marks the email as verified.
   resetPasswordWithOtp: (userId: number, otpId: number, passwordHash: string) =>
     prisma.$transaction([
       prisma.user_otp.update({
@@ -158,6 +173,8 @@ export const userRepository = {
         data: {
           password_hash: passwordHash,
           refresh_token: null,
+          is_email_verified: true,
+          email_verified_at: new Date(),
           updated_at: new Date(),
         },
       }),
