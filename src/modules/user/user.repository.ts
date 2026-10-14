@@ -161,7 +161,8 @@ export const userRepository = {
       }),
     ]),
 
-  // Forgot-password reset. Also clears the refresh token and marks the email as verified.
+  // Forgot-password reset: sets the new password and clears the refresh token.
+  // It does not touch email verification, which only happens at registration.
   resetPasswordWithOtp: (userId: number, otpId: number, passwordHash: string) =>
     prisma.$transaction([
       prisma.user_otp.update({
@@ -173,8 +174,6 @@ export const userRepository = {
         data: {
           password_hash: passwordHash,
           refresh_token: null,
-          is_email_verified: true,
-          email_verified_at: new Date(),
           updated_at: new Date(),
         },
       }),

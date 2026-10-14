@@ -47,6 +47,7 @@
     "forgotPasswordSent": "Se esiste un account per questa email, è stato inviato un codice di reimpostazione",
     "forgotPasswordFailed": "Impossibile elaborare la richiesta. Riprova più tardi.",
     "passwordReset": "Password reimpostata con successo. Ora puoi accedere.",
+    "emailNotRegistered": "Nessun account trovato con questa email",
     "resetPasswordFailed": "Reimpostazione password non riuscita. Riprova più tardi.",
     "oldPasswordRequired": "La password attuale è obbligatoria",
     "oldPasswordIncorrect": "La password attuale non è corretta",

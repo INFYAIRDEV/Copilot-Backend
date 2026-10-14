@@ -47,6 +47,7 @@
     "forgotPasswordSent": "If an account exists for this email, a reset code has been sent",
     "forgotPasswordFailed": "Could not process the request. Please try again later.",
     "passwordReset": "Password reset successfully. You can now log in.",
+    "emailNotRegistered": "No account found with this email",
     "resetPasswordFailed": "Password reset failed. Please try again later.",
     "oldPasswordRequired": "Current password is required",
     "oldPasswordIncorrect": "Current password is incorrect",

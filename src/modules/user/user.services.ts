@@ -250,19 +250,31 @@ export const userService = {
 
   async forgotPassword(input: EmailOnlyInput, lang?: string) {
     const user = await userRepository.findByEmail(input.email);
-    if (user && user.is_active && user.email) {
-      await sendOtpQuietly(
-        { user_id: user.user_id, email: user.email },
-        "RESET_PASSWORD",
-        lang,
-      );
+
+    // Unknown or inactive email: stop here so the page does not move to the code step.
+    if (!user || !user.is_active || !user.email) {
+      throw new APIResponse("user.emailNotRegistered", 404);
     }
+    // Registered but never verified: only verified accounts can reset a password.
+    if (!user.is_email_verified) {
+      throw new ForbiddenError("user.emailNotVerified");
+    }
+
+    // issueOtp (not the quiet version) so cooldown and email failures reach the user.
+    await issueOtp(
+      { user_id: user.user_id, email: user.email },
+      "RESET_PASSWORD",
+      lang,
+    );
     return null;
   },
 
   async resetPassword(input: ResetPasswordInput) {
     const user = await userRepository.findByEmail(input.email);
-    if (!user || !user.is_active) throw new BadRequestError("user.otpInvalid");
+    // Same generic error for unknown, inactive and unverified accounts.
+    if (!user || !user.is_active || !user.is_email_verified) {
+      throw new BadRequestError("user.otpInvalid");
+    }
 
     const otpId = await checkOtp(user.user_id, "RESET_PASSWORD", input.otp);
     const hash = await hashPassword(input.new_password);
