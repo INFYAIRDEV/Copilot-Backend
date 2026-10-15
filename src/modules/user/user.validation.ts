@@ -86,3 +86,73 @@ export const loginSchema = (z: typeof base) =>
     .strict({ message: "user.invalidRequest" });
 
 export type LoginInput = ZOD.infer<ReturnType<typeof loginSchema>>;
+
+const emailField = (z: typeof base) =>
+  z
+    .string({ message: "user.emailRequired" })
+    .trim()
+    .toLowerCase()
+    .min(1, { message: "user.emailRequired" })
+    .max(254, { message: "user.emailInvalid" })
+    .email({ message: "user.emailInvalid" });
+
+const otpField = (z: typeof base) =>
+  z
+    .string({ message: "user.otpRequired" })
+    .trim()
+    .min(1, { message: "user.otpRequired" })
+    .regex(/^\d{6}$/, { message: "user.otpFormat" });
+
+export const verifyEmailSchema = (z: typeof base) =>
+  z
+    .object({ email: emailField(z), otp: otpField(z) })
+    .strict({ message: "user.invalidRequest" });
+export type VerifyEmailInput = ZOD.infer<ReturnType<typeof verifyEmailSchema>>;
+
+export const emailOnlySchema = (z: typeof base) =>
+  z.object({ email: emailField(z) }).strict({ message: "user.invalidRequest" });
+export type EmailOnlyInput = ZOD.infer<ReturnType<typeof emailOnlySchema>>;
+
+export const resetPasswordSchema = (z: typeof base) =>
+  z
+    .object({
+      email: emailField(z),
+      otp: otpField(z),
+      new_password: passwordSchema(z),
+      confirm_password: z
+        .string({ message: "user.confirmPasswordRequired" })
+        .min(1, { message: "user.confirmPasswordRequired" }),
+    })
+    .strict({ message: "user.invalidRequest" })
+    .refine((d) => d.new_password === d.confirm_password, {
+      message: "user.confirmPasswordMismatch",
+      path: ["confirm_password"],
+    });
+export type ResetPasswordInput = ZOD.infer<
+  ReturnType<typeof resetPasswordSchema>
+>;
+
+export const changePasswordSchema = (z: typeof base) =>
+  z
+    .object({
+      old_password: z
+        .string({ message: "user.oldPasswordRequired" })
+        .min(1, { message: "user.oldPasswordRequired" })
+        .max(128, { message: "user.invalidRequest" }),
+      new_password: passwordSchema(z),
+      confirm_password: z
+        .string({ message: "user.confirmPasswordRequired" })
+        .min(1, { message: "user.confirmPasswordRequired" }),
+    })
+    .strict({ message: "user.invalidRequest" })
+    .refine((d) => d.new_password === d.confirm_password, {
+      message: "user.confirmPasswordMismatch",
+      path: ["confirm_password"],
+    })
+    .refine((d) => d.new_password !== d.old_password, {
+      message: "user.newPasswordSameAsOld",
+      path: ["new_password"],
+    });
+export type ChangePasswordInput = ZOD.infer<
+  ReturnType<typeof changePasswordSchema>
+>;

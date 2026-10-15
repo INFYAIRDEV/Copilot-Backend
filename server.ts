@@ -17,6 +17,8 @@ import { ApiResponse } from "@/shared/types/response.js";
 import { assertPasswordConfig } from "./src/shared/utils/password.js";
 import { assertJwtConfig } from "./src/shared/utils/jwt.js";
 import userRoutes from "./src/modules/user/user.route.js";
+import { assertOtpConfig } from "./src/shared/utils/otp.js";
+import { assertMailConfig } from "./src/infrastructure/mailer/mailer.js";
 
 dotenv.config();
 
@@ -73,6 +75,9 @@ assertPasswordConfig();
 
 // Stop the app at startup if the JWT settings in .env are missing or invalid.
 assertJwtConfig();
+
+assertOtpConfig();
+assertMailConfig();
 
 server.listen(port, "0.0.0.0", async () => {
   console.log(`Server is running on ${port}`);
