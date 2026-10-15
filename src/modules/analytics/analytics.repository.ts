@@ -373,88 +373,52 @@ export class AnalyticsRepository {
    * (analytics.conversation_message or analytics_demo.query_catalog)
    * formatted with real dynamic timestamps into temporal groups.
    */
-  async getHistoryItems(locale: "en" | "it" = "en"): Promise<any[]> {
-    // const isIt = locale === "it";
-
-    // 1. First attempt to query distinct conversations from analytics.conversation table
+  async getHistoryItems(
+    locale: "en" | "it" = "en",
+    ownerUserId: number,
+  ): Promise<any[]> {
     try {
-      const conversations = await prisma.$queryRawUnsafe<any[]>(`
-        SELECT
-          c.conversation_uuid AS id,
-          c.updated_at AS created_at,
-          COALESCE(
-            (
-              SELECT cm.text
-              FROM analytics.conversation_message cm
-              WHERE cm.conversation_id = c.id AND cm.role = 'USER' AND cm.text IS NOT NULL
-              ORDER BY cm.created_at ASC
-              LIMIT 1
-            ),
-            NULL
-          ) AS title
-        FROM analytics.conversation c
-        WHERE c.state != 'DELETED'
-        ORDER BY c.updated_at DESC
-        LIMIT 50;
-      `);
-
-      if (conversations && conversations.length > 0) {
-        return this.groupHistoryByDate(
-          conversations.map((c: any) => ({
-            id: String(c.id),
-            title: c.title
-              ? translateJourneyQuestion(String(c.title), locale)
-              : t("analytics.history.conversationTitle", { lng: locale }),
-            created_at: c.created_at,
-          })),
-          locale,
-        );
-      }
-    } catch (err: any) {
-      logger.warn(
-        `[AnalyticsRepository] Note: could not query conversation table directly: ${err.message}`,
+      const conversations = await prisma.$queryRawUnsafe<any[]>(
+        `
+      SELECT
+        c.conversation_uuid AS id,
+        c.updated_at AS created_at,
+        (
+          SELECT cm.text
+          FROM analytics.conversation_message cm
+          WHERE cm.conversation_id = c.id AND cm.role = 'USER' AND cm.text IS NOT NULL
+          ORDER BY cm.created_at ASC
+          LIMIT 1
+        ) AS title
+      FROM analytics.conversation c
+      WHERE c.owner_user_id = $1
+        AND c.deleted_at IS NULL
+        AND c.state::text <> 'DELETED'
+      ORDER BY c.updated_at DESC
+      LIMIT 50;
+    `,
+        ownerUserId,
       );
-    }
 
-    // 2. Query query_catalog from the database with actual database timestamps
-    try {
-      const catalogRows = await prisma.$queryRawUnsafe<any[]>(`
-        SELECT
-          journey_no,
-          query_id,
-          display_name,
-          operation_type,
-          lifecycle_state
-        FROM analytics_demo.query_catalog
-        ORDER BY journey_no ASC;
-      `);
-
-      if (catalogRows && catalogRows.length > 0) {
-        // Group the approved query catalog items
-        return this.groupHistoryByDate(
-          catalogRows.map((q: any) => ({
-            id: q.query_id,
-            title: t(`analytics.journeyTitles.${q.query_id}`, {
-              lng: locale,
-              defaultValue: q.display_name || q.query_id,
-            }),
-            created_at: new Date(),
-          })),
-          locale,
-        );
-      }
+      return this.groupHistoryByDate(
+        (conversations || []).map((c: any) => ({
+          id: String(c.id),
+          title: c.title
+            ? translateJourneyQuestion(String(c.title), locale)
+            : t("analytics.history.conversationTitle", { lng: locale }),
+          created_at: c.created_at,
+        })),
+        locale,
+      );
     } catch (err: any) {
       logger.error(
-        `[AnalyticsRepository] Error querying history from database: ${err.message}`,
+        `[AnalyticsRepository] History query failed: ${err.message}`,
       );
       throw new Error(
         `Database Error: Failed to fetch history records from database: ${err.message}`,
       );
     }
-
-    return [];
   }
-
   /**
    * Dynamically groups database records by timestamp (Today, Yesterday, Previous 7 days, Older)
    * without any hardcoded time arrays.

@@ -156,41 +156,26 @@ export const verifyAccessToken = async (
     });
   }
 
-  const secret = process.env.JWT_SECRET || process.env.ACCESS_TOKEN_SECRET;
-
-  if (!secret) {
+  // Checks signature, expiry, issuer and audience, and reads the user id from "sub".
+  let userId: number;
+  try {
+    userId = verifyJwtToken(token).user.id;
+  } catch (err) {
+    if (err instanceof UnauthorizedError) {
+      return ApiResponse.error(res, {
+        statusCode: 401,
+        messageKey: "user.unauthorized",
+      });
+    }
     return ApiResponse.error(res, {
       statusCode: 500,
       messageKey: "user.serverConfigurationError",
     });
   }
 
-  interface JwtPayload {
-    user_id: number;
-    role_id: number;
-    session_id?: string;
-    iat?: number;
-    exp?: number;
-  }
-
-  let decodedToken: JwtPayload;
   try {
-    decodedToken = jwt.verify(token, secret) as JwtPayload;
-  } catch (err: any) {
-    return ApiResponse.error(res, {
-      statusCode: 401,
-      messageKey:
-        err.name === "TokenExpiredError"
-          ? "user.tokenExpired"
-          : "user.invalidToken",
-    });
-  }
-
-  try {
-    // The current Prisma schema has no session model; validate the signed
-    // subject against the active user record instead of querying a phantom table.
     const user = await prisma.users.findFirst({
-      where: { user_id: decodedToken.user_id, is_active: true },
+      where: { user_id: userId, is_active: true },
     });
     if (!user)
       return ApiResponse.error(res, {
