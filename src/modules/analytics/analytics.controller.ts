@@ -85,16 +85,24 @@ export class AnalyticsController {
       });
     }
 
+    // CHANGED: auth check added after question validation
+    const ownerUserId = (req as any).user?.user_id as number | undefined;
+    if (!ownerUserId) {
+      return ApiResponse.error(res, {
+        statusCode: 401,
+        code: "UNAUTHENTICATED",
+        message: t("copilot.errors.UNAUTHENTICATED", { lng: locale }),
+      });
+    }
+
     const incomingConversationId = req.body.conversationId;
 
     try {
       const result = await this.service.executePipeline({
         question,
         locale,
-        userId: (req as any).user?.user_id
-          ? String((req as any).user.user_id)
-          : "user-executive",
-        roleId: (req as any).user?.role || "executive",
+        userId: String(ownerUserId), // CHANGED: real user instead of fallback "user-executive"
+        roleId: (req as any).user?.role_id || "executive",
       });
 
       const isClarification =
@@ -107,21 +115,8 @@ export class AnalyticsController {
       // Persist conversation and messages to live PostgreSQL tables
       let activeConversationUuid = incomingConversationId;
       try {
-        let user = await prisma.users.findFirst({ select: { user_id: true } });
-        if (!user) {
-          const defaultRole = await prisma.roles.findFirst({
-            select: { role_code: true },
-          });
-          user = await prisma.users.create({
-            data: {
-              username: "executive_user",
-              password_hash: "system_hash",
-              role_id: defaultRole?.role_code || "USER",
-            },
-            select: { user_id: true },
-          });
-        }
-
+        // CHANGED: removed the "find first user / create executive_user" block.
+        // Conversation is now looked up and created strictly for the logged-in user.
         let conv: any = null;
         const isValidUuid =
           incomingConversationId &&
@@ -129,20 +124,21 @@ export class AnalyticsController {
             incomingConversationId,
           );
         if (isValidUuid) {
-          conv = await prisma.conversation.findUnique({
-            where: { conversation_uuid: incomingConversationId },
+          conv = await prisma.conversation.findFirst({
+            where: {
+              conversation_uuid: incomingConversationId,
+              owner_user_id: ownerUserId,
+              deleted_at: null,
+            },
           });
         }
 
         if (!conv) {
-          activeConversationUuid =
-            isValidUuid && incomingConversationId
-              ? incomingConversationId
-              : randomUUID();
+          activeConversationUuid = randomUUID();
           conv = await prisma.conversation.create({
             data: {
               conversation_uuid: activeConversationUuid,
-              owner_user_id: user.user_id,
+              owner_user_id: ownerUserId,
               locale: locale as any,
               state: "ACTIVE",
               updated_at: new Date(),
@@ -254,6 +250,16 @@ export class AnalyticsController {
         ? "it"
         : "en";
 
+    // CHANGED: auth check added after locale
+    const ownerUserId = (req as any).user?.user_id as number | undefined;
+    if (!ownerUserId) {
+      return ApiResponse.error(res, {
+        statusCode: 401,
+        code: "UNAUTHENTICATED",
+        message: t("copilot.errors.UNAUTHENTICATED", { lng: locale }),
+      });
+    }
+
     const isValidUuid =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
         id,
@@ -267,8 +273,13 @@ export class AnalyticsController {
     }
 
     try {
-      const conv = await prisma.conversation.findUnique({
-        where: { conversation_uuid: id },
+      // CHANGED: findUnique -> findFirst, scoped to owner and not deleted
+      const conv = await prisma.conversation.findFirst({
+        where: {
+          conversation_uuid: id,
+          owner_user_id: ownerUserId,
+          deleted_at: null,
+        },
       });
 
       if (!conv) {
@@ -454,8 +465,19 @@ export class AnalyticsController {
         ? "it"
         : "en";
 
+    // CHANGED: auth check added after locale
+    const ownerUserId = (req as any).user?.user_id as number | undefined;
+    if (!ownerUserId) {
+      return ApiResponse.error(res, {
+        statusCode: 401,
+        code: "UNAUTHENTICATED",
+        message: t("copilot.errors.UNAUTHENTICATED", { lng: locale }),
+      });
+    }
+
     try {
-      const groups = await this.repo.getHistoryItems(locale);
+      // CHANGED: pass ownerUserId so history is per-user
+      const groups = await this.repo.getHistoryItems(locale, ownerUserId);
       return ApiResponse.success(res, {
         statusCode: 200,
         message: t("analytics.historyRetrieved", { lng: locale }),

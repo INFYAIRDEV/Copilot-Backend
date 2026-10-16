@@ -4,6 +4,7 @@ import { copilotController } from "./copilot.controller.js";
 import { analyticsController } from "@/modules/analytics/analytics.controller.js";
 
 const router = Router();
+router.use(verifyAccessToken);
 
 // Track A Demonstrator Answer Endpoints (Accessible for UI and demo queries)
 router.get("/answers", analyticsController.listAnswers);
@@ -13,7 +14,6 @@ router.post("/query", analyticsController.queryPipeline);
 router.get("/history", analyticsController.getHistory);
 router.get("/conversations/:id", analyticsController.getConversation);
 
-router.use(verifyAccessToken);
 router.get("/conversations", copilotController.listConversations);
 router.post("/conversations", copilotController.create);
 router.post("/conversations/:id/messages", copilotController.sendMessage);
