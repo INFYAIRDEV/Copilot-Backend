@@ -198,10 +198,10 @@ export const userService = {
     }
 
     // Correct password, but the email was never verified.
-    if (!user.is_email_verified) {
-      logger.warn("Login refused", { reason: "email_not_verified" });
-      throw new ForbiddenError("user.emailNotVerified");
-    }
+    // if (!user.is_email_verified) {
+    //   logger.warn("Login refused", { reason: "email_not_verified" });
+    //   throw new ForbiddenError("user.emailNotVerified");
+    // }
 
     const accessToken = generateAccessToken(user.user_id);
     const { expiresAt } = verifyJwtToken(accessToken);
