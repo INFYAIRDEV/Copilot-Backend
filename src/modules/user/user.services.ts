@@ -223,45 +223,48 @@ export const userService = {
       username: user.username,
       fullName: user.full_name,
       email: user.email,
+      mobile: user.mobile,
       roleId: user.role_id,
     };
   },
-  // Update profile (full name and email). Email change triggers email verification.
+  // Update profile (full name and mobile).
   // The caller NEVER provides a userId from the request body; it must come from the JWT.
   async updateProfile(userId: number, data: UpdateProfileInput) {
     // Load the current state from the database.
     const existing = await userRepository.findBasicById(userId);
     if (!existing) throw new UnauthorizedError("user.unauthorized");
 
-    // Reject the new email if it is already owned by another account.
-    if (data.email !== existing.email) {
-      const conflict = await userRepository.findByEmail(data.email);
-      if (conflict) throw new ConflictError("user.emailAlreadyExists");
+    // Reject the new mobile if it is already owned by another account.
+    if (data.mobile && data.mobile !== existing.mobile) {
+      const conflict = await userRepository.findByMobile(data.mobile);
+      if (conflict && conflict.user_id !== userId) {
+        throw new ConflictError("user.mobileAlreadyExists");
+      }
     }
 
-    // Build the update payload; demote verification when the email changes.
-    const emailChanged = data.email !== existing.email;
-    const updated = await userRepository.updateProfile(userId, {
-      full_name: data.full_name,
-      email: data.email,
-      ...(emailChanged ? { is_email_verified: false } : {}),
-    });
+    try {
+      const updated = await userRepository.updateProfile(userId, {
+        full_name: data.full_name,
+        mobile: data.mobile,
+      });
 
-    // Send a fresh OTP to the new address if the email changed.
-    // Use sendOtpQuietly so that an SMTP outage does not block the profile
-    // save — the update is already persisted and the delivery failure is
-    // logged server-side.  The user can request a resend from the verify-email page.
-    if (emailChanged) {
-      await sendOtpQuietly({ user_id: userId, email: data.email }, "VERIFY_EMAIL");
+      return {
+        userId: updated.user_id,
+        username: updated.username,
+        fullName: updated.full_name,
+        email: updated.email,
+        mobile: updated.mobile,
+        roleId: updated.role_id,
+      };
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        throw new ConflictError("user.mobileAlreadyExists");
+      }
+      throw error;
     }
-
-    return {
-      userId: updated.user_id,
-      username: updated.username,
-      fullName: updated.full_name,
-      email: updated.email,
-      roleId: updated.role_id,
-    };
   },
 
   async verifyEmail(input: VerifyEmailInput) {

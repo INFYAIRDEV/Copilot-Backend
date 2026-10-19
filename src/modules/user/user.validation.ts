@@ -129,7 +129,7 @@ export const resetPasswordSchema = (z: typeof base) =>
       path: ["confirm_password"],
     });
 
-// New schema for profile update (full name and email)
+// New schema for profile update (full name and mobile)
 export const updateProfileSchema = (z: typeof base) =>
   z
     .object({
@@ -139,7 +139,12 @@ export const updateProfileSchema = (z: typeof base) =>
         .min(1, { message: "user.fullNameRequired" })
         .min(2, { message: "user.fullNameMin" })
         .max(100, { message: "user.fullNameMax" }),
-      email: emailField(z),
+      mobile: z
+        .string()
+        .trim()
+        .max(20, { message: "user.mobileInvalid" })
+        .optional()
+        .nullable(),
     })
     .strict({ message: "user.invalidRequest" });
 export type UpdateProfileInput = ZOD.infer<
