@@ -128,6 +128,23 @@ export const resetPasswordSchema = (z: typeof base) =>
       message: "user.confirmPasswordMismatch",
       path: ["confirm_password"],
     });
+
+// New schema for profile update (full name and email)
+export const updateProfileSchema = (z: typeof base) =>
+  z
+    .object({
+      full_name: z
+        .string({ message: "user.fullNameRequired" })
+        .trim()
+        .min(1, { message: "user.fullNameRequired" })
+        .min(2, { message: "user.fullNameMin" })
+        .max(100, { message: "user.fullNameMax" }),
+      email: emailField(z),
+    })
+    .strict({ message: "user.invalidRequest" });
+export type UpdateProfileInput = ZOD.infer<
+  ReturnType<typeof updateProfileSchema>
+>;
 export type ResetPasswordInput = ZOD.infer<
   ReturnType<typeof resetPasswordSchema>
 >;

@@ -188,4 +188,30 @@ export const userRepository = {
         updated_at: new Date(),
       },
     }),
+
+  // Fetch just email + verification status for the profile update check.
+  findBasicById: (userId: number) =>
+    prisma.users.findUnique({
+      where: { user_id: userId },
+      select: { email: true, is_email_verified: true },
+    }),
+
+  // Persist full_name / email changes. When the email changes the caller must
+  // also pass is_email_verified: false so the flag stays consistent.
+  updateProfile: (
+    userId: number,
+    data: { full_name: string; email: string; is_email_verified?: boolean },
+  ) =>
+    prisma.users.update({
+      where: { user_id: userId },
+      data: { ...data, updated_at: new Date() },
+      select: {
+        user_id: true,
+        username: true,
+        full_name: true,
+        email: true,
+        role_id: true,
+        is_active: true,
+      },
+    }),
 };

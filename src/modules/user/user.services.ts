@@ -16,6 +16,7 @@ import type {
   EmailOnlyInput,
   ResetPasswordInput,
   ChangePasswordInput,
+  UpdateProfileInput,
 } from "./user.validation.js";
 import { userRepository } from "./user.repository.js";
 import { logger } from "../../shared/utils/logger.js";
@@ -223,6 +224,43 @@ export const userService = {
       fullName: user.full_name,
       email: user.email,
       roleId: user.role_id,
+    };
+  },
+  // Update profile (full name and email). Email change triggers email verification.
+  // The caller NEVER provides a userId from the request body; it must come from the JWT.
+  async updateProfile(userId: number, data: UpdateProfileInput) {
+    // Load the current state from the database.
+    const existing = await userRepository.findBasicById(userId);
+    if (!existing) throw new UnauthorizedError("user.unauthorized");
+
+    // Reject the new email if it is already owned by another account.
+    if (data.email !== existing.email) {
+      const conflict = await userRepository.findByEmail(data.email);
+      if (conflict) throw new ConflictError("user.emailAlreadyExists");
+    }
+
+    // Build the update payload; demote verification when the email changes.
+    const emailChanged = data.email !== existing.email;
+    const updated = await userRepository.updateProfile(userId, {
+      full_name: data.full_name,
+      email: data.email,
+      ...(emailChanged ? { is_email_verified: false } : {}),
+    });
+
+    // Send a fresh OTP to the new address if the email changed.
+    // Use sendOtpQuietly so that an SMTP outage does not block the profile
+    // save — the update is already persisted and the delivery failure is
+    // logged server-side.  The user can request a resend from the verify-email page.
+    if (emailChanged) {
+      await sendOtpQuietly({ user_id: userId, email: data.email }, "VERIFY_EMAIL");
+    }
+
+    return {
+      userId: updated.user_id,
+      username: updated.username,
+      fullName: updated.full_name,
+      email: updated.email,
+      roleId: updated.role_id,
     };
   },
 
