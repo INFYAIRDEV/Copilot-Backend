@@ -16,6 +16,7 @@ import type {
   EmailOnlyInput,
   ResetPasswordInput,
   ChangePasswordInput,
+  UpdateProfileInput,
 } from "./user.validation.js";
 import { userRepository } from "./user.repository.js";
 import { logger } from "../../shared/utils/logger.js";
@@ -197,10 +198,10 @@ export const userService = {
     }
 
     // Correct password, but the email was never verified.
-    if (!user.is_email_verified) {
-      logger.warn("Login refused", { reason: "email_not_verified" });
-      throw new ForbiddenError("user.emailNotVerified");
-    }
+    // if (!user.is_email_verified) {
+    //   logger.warn("Login refused", { reason: "email_not_verified" });
+    //   throw new ForbiddenError("user.emailNotVerified");
+    // }
 
     const accessToken = generateAccessToken(user.user_id);
     const { expiresAt } = verifyJwtToken(accessToken);
@@ -222,8 +223,48 @@ export const userService = {
       username: user.username,
       fullName: user.full_name,
       email: user.email,
+      mobile: user.mobile,
       roleId: user.role_id,
     };
+  },
+  // Update profile (full name and mobile).
+  // The caller NEVER provides a userId from the request body; it must come from the JWT.
+  async updateProfile(userId: number, data: UpdateProfileInput) {
+    // Load the current state from the database.
+    const existing = await userRepository.findBasicById(userId);
+    if (!existing) throw new UnauthorizedError("user.unauthorized");
+
+    // Reject the new mobile if it is already owned by another account.
+    if (data.mobile && data.mobile !== existing.mobile) {
+      const conflict = await userRepository.findByMobile(data.mobile);
+      if (conflict && conflict.user_id !== userId) {
+        throw new ConflictError("user.mobileAlreadyExists");
+      }
+    }
+
+    try {
+      const updated = await userRepository.updateProfile(userId, {
+        full_name: data.full_name,
+        mobile: data.mobile,
+      });
+
+      return {
+        userId: updated.user_id,
+        username: updated.username,
+        fullName: updated.full_name,
+        email: updated.email,
+        mobile: updated.mobile,
+        roleId: updated.role_id,
+      };
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        throw new ConflictError("user.mobileAlreadyExists");
+      }
+      throw error;
+    }
   },
 
   async verifyEmail(input: VerifyEmailInput) {

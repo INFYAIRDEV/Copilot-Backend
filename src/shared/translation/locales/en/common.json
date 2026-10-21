@@ -60,7 +60,11 @@
     "loggedIn": "Login successful",
     "loginFailed": "Login failed. Please try again later.",
     "profileFetched": "Profile retrieved",
-    "profileFailed": "Could not retrieve the profile. Please try again later."
+    "profileFailed": "Could not retrieve the profile. Please try again later.",
+    "profileUpdated": "Profile updated successfully",
+    "profileUpdateFailed": "Could not update the profile. Please try again later.",
+    "mobileInvalid": "Please enter a valid mobile number",
+    "mobileAlreadyExists": "This mobile number is already registered"
   },
   "ai": {
     "defaultNarrative": "Generated candidate analytical plan.",

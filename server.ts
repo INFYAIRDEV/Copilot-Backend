@@ -6,6 +6,7 @@ import { requestLogger } from "./src/shared/middlewares/requestLogger.js";
 import { rateLimiter } from "./src/shared/middlewares/rateLimiter.js";
 import copilotRoutes from "./src/modules/copilot/copilot.route.js";
 import analyticsRoutes from "./src/modules/analytics/analytics.route.js";
+import { prisma } from "./src/shared/utils/prismaClient.js";
 
 import { createServer } from "http";
 import { corsConfig } from "@/shared/utils/corsConfig.js";
@@ -46,13 +47,26 @@ app.use((req, res, next) => {
 app.get(
   "/health",
   asyncHandler(async (req: Request, res: Response) => {
-    // Check database connectivity
+    // Check database connectivity with a 3-second timeout
     try {
-      return ApiResponse.success(res, { message: "Server is healthy" });
+      await Promise.race([
+        prisma.$queryRawUnsafe("SELECT 1;"),
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error("Database connection timeout")),
+            3000,
+          ),
+        ),
+      ]);
+      return ApiResponse.success(res, {
+        message: "Server is healthy",
+        data: { dbStatus: "connected" },
+      });
     } catch (error: any) {
       return ApiResponse.error(res, {
-        message: "Server is not healthy",
-        statusCode: 500,
+        message: "Database unreachable. Please verify Cloud SQL network whitelist.",
+        statusCode: 503,
+        code: "DB_UNREACHABLE",
       });
     }
   }),
