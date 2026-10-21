@@ -61,7 +61,11 @@
     "loggedIn": "Accesso effettuato",
     "loginFailed": "Accesso non riuscito. Riprova più tardi.",
     "profileFetched": "Profilo recuperato",
-    "profileFailed": "Impossibile recuperare il profilo. Riprova più tardi."
+    "profileFailed": "Impossibile recuperare il profilo. Riprova più tardi.",
+    "profileUpdated": "Profilo aggiornato con successo",
+    "profileUpdateFailed": "Impossibile aggiornare il profilo. Riprova più tardi.",
+    "mobileInvalid": "Inserisci un numero di cellulare valido",
+    "mobileAlreadyExists": "Questo numero di cellulare è già registrato"
   },
   "ai": {
     "defaultNarrative": "Piano analitico candidato generato.",

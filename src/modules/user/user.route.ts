@@ -24,5 +24,6 @@ router.post(
 );
 // Protected route: requires a valid Bearer token.
 router.get("/profile", authenticate, asyncHandler(userController.profile));
+router.patch("/profile", authenticate, asyncHandler(userController.updateProfile));
 
 export default router;

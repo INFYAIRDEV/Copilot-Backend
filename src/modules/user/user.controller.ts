@@ -10,6 +10,7 @@ import {
   emailOnlySchema,
   resetPasswordSchema,
   changePasswordSchema,
+  updateProfileSchema,
 } from "./user.validation.js";
 import { userService } from "./user.services.js";
 import { z } from "zod";
@@ -136,6 +137,40 @@ export const userController = {
         messageKey: "user.profileFailed",
         statusCode: 500,
       });
+    }
+  },
+
+  // PATCH /profile — update full name and / or email for the authenticated user.
+  // The user ID is NEVER read from the request body; it always comes from the JWT.
+  async updateProfile(req: Request, res: Response) {
+    const authenticated = req.authenticatedUser;
+    if (!authenticated) {
+      return ApiResponse.error(res, {
+        messageKey: "user.unauthorized",
+        statusCode: 401,
+      });
+    }
+    const parsed = updateProfileSchema(z).safeParse(req.body ?? {});
+    if (!parsed.success) {
+      return ApiResponse.error(res, {
+        messageKey: parsed.error.issues[0].message,
+        statusCode: 400,
+      });
+    }
+    try {
+      const data = await userService.updateProfile(authenticated.id, parsed.data);
+      return ApiResponse.success(res, {
+        messageKey: "user.profileUpdated",
+        statusCode: 200,
+        data,
+      });
+    } catch (error) {
+      return respondError(
+        res,
+        error,
+        "Profile update failed",
+        "user.profileUpdateFailed",
+      );
     }
   },
 
