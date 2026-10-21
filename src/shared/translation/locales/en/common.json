@@ -29,6 +29,7 @@
     "emailInvalid": "Enter a valid email address",
     "confirmPasswordRequired": "Please confirm your password",
     "confirmPasswordMismatch": "Passwords do not match",
+    "invalidRole": "Invalid user role. Allowed roles: USER, ADMIN, SUPER_ADMIN",
     "invalidRequest": "Invalid request",
     "alreadyExists": "Username or email is already registered",
     "registered": "Registration successful. Check your email for the verification code.",

@@ -29,6 +29,7 @@
     "emailInvalid": "Inserisci un indirizzo email valido",
     "confirmPasswordRequired": "Conferma la password",
     "confirmPasswordMismatch": "Le password non corrispondono",
+    "invalidRole": "Ruolo utente non valido. Ruoli consentiti: USER, ADMIN, SUPER_ADMIN",
     "invalidRequest": "Richiesta non valida",
     "alreadyExists": "Nome utente o email già registrati",
     "registered": "Registrazione completata. Controlla la tua email per il codice di verifica.",

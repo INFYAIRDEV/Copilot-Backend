@@ -26,10 +26,19 @@ export const passwordSchema = (z: typeof base) =>
       message: "user.passwordMax",
     });
 
-// Registration request. Unknown fields (for example role_id) are rejected,
-// so the client can never choose its own role.
-export const registerSchema = (z: typeof base) =>
-  z
+// Registration request. Role must be one of 'USER', 'ADMIN', or 'SUPER_ADMIN'.
+export const registerSchema = (z: typeof base) => {
+  const allowedRoles = ["USER", "ADMIN", "SUPER_ADMIN"] as const;
+
+  const roleValueSchema = z
+    .string()
+    .trim()
+    .toUpperCase()
+    .refine((val) => (allowedRoles as readonly string[]).includes(val), {
+      message: "user.invalidRole",
+    });
+
+  return z
     .object({
       full_name: z
         .string({ message: "user.fullNameRequired" })
@@ -52,16 +61,49 @@ export const registerSchema = (z: typeof base) =>
         .min(1, { message: "user.emailRequired" })
         .max(254, { message: "user.emailInvalid" })
         .email({ message: "user.emailInvalid" }),
+      mobile: z
+        .string()
+        .trim()
+        .max(20, { message: "user.mobileInvalid" })
+        .refine(
+          (val) => !val || /^[+]?[(]?[0-9]{1,4}[)]?[-\s./0-9]{6,15}$/.test(val),
+          { message: "user.mobileInvalid" },
+        )
+        .optional()
+        .nullable()
+        .transform((val) => (val && val.length > 0 ? val : undefined)),
       password: passwordSchema(z),
       confirm_password: z
         .string({ message: "user.confirmPasswordRequired" })
         .min(1, { message: "user.confirmPasswordRequired" }),
+      // Client can pick 'USER', 'ADMIN', or 'SUPER_ADMIN' (case-insensitive)
+      role_id: roleValueSchema.optional(),
+      // Also accept if client sends 'role' instead of 'role_id'
+      role: roleValueSchema.optional(),
     })
-    .strict({ message: "user.invalidRequest" })
+    .transform((data) => {
+      // Normalize: whichever of role_id or role was sent, default to 'USER' if neither was provided
+      const rawRole = (data.role_id || data.role || "USER").toUpperCase();
+      const role_id = (
+        (allowedRoles as readonly string[]).includes(rawRole)
+          ? rawRole
+          : "USER"
+      );
+      return {
+        full_name: data.full_name,
+        username: data.username,
+        email: data.email,
+        mobile: data.mobile,
+        password: data.password,
+        confirm_password: data.confirm_password,
+        role_id,
+      };
+    })
     .refine((data) => data.password === data.confirm_password, {
       message: "user.confirmPasswordMismatch",
       path: ["confirm_password"],
     });
+};
 
 export type RegisterInput = ZOD.infer<ReturnType<typeof registerSchema>>;
 
