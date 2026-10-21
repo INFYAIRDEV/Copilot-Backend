@@ -2,7 +2,6 @@
 // Messages are translation keys (see the "user" block in common.json).
 import * as ZOD from "zod";
 import { MAX_PASSWORD_BYTES } from "../../shared/utils/password.js";
-import { RoleCode } from "../../shared/constants/roles.js";
 
 const base = ZOD.z;
 
@@ -27,13 +26,9 @@ export const passwordSchema = (z: typeof base) =>
       message: "user.passwordMax",
     });
 
-// Registration request. Role must be one of USER, ADMIN, or SUPER_ADMIN.
+// Registration request. Role must be one of 'USER', 'ADMIN', or 'SUPER_ADMIN'.
 export const registerSchema = (z: typeof base) => {
-  const allowedRoles = [
-    RoleCode.USER,
-    RoleCode.ADMIN,
-    RoleCode.SUPER_ADMIN,
-  ] as const;
+  const allowedRoles = ["USER", "ADMIN", "SUPER_ADMIN"] as const;
 
   const roleValueSchema = z
     .string()
@@ -70,19 +65,19 @@ export const registerSchema = (z: typeof base) => {
       confirm_password: z
         .string({ message: "user.confirmPasswordRequired" })
         .min(1, { message: "user.confirmPasswordRequired" }),
-      // Client can pick USER, ADMIN, or SUPER_ADMIN (case-insensitive)
+      // Client can pick 'USER', 'ADMIN', or 'SUPER_ADMIN' (case-insensitive)
       role_id: roleValueSchema.optional(),
       // Also accept if client sends 'role' instead of 'role_id'
       role: roleValueSchema.optional(),
     })
     .transform((data) => {
-      // Normalize: whichever of role_id or role was sent, default to USER if neither was provided
-      const rawRole = (data.role_id || data.role || RoleCode.USER).toUpperCase();
+      // Normalize: whichever of role_id or role was sent, default to 'USER' if neither was provided
+      const rawRole = (data.role_id || data.role || "USER").toUpperCase();
       const role_id = (
         (allowedRoles as readonly string[]).includes(rawRole)
           ? rawRole
-          : RoleCode.USER
-      ) as RoleCode;
+          : "USER"
+      );
       return {
         full_name: data.full_name,
         username: data.username,
