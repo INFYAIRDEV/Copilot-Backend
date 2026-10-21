@@ -9,7 +9,7 @@ const router = Router();
  * Generates and hardens SQL from question + conversation context (Section 6.2).
  */
 router.post("/query/generate", async (req: Request, res: Response) => {
-  const { requestId, conversationId, question, locale, conversationContext } = req.body;
+  const { requestId, conversationId, userId, aiSessionId, question, locale, conversationContext } = req.body;
 
   if (!question || typeof question !== "string") {
     return res.status(400).json({
@@ -23,7 +23,9 @@ router.post("/query/generate", async (req: Request, res: Response) => {
   try {
     const result = await generateValidatedSql({
       requestId: requestId || `req-${Date.now()}`,
-      conversationId,
+      conversationId: conversationId || `conv-${Date.now()}`,
+      userId: userId || "user-default",
+      aiSessionId: aiSessionId || null,
       question,
       locale,
       conversationContext,
@@ -48,7 +50,7 @@ router.post("/query/generate", async (req: Request, res: Response) => {
  * Summarizes bounded trusted DB result and recommends visualization (Section 6.4).
  */
 router.post("/result/interpret", async (req: Request, res: Response) => {
-  const { requestId, question, result, executionMetadata } = req.body;
+  const { requestId, conversationId, userId, aiSessionId, question, result, executionMetadata } = req.body;
 
   if (!result || !result.rows) {
     return res.status(400).json({
@@ -62,6 +64,9 @@ router.post("/result/interpret", async (req: Request, res: Response) => {
   try {
     const response = await interpretTrustedResult({
       requestId: requestId || `req-${Date.now()}`,
+      conversationId: conversationId || `conv-${Date.now()}`,
+      userId: userId || "user-default",
+      aiSessionId: aiSessionId || `session-${Date.now()}`,
       question: question || "Sales Query Result",
       result,
       executionMetadata: executionMetadata || { durationMs: 0 },

@@ -9,11 +9,19 @@ export interface BoundedResult {
   truncated: boolean;
 }
 
+export interface MatrixBoundedResult {
+  columns: string[];
+  rows: any[][];
+  rowCount: number;
+  truncated: boolean;
+}
+
 export interface ExecutionResult {
   rows: any[];
   rowCount: number;
   durationMs: number;
   bounded: BoundedResult;
+  matrixResult: MatrixBoundedResult;
 }
 
 /**
@@ -93,11 +101,22 @@ export async function executeReadOnlyQuery(sql: string): Promise<ExecutionResult
 
     const bounded = boundResultForInterpretation(sanitizedRows, rowCount);
 
+    const allKeys = sanitizedRows.length > 0 ? Object.keys(sanitizedRows[0]).slice(0, 30) : [];
+    const matrixColumns = allKeys;
+    const matrixRows = sanitizedRows.slice(0, 200).map((r) => allKeys.map((k) => r[k]));
+    const matrixResult: MatrixBoundedResult = {
+      columns: matrixColumns,
+      rows: matrixRows,
+      rowCount,
+      truncated: rowCount > 200 || sanitizedRows.length > 200,
+    };
+
     return {
       rows: sanitizedRows,
       rowCount,
       durationMs,
       bounded,
+      matrixResult,
     };
   } catch (error: any) {
     const durationMs = Date.now() - startTime;

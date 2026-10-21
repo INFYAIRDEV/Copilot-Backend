@@ -1,3 +1,4 @@
+import "../../../shared/translation/i18n.js";
 import assert from "node:assert";
 import { analyticsService } from "../analytics.service.js";
 import { analyticsRepository } from "../analytics.repository.js";

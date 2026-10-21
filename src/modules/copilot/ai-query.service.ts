@@ -4,7 +4,9 @@ import { logger } from "../../shared/utils/logger.js";
 
 export interface GenerateQueryRequest {
   requestId: string;
-  conversationId?: string;
+  conversationId: string;
+  userId: string;
+  aiSessionId: string | null;
   question: string;
   locale?: string;
   conversationContext?: {
@@ -15,15 +17,21 @@ export interface GenerateQueryRequest {
 
 export interface ReadyQueryResponse {
   requestId: string;
+  conversationId: string;
+  aiSessionId: string;
   status: "READY";
-  attemptCount: number;
   sql: string;
-  queryType: "SELECT";
   referencedTables: string[];
   referencedColumns: string[];
-  validation: { passed: boolean };
-  visualizationHint: {
-    type: "bar" | "line" | "scatter" | "table";
+  clarificationQuestion?: null;
+  reasoningSummary?: string;
+  attemptCount: number;
+  code?: string | null;
+  retryable?: boolean | null;
+  queryType?: "SELECT";
+  validation?: { passed: boolean };
+  visualizationHint?: {
+    type?: "bar" | "line" | "scatter" | "table";
     title?: string;
     x?: string;
     y?: string;
@@ -32,35 +40,58 @@ export interface ReadyQueryResponse {
 
 export interface ClarificationResponse {
   requestId: string;
+  conversationId: string;
+  aiSessionId: string;
   status: "NEEDS_CLARIFICATION";
-  question: string;
+  sql?: null;
+  clarificationQuestion: string;
+  question?: string;
+  attemptCount: number;
+}
+
+export interface MatrixResultPayload {
+  columns: string[];
+  rows: any[][];
+  rowCount: number;
+  truncated: boolean;
 }
 
 export interface InterpretResultRequest {
   requestId: string;
+  conversationId: string;
+  userId: string;
+  aiSessionId: string;
   question: string;
-  result: {
-    columns: Array<{ name: string; type: string }>;
+  result: MatrixResultPayload | {
+    columns: Array<{ name: string; type: string }> | string[];
     rows: any[];
     rowCount: number;
     truncated: boolean;
   };
-  executionMetadata: {
+  executionMetadata?: {
     durationMs: number;
   };
 }
 
 export interface InterpretResultResponse {
   requestId: string;
-  status: "SUCCESS";
-  summary: string;
-  visualization: {
-    type: "bar" | "line" | "scatter" | "table";
+  conversationId: string;
+  aiSessionId: string;
+  status: "READY" | "SUCCESS";
+  answer: string;
+  summary?: string;
+  chart?: {
+    type: "bar" | "line" | "scatter" | "table" | string;
     title: string;
     x?: string;
     y?: string;
     data?: any[];
   };
+  visualization?: any;
+  resultTruncated?: boolean;
+  rowsReceived?: number;
+  rowsSentToModel?: number;
+  code?: string | null;
 }
 
 /**
@@ -178,12 +209,24 @@ Instructions:
       // Clean JSON delimiters if returned
       const cleanJson = modelRaw.replace(/^```json/m, "").replace(/^```/m, "").trim();
       const parsed = JSON.parse(cleanJson);
+      const aiSessionId =
+        req.aiSessionId ||
+        String(BigInt(Date.now()) * 1000000n + BigInt(Math.floor(Math.random() * 1000000)));
 
       if (parsed.status === "NEEDS_CLARIFICATION") {
+        const clarificationQuestion =
+          parsed.clarificationQuestion ||
+          parsed.question ||
+          "What would you like to rank: customers, products, salespeople, or territories?";
         return {
           requestId: req.requestId,
+          conversationId: req.conversationId,
+          aiSessionId,
           status: "NEEDS_CLARIFICATION",
-          question: parsed.question || "Could you please clarify your question?",
+          sql: null,
+          clarificationQuestion,
+          question: clarificationQuestion,
+          attemptCount: attempt,
         };
       }
 
@@ -200,14 +243,20 @@ Instructions:
         const finalSql = ensureQueryLimit(candidateSql, 1000);
         return {
           requestId: req.requestId,
+          conversationId: req.conversationId,
+          aiSessionId,
           status: "READY",
           attemptCount: attempt,
           sql: finalSql,
           queryType: "SELECT",
           referencedTables: validation.referencedTables,
           referencedColumns: validation.referencedColumns,
+          clarificationQuestion: null,
+          reasoningSummary: parsed.reasoningSummary || parsed.title || "Aggregated query results.",
           validation: { passed: true },
           visualizationHint: parsed.visualizationHint || { type: "table" },
+          code: null,
+          retryable: null,
         };
       } else {
         lastErrorReason = validation.reason || "Validation failed";
@@ -234,7 +283,8 @@ Instructions:
 export async function interpretTrustedResult(
   req: InterpretResultRequest,
 ): Promise<InterpretResultResponse> {
-  const { question, result, executionMetadata } = req;
+  const { question, result } = req;
+  const durationMs = req.executionMetadata?.durationMs || 0;
 
   // Enforce interpretation limits (Section 7.2)
   if (result.rows.length > 200) {
@@ -247,7 +297,7 @@ export async function interpretTrustedResult(
   const prompt = `
 You are an executive sales analyst summarizing bounded database results for business stakeholders.
 User Question: "${question}"
-Query Execution Duration: ${executionMetadata.durationMs}ms
+Query Execution Duration: ${durationMs}ms
 Row Count: ${result.rowCount} (Truncated: ${result.truncated})
 Columns: ${JSON.stringify(result.columns)}
 Rows: ${JSON.stringify(result.rows.slice(0, 50))}
@@ -255,9 +305,9 @@ Rows: ${JSON.stringify(result.rows.slice(0, 50))}
 Provide an executive, factual summary of these results and recommend the best visualization (bar, line, scatter, or table).
 Return strict JSON format:
 {
-  "status": "SUCCESS",
-  "summary": "Clear, concise 1-2 sentence business insight summarizing key metrics and top performers.",
-  "visualization": {
+  "status": "READY",
+  "answer": "Clear, concise 1-2 sentence business insight summarizing key metrics and top performers.",
+  "chart": {
     "type": "bar" | "line" | "scatter" | "table",
     "title": "Short descriptive title",
     "x": "column name for x axis",
@@ -270,26 +320,46 @@ Return strict JSON format:
     const raw = await callGeminiApi(prompt);
     const cleanJson = raw.replace(/^```json/m, "").replace(/^```/m, "").trim();
     const parsed = JSON.parse(cleanJson);
+    const answer = parsed.answer || parsed.summary || "Here are the analytical results for your query.";
+    const chart = parsed.chart || parsed.visualization || {
+      type: "table",
+      title: question,
+    };
 
     return {
       requestId: req.requestId,
-      status: "SUCCESS",
-      summary: parsed.summary || "Here are the analytical results for your query.",
-      visualization: parsed.visualization || {
-        type: "table",
-        title: question,
-      },
+      conversationId: req.conversationId,
+      aiSessionId: req.aiSessionId,
+      status: "READY",
+      answer,
+      summary: answer,
+      chart,
+      visualization: chart,
+      resultTruncated: Boolean(result.truncated),
+      rowsReceived: result.rowCount,
+      rowsSentToModel: Math.min(result.rows.length, 50),
+      code: null,
     };
   } catch (err) {
-    logger.error("Failed to interpret result with Gemini, using fallback summary", err);
+    logger.error("Failed to interpret result with Gemini, using database result summary", err);
+    const fallbackAnswer = `Found ${result.rowCount} record${result.rowCount === 1 ? "" : "s"} matching "${question}".`;
+    const fallbackChart = {
+      type: "table",
+      title: question,
+    };
     return {
       requestId: req.requestId,
-      status: "SUCCESS",
-      summary: `Found ${result.rowCount} record${result.rowCount === 1 ? "" : "s"} matching "${question}".`,
-      visualization: {
-        type: "table",
-        title: question,
-      },
+      conversationId: req.conversationId,
+      aiSessionId: req.aiSessionId,
+      status: "READY",
+      answer: fallbackAnswer,
+      summary: fallbackAnswer,
+      chart: fallbackChart,
+      visualization: fallbackChart,
+      resultTruncated: Boolean(result.truncated),
+      rowsReceived: result.rowCount,
+      rowsSentToModel: Math.min(result.rows.length, 50),
+      code: null,
     };
   }
 }

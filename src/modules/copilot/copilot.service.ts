@@ -4,6 +4,7 @@ import {
   randomUUID,
   timingSafeEqual,
 } from "node:crypto";
+import { t } from "i18next";
 import {
   conversation_state,
   locale_code,
@@ -823,15 +824,18 @@ export interface CopilotQueryResult {
   status: "SUCCESS" | "NEEDS_CLARIFICATION";
   requestId: string;
   conversationId: string;
+  aiSessionId?: string | null;
   question: string;
+  clarificationQuestion?: string;
   summary?: string;
+  answer?: string;
   sql?: string;
   table?: {
-    columns: Array<{ name: string; type: string }>;
+    columns: Array<{ name: string; type: string }> | string[];
     rows: any[];
   };
   chart?: {
-    type: "bar" | "line" | "scatter" | "table";
+    type?: "bar" | "line" | "scatter" | "table" | string;
     title?: string;
     x?: string;
     y?: string;
@@ -910,63 +914,47 @@ export async function processCopilotQuery(
     request_uuid: requestId,
   });
 
-  // 4. Retrieve any previous question context if multi-turn
-  let previousQuestion: string | null = null;
-  let previousResolvedContext: string | null = null;
-  try {
-    const priorMessages = await conversationRepository.findMessagesByConversationId(conversation.id);
-    const validPrior = priorMessages.filter((m) => m.id !== userMsg.id);
-
-    const userMessages = validPrior.filter((m) => m.role === message_role.USER);
-    if (userMessages.length > 0) {
-      previousQuestion = userMessages[userMessages.length - 1].text;
-    }
-
-    const historyLines: string[] = [];
-    const recentMessages = validPrior.slice(-6); // Include up to last 3 conversation turns
-    for (const msg of recentMessages) {
-      const text = msg.text || "";
-      if (!text) continue;
-      if (msg.role === message_role.USER) {
-        historyLines.push(`User asked: "${text}"`);
-      } else if (msg.role === message_role.ASSISTANT) {
-        try {
-          const parsed = JSON.parse(text);
-          const parts: string[] = [];
-          if (parsed.sql) parts.push(`Executed SQL: ${parsed.sql}`);
-          if (parsed.summary) parts.push(`Summary: ${parsed.summary}`);
-          historyLines.push(`Assistant: ${parts.length > 0 ? parts.join(" | ") : text}`);
-        } catch {
-          historyLines.push(`Assistant: "${text.slice(0, 300)}"`);
-        }
-      }
-    }
-
-    if (historyLines.length > 0) {
-      previousResolvedContext = historyLines.join("\n");
-    }
-  } catch (err: any) {
-    logger.warn(`Non-fatal: could not load prior conversation context: ${err.message}`);
-  }
+  // 4. Retrieve stored aiSessionId from conversation for session reuse
+  const existingAiSessionId: string | null =
+    (conversation.analytical_context as any)?.aiSessionId || null;
 
   // 5. Call Data/AI Query Service (API 1: POST /v1/query/generate)
   const aiResult = await generateQueryFromAi({
     requestId,
     conversationId: conversation.conversation_uuid,
+    userId: `${userId}`,
+    aiSessionId: existingAiSessionId,
     question,
     locale,
-    conversationContext: {
-      previousQuestion,
-      previousResolvedContext,
-    },
   });
 
-  // 6. Handle NEEDS_CLARIFICATION (Section 6.2)
+  // Save returned aiSessionId to conversation so follow-ups reuse the same session
+  const returnedSessionId = (aiResult as any).aiSessionId;
+  if (returnedSessionId && returnedSessionId !== existingAiSessionId) {
+    const currentContext = (conversation.analytical_context as any) || {};
+    await prisma.conversation.update({
+      where: { id: conversation.id },
+      data: {
+        analytical_context: {
+          ...currentContext,
+          aiSessionId: returnedSessionId,
+        },
+        updated_at: new Date(),
+      },
+    });
+  }
+
+  // 6. Handle NEEDS_CLARIFICATION
   if (aiResult.status === "NEEDS_CLARIFICATION") {
+    const clarificationQuestion =
+      aiResult.clarificationQuestion ||
+      (aiResult as any).question ||
+      "What would you like to rank: customers, products, salespeople, or territories?";
+
     await conversationRepository.createAssistantMessage({
       conversation_id: conversation.id,
       kind: message_kind.CLARIFICATION_REQUEST,
-      text: aiResult.question,
+      text: clarificationQuestion,
       locale: locale as locale_code,
       request_uuid: randomUUID(),
     });
@@ -975,7 +963,9 @@ export async function processCopilotQuery(
       status: "NEEDS_CLARIFICATION",
       requestId,
       conversationId: conversation.conversation_uuid,
-      question: aiResult.question,
+      aiSessionId: returnedSessionId || existingAiSessionId,
+      question: clarificationQuestion,
+      clarificationQuestion,
     };
   }
 
@@ -985,11 +975,14 @@ export async function processCopilotQuery(
   // 8. Execute Read-Only SQL on Cloud SQL PostgreSQL (Section 6.3 & 7)
   const execution = await executeReadOnlyQuery(aiResult.sql);
 
-  // 9. Send Bounded Result to Data/AI Service for Narration (API 2: POST /v1/result/interpret)
+  // 9. Send Bounded Matrix Result to Data/AI Service for Narration (API 2: POST /v1/result/interpret)
   const interpretation = await interpretResultFromAi({
-    requestId,
+    requestId: `${requestId}-result`,
+    conversationId: conversation.conversation_uuid,
+    userId: `user-${userId}`,
+    aiSessionId: returnedSessionId || existingAiSessionId,
     question,
-    result: execution.bounded,
+    result: execution.matrixResult,
     executionMetadata: {
       durationMs: execution.durationMs,
     },
@@ -1003,19 +996,24 @@ export async function processCopilotQuery(
   });
 
   // 11. Format Unified UI Answer & Persist to Database
+  const finalAnswer = interpretation.answer || interpretation.summary || "Analysis completed.";
+  const finalChart = interpretation.chart || interpretation.visualization;
+
   const completeAnswer = {
     id: randomUUID(),
     question,
-    summary: interpretation.summary,
-    chart: interpretation.visualization,
+    summary: finalAnswer,
+    answer: finalAnswer,
+    chart: finalChart,
     table: {
-      columns: execution.bounded.columns.map((c) => c.name),
-      rows: execution.bounded.rows,
+      columns: execution.matrixResult.columns,
+      rows: execution.matrixResult.rows,
     },
     sql: aiResult.sql,
     rowCount: execution.rowCount,
-    truncated: execution.bounded.truncated,
+    truncated: execution.matrixResult.truncated,
     durationMs: execution.durationMs,
+    aiSessionId: returnedSessionId || existingAiSessionId,
   };
 
   try {
@@ -1037,8 +1035,9 @@ export async function processCopilotQuery(
         locale: locale as any,
         query_fingerprint: question,
         structured_result_ref: JSON.stringify({
-          summary: interpretation.summary,
-          visualization: interpretation.visualization,
+          summary: finalAnswer,
+          visualization: finalChart,
+          aiSessionId: returnedSessionId || existingAiSessionId,
         }),
         normalized_plan: {
           sql: aiResult.sql,
@@ -1066,16 +1065,18 @@ export async function processCopilotQuery(
     status: "SUCCESS",
     requestId,
     conversationId: conversation.conversation_uuid,
+    aiSessionId: returnedSessionId || existingAiSessionId,
     question,
-    summary: interpretation.summary,
+    summary: finalAnswer,
+    answer: finalAnswer,
     sql: aiResult.sql,
     table: {
-      columns: execution.bounded.columns,
-      rows: execution.bounded.rows,
+      columns: execution.matrixResult.columns,
+      rows: execution.matrixResult.rows,
     },
-    chart: interpretation.visualization,
+    chart: finalChart,
     rowCount: execution.rowCount,
-    truncated: execution.bounded.truncated,
+    truncated: execution.matrixResult.truncated,
     executionMetadata: {
       durationMs: execution.durationMs,
     },
@@ -1090,11 +1091,15 @@ export async function generateCandidateAnalyticalPlan(
 
   const result = await generateQueryFromAi({
     requestId: randomUUID(),
+    conversationId: `conv-plan-${randomUUID()}`,
+    userId: `user-${userContext.userId}`,
+    aiSessionId: null,
     question: userPrompt,
     locale: userContext.locale,
   });
 
   if (result.status === "NEEDS_CLARIFICATION") {
+    const clarQuestion = result.clarificationQuestion || (result as any).question || "Clarification required.";
     return {
       response: {
         isDegraded: false,
@@ -1102,7 +1107,7 @@ export async function generateCandidateAnalyticalPlan(
           candidateIntents: [],
           clarification: {
             status: "REQUIRED",
-            question: result.question,
+            question: clarQuestion,
           },
         },
       },
@@ -1141,11 +1146,49 @@ export const copilotService = {
 
 export class CopilotService {
   constructor(public aiServiceOrProvider?: any) {}
-  generateCandidateAnalyticalPlan(userPrompt: string, userContext: any) {
+
+  async generateCandidateAnalyticalPlan(
+    userPrompt: string,
+    userContext: { userId: number; roleId: string; locale?: string },
+  ) {
+    if (this.aiServiceOrProvider?.generateCandidatePlan) {
+      const response = await this.aiServiceOrProvider.generateCandidatePlan({
+        prompt: userPrompt,
+        context: userContext,
+      });
+      const validation = this.performSemanticAndPolicyValidation(
+        response.candidatePlan,
+        userContext,
+        userContext?.locale || "en",
+      );
+      return { response, validation };
+    }
     return generateCandidateAnalyticalPlan(userPrompt, userContext);
+  }
+
+  performSemanticAndPolicyValidation(
+    candidatePlan: any,
+    userContext: { userId: number; roleId: string },
+    locale: string = "en",
+  ) {
+    const errors: string[] = [];
+    for (const intent of candidatePlan?.candidateIntents || []) {
+      if (
+        userContext.roleId === "operator" &&
+        intent.metrics?.includes("executive_cost_margin")
+      ) {
+        errors.push(t("copilot.analytical.executiveMarginDenied", { lng: locale }));
+      }
+    }
+    return {
+      isValid: errors.length === 0,
+      validationErrors: errors.length > 0 ? errors : undefined,
+      errors: errors.length > 0 ? errors : undefined,
+    };
   }
 }
 
 export const analyticalCopilotService = copilotService;
+
 
 
