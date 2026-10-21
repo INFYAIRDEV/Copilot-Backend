@@ -43,7 +43,7 @@ const issueOtp = async (
   if (
     latest &&
     Date.now() - latest.created_at.getTime() <
-      OTP_RESEND_COOLDOWN_SECONDS * 1000
+    OTP_RESEND_COOLDOWN_SECONDS * 1000
   ) {
     throw new TooManyRequestsError("user.otpResendTooSoon");
   }
@@ -146,6 +146,7 @@ export const userService = {
         full_name: input.full_name,
         email: input.email,
         password_hash,
+        role_id: input.role_id,
       });
 
       try {

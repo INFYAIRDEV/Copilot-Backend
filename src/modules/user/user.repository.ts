@@ -35,15 +35,16 @@ export const userRepository = {
 
   deleteOtp: (id: number) => prisma.user_otp.delete({ where: { id } }),
 
-  // Creates the user. The role is always set here, never by the client.
+  // Creates the user. Role comes from validated registration input (USER or ADMIN only).
   create: (data: {
     username: string;
     full_name: string;
     email: string;
     password_hash: string;
+    role_id: string;
   }) =>
     prisma.users.create({
-      data: { ...data, role_id: RoleCode.USER, is_email_verified: false },
+      data: { ...data, is_email_verified: false },
       select: publicUserSelect,
     }),
 
