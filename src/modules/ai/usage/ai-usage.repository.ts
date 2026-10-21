@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma as defaultPrismaClient } from "../../../shared/utils/prismaClient.js";
 import { AIUsageRecord, AIUsageQueryFilters } from "./ai-usage.types.js";
@@ -23,8 +24,9 @@ export class AIUsageRepository implements IAIUsageRepository {
    */
   public async create(record: AIUsageRecord): Promise<AIUsageRecord> {
     try {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(record.requestUuid);
       const data: any = {
-        request_uuid: record.requestUuid,
+        request_uuid: isUuid ? record.requestUuid : randomUUID(),
         answer_id: record.answerId ?? null,
         provider: record.provider,
         model: record.model,

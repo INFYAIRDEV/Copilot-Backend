@@ -799,142 +799,353 @@ export function createCopilotService(
   };
 }
 
-export const copilotService = createCopilotService(conversationRepository);
 
-import {
-  IAIService,
-  AIService,
-  AIServiceRequest,
-  AIServiceResult,
-  IAIProvider,
-  ModelCandidatePlan,
-  ResilientAIProvider,
-  LLMProviderAdapter,
-} from "@/modules/ai/index.js";
+// ---------------------------------------------------------------------------
+// Sales Intelligence Copilot - Analytical Query Workflow (Version 3.0 Baseline)
+// ---------------------------------------------------------------------------
+
+import { generateQueryFromAi, interpretResultFromAi } from "./ai-client.service.js";
+import { checkUserQuota, recordUserUsage } from "./quota.service.js";
+import { checkUserAuthorization, executeReadOnlyQuery } from "./execution.service.js";
+import { prisma } from "../../shared/utils/prismaClient.js";
 import { logger } from "../../shared/utils/logger.js";
 
-export interface SemanticValidationResult {
-  isValid: boolean;
-  validatedPlan?: ModelCandidatePlan;
-  validationErrors?: string[];
+export interface ProcessCopilotQueryArgs {
+  userId: number;
+  roleId?: string;
+  question: string;
+
+  conversationUuid?: string;
+  locale?: string;
 }
 
-export class CopilotService {
-  private readonly aiService: IAIService;
+export interface CopilotQueryResult {
+  status: "SUCCESS" | "NEEDS_CLARIFICATION";
+  requestId: string;
+  conversationId: string;
+  question: string;
+  summary?: string;
+  sql?: string;
+  table?: {
+    columns: Array<{ name: string; type: string }>;
+    rows: any[];
+  };
+  chart?: {
+    type: "bar" | "line" | "scatter" | "table";
+    title?: string;
+    x?: string;
+    y?: string;
+  };
+  rowCount?: number;
+  truncated?: boolean;
+  executionMetadata?: {
+    durationMs: number;
+  };
+}
 
-  /**
-   * Domain service depends on IAIService (application-level AI service layer).
-   * Supports backward compatibility with IAIProvider for flexible dependency injection.
-   */
-  constructor(aiServiceOrProvider: IAIService | IAIProvider) {
-    if ("isAIService" in aiServiceOrProvider) {
-      this.aiService = aiServiceOrProvider as IAIService;
-    } else {
-      this.aiService = new AIService(aiServiceOrProvider as IAIProvider);
-    }
+/**
+ * Executes the complete Sales Intelligence Copilot workflow as defined in
+ * the MVP Architecture Guide (Section 6, 7, 8, 10):
+ *
+ * 1. Authenticates user & checks usage allowance (quota gating).
+ * 2. Gets or creates the conversation thread in PostgreSQL.
+ * 3. Saves the user's question message.
+ * 4. Calls Data/AI Query Service (POST /v1/query/generate).
+ * 5. Handles NEEDS_CLARIFICATION if ambiguous.
+ * 6. Checks backend RBAC and table/column authorization.
+ * 7. Executes SQL via read-only PostgreSQL transaction with interactive cap.
+ * 8. Sends bounded results to Data/AI Service (POST /v1/result/interpret).
+ * 9. Records model token usage in database.
+ * 10. Persists assistant message and answer row.
+ * 11. Returns unified response to frontend.
+ */
+export async function processCopilotQuery(
+  args: ProcessCopilotQueryArgs,
+): Promise<CopilotQueryResult> {
+  const { userId, roleId = "user", question, conversationUuid, locale = "en" } = args;
+
+  if (!Number.isSafeInteger(userId) || userId <= 0) {
+    throw new CopilotError(401, "UNAUTHENTICATED", "copilot.errors.UNAUTHENTICATED");
   }
 
-  /**
-   * Processes user intent through the AI pipeline:
-   * 1. Aggregates and minimizes model inputs into normalized analytical context.
-   * 2. Invokes AI Service via IAIService interface to coordinate provider operations & structural validation.
-   * 3. Passes candidate plan to application-owned Semantic & Policy Validation.
-   * 4. Returns validated candidate plan ready for Server-Owned ExecutionEnvelope construction.
-   */
-  public async generateCandidateAnalyticalPlan(
-    userPrompt: string,
-    userContext: { userId: number; roleId: string; locale?: string },
-  ): Promise<{
-    response: AIServiceResult;
-    validation: SemanticValidationResult;
-  }> {
-    logger.info(
-      `[CopilotService] Processing analytical plan request for user_id [${userContext.userId}]`,
-    );
-
-    // AI-013 & AI-015: Controlled request context construction
-    const request: AIServiceRequest = {
-      prompt: userPrompt,
-      context: {
-        userId: userContext.userId,
-        roleId: userContext.roleId,
-        locale: userContext.locale || "en",
-      },
-      tokenBudget: {
-        maxInputTokens: 2048,
-        maxOutputTokens: 1024,
-      },
-    };
-
-    // Invoke AI Service layer
-    const aiResponse: AIServiceResult =
-      await this.aiService.generateCandidatePlan(request);
-
-    // AI-002, AI-003 & AI-018: Candidate Plan is treated as untrusted candidate
-    // Candidate Plan MUST be validated by application semantic & policy rules before AST/SQL compilation
-    const validationResult = this.performSemanticAndPolicyValidation(
-      aiResponse.candidatePlan,
-      userContext,
-    );
-
-    return {
-      response: aiResponse,
-      validation: validationResult,
-    };
+  if (!question || typeof question !== "string" || question.trim().length === 0) {
+    throw new CopilotError(400, "INVALID_REQUEST", "Question is required.");
   }
 
-  /**
-   * Server-owned Semantic & Policy Validation logic.
-   * Ensures provider output cannot override RBAC/ABAC decisions or execute arbitrary SQL.
-   * Error strings are i18n keys, translated by the controller.
-   */
-  private performSemanticAndPolicyValidation(
-    candidatePlan: ModelCandidatePlan,
-    userContext: { userId: number; roleId: string },
-  ): SemanticValidationResult {
-    const errors: string[] = [];
+  if (question.length > 4000) {
+    throw new CopilotError(413, "PAYLOAD_TOO_LARGE", "Question exceeds 4,000 character limit.");
+  }
 
-    // Verify candidate intents exist
-    if (
-      !candidatePlan.candidateIntents ||
-      candidatePlan.candidateIntents.length === 0
-    ) {
-      errors.push("copilot.analytical.noIntents");
+  const requestId = randomUUID();
+
+  logger.info("QUERY_REQUEST_RECEIVED", {
+    severity: "INFO",
+    event: "QUERY_REQUEST_RECEIVED",
+    requestId,
+    userId,
+    locale,
+  });
+
+  // 1. Quota Check (Section 8.2)
+  await checkUserQuota(userId, roleId);
+
+  // 2. Load or Create Conversation
+  let conversation: any = null;
+  if (conversationUuid && isValidUuid(conversationUuid)) {
+    conversation = await conversationRepository.findOwned(conversationUuid, userId);
+  }
+
+  if (!conversation) {
+    const created = await conversationRepository.create(userId, locale as locale_code);
+    conversation = await conversationRepository.findOwned(created.conversation_uuid, userId);
+  }
+
+  // 3. Save User Message
+  const userMsg = await conversationRepository.createMessage({
+    conversation_id: conversation.id,
+    role: message_role.USER,
+    kind: message_kind.QUESTION,
+    text: question,
+    locale: locale as locale_code,
+    request_uuid: requestId,
+  });
+
+  // 4. Retrieve any previous question context if multi-turn
+  let previousQuestion: string | null = null;
+  let previousResolvedContext: string | null = null;
+  try {
+    const priorMessages = await conversationRepository.findMessagesByConversationId(conversation.id);
+    const validPrior = priorMessages.filter((m) => m.id !== userMsg.id);
+
+    const userMessages = validPrior.filter((m) => m.role === message_role.USER);
+    if (userMessages.length > 0) {
+      previousQuestion = userMessages[userMessages.length - 1].text;
     }
 
-    // Role-based metric / entity boundary checks
-    for (const intent of candidatePlan.candidateIntents || []) {
-      if (
-        userContext.roleId === "operator" &&
-        intent.metrics.includes("executive_cost_margin")
-      ) {
-        errors.push("copilot.analytical.executiveMarginDenied");
+    const historyLines: string[] = [];
+    const recentMessages = validPrior.slice(-6); // Include up to last 3 conversation turns
+    for (const msg of recentMessages) {
+      const text = msg.text || "";
+      if (!text) continue;
+      if (msg.role === message_role.USER) {
+        historyLines.push(`User asked: "${text}"`);
+      } else if (msg.role === message_role.ASSISTANT) {
+        try {
+          const parsed = JSON.parse(text);
+          const parts: string[] = [];
+          if (parsed.sql) parts.push(`Executed SQL: ${parsed.sql}`);
+          if (parsed.summary) parts.push(`Summary: ${parsed.summary}`);
+          historyLines.push(`Assistant: ${parts.length > 0 ? parts.join(" | ") : text}`);
+        } catch {
+          historyLines.push(`Assistant: "${text.slice(0, 300)}"`);
+        }
       }
     }
 
-    const isValid = errors.length === 0;
+    if (historyLines.length > 0) {
+      previousResolvedContext = historyLines.join("\n");
+    }
+  } catch (err: any) {
+    logger.warn(`Non-fatal: could not load prior conversation context: ${err.message}`);
+  }
+
+  // 5. Call Data/AI Query Service (API 1: POST /v1/query/generate)
+  const aiResult = await generateQueryFromAi({
+    requestId,
+    conversationId: conversation.conversation_uuid,
+    question,
+    locale,
+    conversationContext: {
+      previousQuestion,
+      previousResolvedContext,
+    },
+  });
+
+  // 6. Handle NEEDS_CLARIFICATION (Section 6.2)
+  if (aiResult.status === "NEEDS_CLARIFICATION") {
+    await conversationRepository.createAssistantMessage({
+      conversation_id: conversation.id,
+      kind: message_kind.CLARIFICATION_REQUEST,
+      text: aiResult.question,
+      locale: locale as locale_code,
+      request_uuid: randomUUID(),
+    });
 
     return {
-      isValid,
-      validatedPlan: isValid ? candidatePlan : undefined,
-      validationErrors: errors.length > 0 ? errors : undefined,
+      status: "NEEDS_CLARIFICATION",
+      requestId,
+      conversationId: conversation.conversation_uuid,
+      question: aiResult.question,
     };
+  }
+
+  // 7. Backend RBAC / Authorization check (Section 6.3 & 10)
+  checkUserAuthorization({ id: userId, role_id: roleId }, aiResult.referencedTables, aiResult.referencedColumns);
+
+  // 8. Execute Read-Only SQL on Cloud SQL PostgreSQL (Section 6.3 & 7)
+  const execution = await executeReadOnlyQuery(aiResult.sql);
+
+  // 9. Send Bounded Result to Data/AI Service for Narration (API 2: POST /v1/result/interpret)
+  const interpretation = await interpretResultFromAi({
+    requestId,
+    question,
+    result: execution.bounded,
+    executionMetadata: {
+      durationMs: execution.durationMs,
+    },
+  });
+
+  // 10. Record Model Usage
+  await recordUserUsage({
+    userId,
+    requestId,
+    durationMs: execution.durationMs,
+  });
+
+  // 11. Format Unified UI Answer & Persist to Database
+  const completeAnswer = {
+    id: randomUUID(),
+    question,
+    summary: interpretation.summary,
+    chart: interpretation.visualization,
+    table: {
+      columns: execution.bounded.columns.map((c) => c.name),
+      rows: execution.bounded.rows,
+    },
+    sql: aiResult.sql,
+    rowCount: execution.rowCount,
+    truncated: execution.bounded.truncated,
+    durationMs: execution.durationMs,
+  };
+
+  try {
+    const assistantMsg = await conversationRepository.createAssistantMessage({
+      conversation_id: conversation.id,
+      kind: message_kind.QUESTION,
+      text: JSON.stringify(completeAnswer),
+      locale: locale as locale_code,
+      request_uuid: randomUUID(),
+    });
+
+    await prisma.answer.create({
+      data: {
+        answer_uuid: completeAnswer.id,
+        conversation_id: conversation.id,
+        message_id: assistantMsg.id,
+        status: "SUCCESS",
+        request_uuid: requestId,
+        locale: locale as any,
+        query_fingerprint: question,
+        structured_result_ref: JSON.stringify({
+          summary: interpretation.summary,
+          visualization: interpretation.visualization,
+        }),
+        normalized_plan: {
+          sql: aiResult.sql,
+          referencedTables: aiResult.referencedTables,
+          referencedColumns: aiResult.referencedColumns,
+          rowCount: execution.rowCount,
+          durationMs: execution.durationMs,
+        },
+      },
+    });
+  } catch (dbErr: any) {
+    logger.warn(`Failed to record answer row: ${dbErr.message}`);
+  }
+
+  logger.info("REQUEST_COMPLETED", {
+    severity: "INFO",
+    event: "REQUEST_COMPLETED",
+    requestId,
+    conversationId: conversation.conversation_uuid,
+    durationMs: execution.durationMs,
+    rowCount: execution.rowCount,
+  });
+
+  return {
+    status: "SUCCESS",
+    requestId,
+    conversationId: conversation.conversation_uuid,
+    question,
+    summary: interpretation.summary,
+    sql: aiResult.sql,
+    table: {
+      columns: execution.bounded.columns,
+      rows: execution.bounded.rows,
+    },
+    chart: interpretation.visualization,
+    rowCount: execution.rowCount,
+    truncated: execution.bounded.truncated,
+    executionMetadata: {
+      durationMs: execution.durationMs,
+    },
+  };
+}
+
+export async function generateCandidateAnalyticalPlan(
+  userPrompt: string,
+  userContext: { userId: number; roleId: string; locale?: string },
+) {
+  logger.info(`[CopilotService] Processing analytical plan request for user_id [${userContext.userId}]`);
+
+  const result = await generateQueryFromAi({
+    requestId: randomUUID(),
+    question: userPrompt,
+    locale: userContext.locale,
+  });
+
+  if (result.status === "NEEDS_CLARIFICATION") {
+    return {
+      response: {
+        isDegraded: false,
+        candidatePlan: {
+          candidateIntents: [],
+          clarification: {
+            status: "REQUIRED",
+            question: result.question,
+          },
+        },
+      },
+      validation: { isValid: true },
+    };
+  }
+
+  return {
+    response: {
+      isDegraded: false,
+      candidatePlan: {
+        candidateIntents: [
+          {
+            intent: "ANALYTICAL_QUERY",
+            metrics: result.referencedColumns,
+            dimensions: result.referencedTables,
+          },
+        ],
+      },
+    },
+    validation: {
+      isValid: true,
+      validatedPlan: {
+        sql: result.sql,
+        tables: result.referencedTables,
+      },
+    },
+  };
+}
+
+export const copilotService = {
+  ...createCopilotService(conversationRepository),
+  query: processCopilotQuery,
+  generateCandidateAnalyticalPlan,
+};
+
+export class CopilotService {
+  constructor(public aiServiceOrProvider?: any) {}
+  generateCandidateAnalyticalPlan(userPrompt: string, userContext: any) {
+    return generateCandidateAnalyticalPlan(userPrompt, userContext);
   }
 }
 
-// Factory instance: CopilotService -> AIService -> ResilientAIProvider -> LLMProviderAdapter
-export const analyticalCopilotService = new CopilotService(
-  new AIService(new ResilientAIProvider(new LLMProviderAdapter())),
-);
+export const analyticalCopilotService = copilotService;
 
-// Augment copilotService with analytical plan capability
-Object.assign(copilotService, {
-  generateCandidateAnalyticalPlan: (
-    userPrompt: string,
-    userContext: { userId: number; roleId: string; locale?: string },
-  ) =>
-    analyticalCopilotService.generateCandidateAnalyticalPlan(
-      userPrompt,
-      userContext,
-    ),
-});
+

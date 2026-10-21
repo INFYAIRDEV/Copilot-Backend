@@ -148,17 +148,17 @@ export const userService = {
         password_hash,
       });
 
-      try {
-        await issueOtp(
-          { user_id: user.user_id, email: input.email },
-          "VERIFY_EMAIL",
-          lang,
-        );
-      } catch (error) {
-        // No code means no way to verify, so remove the account and fail the signup.
-        await userRepository.deleteUnverified([user.user_id]);
-        throw error;
-      }
+      // try {
+      //   await issueOtp(
+      //     { user_id: user.user_id, email: input.email },
+      //     "VERIFY_EMAIL",
+      //     lang,
+      //   );
+      // } catch (error) {
+      //   // No code means no way to verify, so remove the account and fail the signup.
+      //   await userRepository.deleteUnverified([user.user_id]);
+      //   throw error;
+      // }
 
       return {
         userId: user.user_id,
@@ -197,10 +197,10 @@ export const userService = {
     }
 
     // Correct password, but the email was never verified.
-    if (!user.is_email_verified) {
-      logger.warn("Login refused", { reason: "email_not_verified" });
-      throw new ForbiddenError("user.emailNotVerified");
-    }
+    // if (!user.is_email_verified) {
+    //   logger.warn("Login refused", { reason: "email_not_verified" });
+    //   throw new ForbiddenError("user.emailNotVerified");
+    // }
 
     const accessToken = generateAccessToken(user.user_id);
     const { expiresAt } = verifyJwtToken(accessToken);

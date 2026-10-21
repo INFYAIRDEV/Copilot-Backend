@@ -19,6 +19,8 @@ import { assertJwtConfig } from "./src/shared/utils/jwt.js";
 import userRoutes from "./src/modules/user/user.route.js";
 import { assertOtpConfig } from "./src/shared/utils/otp.js";
 import { assertMailConfig } from "./src/infrastructure/mailer/mailer.js";
+import aiQueryRoutes from "./src/modules/copilot/ai-query.route.js";
+// import { initializeReportingSchema } from "./src/infrastructure/database/reporting-schema.js";
 
 dotenv.config();
 
@@ -58,8 +60,11 @@ app.get(
   }),
 );
 
+
+app.use("/v1", aiQueryRoutes);
 app.use("/api/v1/copilot", copilotRoutes);
 app.use("/api/v1/analytics", analyticsRoutes);
+
 
 app.use("/api/v1/user", userRoutes);
 app.use((req: Request, res: Response) => {
@@ -83,10 +88,17 @@ server.listen(port, "0.0.0.0", async () => {
   console.log(`Server is running on ${port}`);
   console.log(`WebSocket server running on ws://localhost:${port}`);
 
+  // Initialize curated AdventureWorks reporting views and schema
+  // initializeReportingSchema().catch((err: any) => {
+  //   console.warn("Reporting schema init deferred:", err.message);
+  // });
+
+
   // ✅ Add log to confirm crons are NOT running here
   console.log(
     "[API] Running without cron jobs (crons run in separate container)",
   );
 });
+
 
 export default app;
