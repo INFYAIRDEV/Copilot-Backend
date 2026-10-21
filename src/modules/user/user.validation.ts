@@ -61,6 +61,17 @@ export const registerSchema = (z: typeof base) => {
         .min(1, { message: "user.emailRequired" })
         .max(254, { message: "user.emailInvalid" })
         .email({ message: "user.emailInvalid" }),
+      mobile: z
+        .string()
+        .trim()
+        .max(20, { message: "user.mobileInvalid" })
+        .refine(
+          (val) => !val || /^[+]?[(]?[0-9]{1,4}[)]?[-\s./0-9]{6,15}$/.test(val),
+          { message: "user.mobileInvalid" },
+        )
+        .optional()
+        .nullable()
+        .transform((val) => (val && val.length > 0 ? val : undefined)),
       password: passwordSchema(z),
       confirm_password: z
         .string({ message: "user.confirmPasswordRequired" })
@@ -82,6 +93,7 @@ export const registerSchema = (z: typeof base) => {
         full_name: data.full_name,
         username: data.username,
         email: data.email,
+        mobile: data.mobile,
         password: data.password,
         confirm_password: data.confirm_password,
         role_id,

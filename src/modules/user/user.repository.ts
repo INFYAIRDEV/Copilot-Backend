@@ -8,6 +8,7 @@ const publicUserSelect = {
   username: true,
   full_name: true,
   email: true,
+  mobile: true,
   role_id: true,
   created_at: true,
 } as const;
@@ -20,11 +21,17 @@ export const userRepository = {
       select: { user_id: true },
     }),
 
-  // Finds every user using this username or email (they can be two different rows).
-  findConflicts: (username: string, email: string) =>
+  // Finds every user using this username, email or mobile.
+  findConflicts: (username: string, email: string, mobile?: string | null) =>
     prisma.users.findMany({
-      where: { OR: [{ username }, { email }] },
-      select: { user_id: true, is_email_verified: true },
+      where: {
+        OR: [
+          { username },
+          { email },
+          ...(mobile ? [{ mobile }] : []),
+        ],
+      },
+      select: { user_id: true, is_email_verified: true, mobile: true },
     }),
 
   // Deletes accounts that never verified. The guard stops it from ever deleting a verified user.
@@ -35,13 +42,14 @@ export const userRepository = {
 
   deleteOtp: (id: number) => prisma.user_otp.delete({ where: { id } }),
 
-  // Creates the user. Role comes from validated registration input (USER or ADMIN only).
+  // Creates the user. Role comes from validated registration input (USER, ADMIN, or SUPER_ADMIN).
   create: (data: {
     username: string;
     full_name: string;
     email: string;
     password_hash: string;
     role_id: string;
+    mobile?: string | null;
   }) =>
     prisma.users.create({
       data: { ...data, is_email_verified: false },

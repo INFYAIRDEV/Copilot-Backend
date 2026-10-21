@@ -130,9 +130,14 @@ export const userService = {
     const conflicts = await userRepository.findConflicts(
       input.username,
       input.email,
+      input.mobile,
     );
-    // A verified account owns the name and email. Unverified leftovers do not.
-    if (conflicts.some((u) => u.is_email_verified)) {
+    // A verified account owns the name, email, or mobile. Unverified leftovers do not.
+    const verified = conflicts.find((u) => u.is_email_verified);
+    if (verified) {
+      if (input.mobile && verified.mobile === input.mobile) {
+        throw new ConflictError("user.mobileAlreadyExists");
+      }
       throw new ConflictError("user.alreadyExists");
     }
     if (conflicts.length > 0) {
@@ -146,6 +151,7 @@ export const userService = {
         username: input.username,
         full_name: input.full_name,
         email: input.email,
+        mobile: input.mobile,
         password_hash,
         role_id: input.role_id,
       });
@@ -167,6 +173,7 @@ export const userService = {
         username: user.username,
         fullName: user.full_name,
         email: user.email,
+        mobile: user.mobile,
         role: user.role_id,
         createdAt: user.created_at,
       };
@@ -175,6 +182,10 @@ export const userService = {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === "P2002"
       ) {
+        const target = (error.meta?.target as string[]) || [];
+        if (target.includes("mobile")) {
+          throw new ConflictError("user.mobileAlreadyExists");
+        }
         throw new ConflictError("user.alreadyExists");
       }
       throw error;
