@@ -280,15 +280,15 @@
     },
     "contextValidation": {
       "forbiddenField": "Forbidden security field in analytical context: {{field}}",
-      "rawSql": "Raw SQL statements are not allowed in analytical context",
+      "rawSql": "Raw SQL statements are strictly forbidden",
       "metricNotCertified": "Invalid metric reference: '{{ref}}' is not certified",
       "dimensionNotCertified": "Invalid dimension reference: '{{ref}}' is not certified",
       "groupByNotCertified": "Invalid groupBy dimension reference: '{{ref}}' is not certified",
       "filterNotCertified": "Invalid filter dimension: '{{ref}}' is not certified",
-      "betweenRequiresTwo": "Operator 'BETWEEN' on '{{field}}' requires an array of 2 values",
-      "inRequiresNonEmpty": "Operator 'IN' on '{{field}}' requires a non-empty array",
-      "scalarNoArray": "Scalar operator '{{operator}}' on '{{field}}' cannot have an array value",
-      "unauthorizedMetric": "Role '{{role}}' cannot access metric '{{metric}}'"
+      "betweenRequiresTwo": "operator 'BETWEEN' on '{{field}}' requires an array of 2 values",
+      "inRequiresNonEmpty": "operator 'IN' on '{{field}}' requires a non-empty array",
+      "scalarNoArray": "scalar operator '{{operator}}' on '{{field}}' cannot have an array value",
+      "unauthorizedMetric": "Role '{{role}}' cannot access '{{metric}}'"
     },
     "validation": {
       "invalidRequest": "Invalid request",

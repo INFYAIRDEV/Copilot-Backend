@@ -1,3 +1,5 @@
+import "../../../shared/translation/i18n.js";
+process.env.NODE_ENV = "test";
 import {
   LLMProviderAdapter,
   ResilientAIProvider,

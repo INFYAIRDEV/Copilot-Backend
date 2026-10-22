@@ -294,6 +294,12 @@ export const conversationRepository = {
         state: true,
         created_at: true,
         updated_at: true,
+        conversation_message: {
+          where: { role: message_role.USER },
+          orderBy: { created_at: "asc" },
+          take: 1,
+          select: { text: true },
+        },
       },
     });
     return rows;

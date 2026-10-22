@@ -1,3 +1,4 @@
+import "../../../shared/translation/i18n.js";
 import {
   MockAIProviderAdapter,
   ResilientAIProvider,

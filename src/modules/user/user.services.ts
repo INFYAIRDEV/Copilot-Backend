@@ -156,17 +156,17 @@ export const userService = {
         role_id: input.role_id,
       });
 
-      try {
-        await issueOtp(
-          { user_id: user.user_id, email: input.email },
-          "VERIFY_EMAIL",
-          lang,
-        );
-      } catch (error) {
-        // No code means no way to verify, so remove the account and fail the signup.
-        await userRepository.deleteUnverified([user.user_id]);
-        throw error;
-      }
+      // try {
+      //   await issueOtp(
+      //     { user_id: user.user_id, email: input.email },
+      //     "VERIFY_EMAIL",
+      //     lang,
+      //   );
+      // } catch (error) {
+      //   // No code means no way to verify, so remove the account and fail the signup.
+      //   await userRepository.deleteUnverified([user.user_id]);
+      //   throw error;
+      // }
 
       return {
         userId: user.user_id,

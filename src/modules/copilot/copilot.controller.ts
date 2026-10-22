@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import { ApiResponse } from "../../shared/types/response.js";
-import { CopilotError, copilotService } from "./copilot.service.js";
+import { CopilotError, copilotService, processCopilotQuery } from "./copilot.service.js";
+import { prisma } from "../../shared/utils/prismaClient.js";
+
 import {
   createConversationSchema,
   historySchema,
@@ -32,7 +34,7 @@ type Locale = "en" | "it";
 function getLocale(req: Request): Locale {
   const bodyLocale = (req.body as any)?.locale;
   if (bodyLocale === "it" || bodyLocale === "en") return bodyLocale;
-  const header = req.headers["accept-language"]
+  const header = (req.headers || {})["accept-language"]
     ?.split(",")[0]
     ?.trim()
     .toLowerCase();
@@ -62,7 +64,7 @@ function translateIssues(issues: z.ZodIssue[], locale: Locale) {
 }
 
 function fail(res: Response, error: unknown, locale: Locale) {
-  if (error instanceof CopilotError)
+  if (error instanceof CopilotError) {
     return ApiResponse.error(res, {
       statusCode: error.statusCode,
       code: error.code,
@@ -72,6 +74,18 @@ function fail(res: Response, error: unknown, locale: Locale) {
         "copilot.errors.INTERNAL_ERROR",
       ),
     });
+  }
+
+  const anyErr = error as any;
+  if (anyErr && typeof anyErr === "object" && anyErr.statusCode) {
+    return ApiResponse.error(res, {
+      statusCode: anyErr.statusCode,
+      code: anyErr.code || "COPILOT_ERROR",
+      message: anyErr.message || t("copilot.errors.INTERNAL_ERROR", { lng: locale }),
+      data: anyErr.status ? { status: anyErr.status, retryable: anyErr.retryable } : undefined,
+    });
+  }
+
   return ApiResponse.error(res, {
     statusCode: 500,
     code: "INTERNAL_ERROR",
@@ -80,8 +94,8 @@ function fail(res: Response, error: unknown, locale: Locale) {
 }
 
 export function createCopilotController(
-  service = copilotService,
-  streamingSvc = copilotStreamingService,
+  service: any = copilotService,
+  streamingSvc: any = copilotStreamingService,
 ) {
   return {
     async create(req: Request, res: Response) {
@@ -457,12 +471,199 @@ export function createCopilotController(
         return fail(res, error, locale);
       }
     },
+    /**
+     * POST /api/v1/copilot/query
+     * Primary Sales Intelligence Copilot analytical query endpoint (Section 6 & Figure 1).
+     */
+    async query(req: Request, res: Response) {
+      const locale = getLocale(req);
+      if (!req.user || !req.user.user_id) {
+        return ApiResponse.error(res, {
+          statusCode: 401,
+          code: "UNAUTHENTICATED",
+          message: t("copilot.errors.UNAUTHENTICATED", { lng: locale }),
+        });
+      }
+
+      const question = req.body.question || req.body.prompt || req.body.text;
+      if (!question || typeof question !== "string" || question.trim().length === 0) {
+        return ApiResponse.error(res, {
+          statusCode: 400,
+          code: "INVALID_REQUEST",
+          message: t("analytics.questionRequired", { lng: locale, defaultValue: "Question is required." }),
+        });
+      }
+
+      try {
+        console.log("inside try ");
+        const resolvedUserId = req.user?.user_id ?? (req.body.userId ? Number(req.body.userId) : 3);
+        const resolvedRoleId = req.user?.role_id ?? req.body.roleId ?? "user";
+
+        const result = await processCopilotQuery({
+          userId: resolvedUserId,
+          roleId: resolvedRoleId,
+          question: question.trim(),
+          conversationUuid:
+            req.body.conversationId ||
+            req.body.conversationUuid ||
+            req.body.conversation_id ||
+            req.body.conversation_uuid,
+          locale,
+        });
+        console.log("after processCopilotQuery");
+        console.log(result)
+
+        if (result.status === "NEEDS_CLARIFICATION") {
+          return ApiResponse.success(res, {
+            statusCode: 200,
+            message: t("analytics.clarificationRequired", {
+              lng: locale,
+              defaultValue: "Clarification required.",
+            }),
+            data: result,
+          });
+        }
+
+        return ApiResponse.success(res, {
+          statusCode: 200,
+          message: t("analytics.pipelineExecuted", {
+            lng: locale,
+            defaultValue: "Query executed successfully.",
+          }),
+          data: result,
+        });
+      } catch (error: any) {
+        console.error("processCopilotQuery error:", error);
+        return fail(res, error, locale);
+      }
+    },
+
+    /**
+     * GET /api/v1/copilot/conversations/:id
+     */
+    async getConversation(req: Request, res: Response) {
+      const locale = getLocale(req);
+      if (!req.user || !req.user.user_id) {
+        return ApiResponse.error(res, {
+          statusCode: 401,
+          code: "UNAUTHENTICATED",
+          message: t("copilot.errors.UNAUTHENTICATED", { lng: locale }),
+        });
+      }
+
+      const { id } = req.params;
+      try {
+        const conv = await prisma.conversation.findFirst({
+          where: {
+            conversation_uuid: id,
+            owner_user_id: req.user.user_id,
+            deleted_at: null,
+          },
+          include: {
+            conversation_message: {
+              orderBy: { created_at: "asc" },
+            },
+          },
+        });
+
+        if (!conv) {
+          return ApiResponse.error(res, {
+            statusCode: 404,
+            code: "NOT_FOUND",
+            message: "Conversation not found",
+          });
+        }
+
+        return ApiResponse.success(res, {
+          statusCode: 200,
+          data: {
+            ...conv,
+            conversationId: conv.conversation_uuid,
+            messages: conv.conversation_message,
+          },
+        });
+      } catch (error) {
+        return fail(res, error, locale);
+      }
+    },
+
+    /**
+     * GET /api/v1/copilot/answers
+     */
+    async listAnswers(req: Request, res: Response) {
+      const locale = getLocale(req);
+      if (!req.user || !req.user.user_id) {
+        return ApiResponse.error(res, {
+          statusCode: 401,
+          code: "UNAUTHENTICATED",
+          message: t("copilot.errors.UNAUTHENTICATED", { lng: locale }),
+        });
+      }
+
+      try {
+        const answers = await prisma.answer.findMany({
+          where: {
+            conversation: {
+              owner_user_id: req.user.user_id,
+            },
+          },
+          orderBy: { created_at: "desc" },
+          take: 50,
+        });
+
+        return ApiResponse.success(res, {
+          statusCode: 200,
+          data: answers,
+        });
+      } catch (error) {
+        return fail(res, error, locale);
+      }
+    },
+
+    /**
+     * GET /api/v1/copilot/answers/:id
+     */
+    async getAnswerById(req: Request, res: Response) {
+      const locale = getLocale(req);
+      if (!req.user || !req.user.user_id) {
+        return ApiResponse.error(res, {
+          statusCode: 401,
+          code: "UNAUTHENTICATED",
+          message: t("copilot.errors.UNAUTHENTICATED", { lng: locale }),
+        });
+      }
+
+      const { id } = req.params;
+      try {
+        const answer = await prisma.answer.findFirst({
+          where: {
+            answer_uuid: id,
+            conversation: {
+              owner_user_id: req.user.user_id,
+            },
+          },
+        });
+
+        if (!answer) {
+          return ApiResponse.error(res, {
+            statusCode: 404,
+            code: "NOT_FOUND",
+            message: "Answer not found",
+          });
+        }
+
+        return ApiResponse.success(res, {
+          statusCode: 200,
+          data: answer,
+        });
+      } catch (error) {
+        return fail(res, error, locale);
+      }
+    },
   };
 }
 
 export const copilotController = createCopilotController(copilotService);
-
-import { analyticalCopilotService } from "./copilot.service.js";
 
 // Messages below are i18n keys; they are translated when the error is returned.
 const analyticalPlanSchema = z.object({
@@ -472,147 +673,80 @@ const analyticalPlanSchema = z.object({
     .max(2000, "copilot.analytical.promptMax"),
 });
 
-export class CopilotController {
-  constructor(
-    private readonly service: CopilotService = analyticalCopilotService,
-  ) {}
+/**
+ * Generates a Candidate Typed Analytical Plan for the authenticated user.
+ */
+export async function generateAnalyticalPlan(req: Request, res: Response) {
+  const lng = getLocale(req);
 
-  /**
-   * POST /api/v1/copilot/analytical-plan
-   *
-   * Generates a Candidate Typed Analytical Plan for the authenticated user.
-   * The candidate plan is semantically and policy validated before being returned.
-   * It must NOT be used to execute SQL directly — it feeds the Application-Owned AST.
-   */
-  generateAnalyticalPlan = async (req: Request, res: Response) => {
-    const lng = getLocale(req);
-
-    // 1. Validate request body
-    const validation = analyticalPlanSchema.safeParse(req.body);
-    if (!validation.success) {
-      return ApiResponse.error(res, {
-        statusCode: 400,
-        message: validation.error.issues[0]
-          ? t(validation.error.issues[0].message, {
-              lng,
-              defaultValue: validation.error.issues[0].message,
-            })
-          : t("copilot.validation.invalidRequest", { lng }),
-        error: validation.error.issues.map((i) => ({
-          field: i.path.join("."),
-          message: t(i.message, { lng, defaultValue: i.message }),
-        })),
-      });
-    }
-
-    // 2. Extract authenticated user context — established by verifyAccessToken middleware
-    const authenticatedUser = req.user;
-    if (!authenticatedUser) {
-      return ApiResponse.error(res, {
-        statusCode: 401,
-        message: t("copilot.analytical.unauthorized", { lng }),
-      });
-    }
-
-    const userContext = {
-      userId: authenticatedUser.user_id,
-      roleId: authenticatedUser.role_id,
-      locale: getLocale(req),
-    };
-
-    try {
-      const { response, validation: semanticValidation } =
-        await this.service.generateCandidateAnalyticalPlan(
-          validation.data.prompt,
-          userContext,
-        );
-
-      // 3. Semantic / policy validation failed — return controlled error
-      if (!semanticValidation.isValid) {
-        logger.warn(
-          `[CopilotController] Candidate plan failed semantic validation for user_id [${userContext.userId}]: ${semanticValidation.validationErrors?.join(", ")}`,
-        );
-        return ApiResponse.error(res, {
-          statusCode: 422,
-          message: t("copilot.analytical.policyValidationFailed", { lng }),
-          error: semanticValidation.validationErrors?.map((e) =>
-            t(e, { lng, defaultValue: e }),
-          ),
-        });
-      }
-
-      // 4. Return validated candidate plan + usage telemetry
-      return ApiResponse.success(res, {
-        statusCode: 200,
-        message: t("copilot.analytical.planGenerated", { lng }),
-        data: {
-          candidatePlan: semanticValidation.validatedPlan,
-          fromFallback: response.fromFallback,
-          fallbackReason: response.fallbackReason,
-          usage: {
-            provider: response.usage.providerName,
-            model: response.usage.modelName,
-            inputTokens: response.usage.inputTokens,
-            outputTokens: response.usage.outputTokens,
-            totalTokens: response.usage.totalTokens,
-            latencyMs: response.usage.latencyMs,
-            retryCount: response.usage.retryCount,
-            estimatedCostUsd: response.usage.estimatedCostUsd,
-          },
-        },
-      });
-    } catch (error: any) {
-      if (error instanceof AIServiceException) {
-        logger.error(
-          `[CopilotController] AI service error [${error.code}] for user_id [${userContext.userId}]: ${error.message}`,
-        );
-
-        return ApiResponse.error(res, {
-          statusCode: error.statusCode,
-          message: t(`ai.serviceErrors.${error.code}`, {
+  const validation = analyticalPlanSchema.safeParse(req.body);
+  if (!validation.success) {
+    return ApiResponse.error(res, {
+      statusCode: 400,
+      message: validation.error.issues[0]
+        ? t(validation.error.issues[0].message, {
             lng,
-            defaultValue: error.message,
-          }),
-          code: error.code,
-          error: error.details,
-        });
-      }
+            defaultValue: validation.error.issues[0].message,
+          })
+        : t("copilot.validation.invalidRequest", { lng }),
+      error: validation.error.issues.map((i) => ({
+        field: i.path.join("."),
+        message: t(i.message, { lng, defaultValue: i.message }),
+      })),
+    });
+  }
 
-      if (error instanceof AIProviderException) {
-        // Map provider error categories to HTTP/application error codes
-        const statusCode =
-          error.category === "TOKEN_BUDGET_EXCEEDED" ? 422 : 503;
+  const authenticatedUser = req.user;
+  if (!authenticatedUser) {
+    return ApiResponse.error(res, {
+      statusCode: 401,
+      message: t("copilot.analytical.unauthorized", { lng }),
+    });
+  }
 
-        const clientMessage =
-          error.category === "TOKEN_BUDGET_EXCEEDED"
-            ? t("ai.serviceErrors.COPILOT_TOKEN_BUDGET_EXCEEDED", { lng })
-            : t("ai.serviceErrors.COPILOT_MODEL_UNAVAILABLE", { lng });
+  const userContext = {
+    userId: authenticatedUser.user_id,
+    roleId: authenticatedUser.role_id,
+    locale: getLocale(req),
+  };
 
-        logger.error(
-          `[CopilotController] AI provider error [${error.category}] for user_id [${userContext.userId}]: ${error.message}`,
-        );
-
-        return ApiResponse.error(res, {
-          statusCode,
-          message: clientMessage,
-          code: `COPILOT_MODEL_${error.category}`,
-        });
-      }
-
-      logger.error(
-        `[CopilotController] Unexpected error for user_id [${userContext.userId}]: ${error?.message}`,
+  try {
+    const { response, validation: semanticValidation } =
+      await copilotService.generateCandidateAnalyticalPlan(
+        validation.data.prompt,
+        userContext,
       );
 
+    if (!semanticValidation.isValid) {
       return ApiResponse.error(res, {
-        statusCode: 500,
-        message: t("copilot.analytical.unexpectedError", { lng }),
+        statusCode: 422,
+        message: t("copilot.analytical.policyValidationFailed", { lng }),
       });
     }
-  };
+
+    return ApiResponse.success(res, {
+      statusCode: 200,
+      message: t("copilot.analytical.planGenerated", { lng }),
+      data: {
+        candidatePlan: semanticValidation.validatedPlan,
+      },
+    });
+  } catch (error: any) {
+    return ApiResponse.error(res, {
+      statusCode: 500,
+      message: t("copilot.analytical.unexpectedError", { lng }),
+    });
+  }
 }
 
-export const copilotAnalyticalController = new CopilotController();
+export const copilotAnalyticalController = {
+  generateAnalyticalPlan,
+};
 
 Object.assign(copilotController, {
-  generateAnalyticalPlan: copilotAnalyticalController.generateAnalyticalPlan,
+  generateAnalyticalPlan,
+  queryPipeline: copilotController.query,
+  getHistory: copilotController.listConversations,
+  getSupportingRecords: copilotController.getAnswerById,
 });
+
