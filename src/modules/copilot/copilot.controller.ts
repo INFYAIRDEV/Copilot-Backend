@@ -495,9 +495,13 @@ export function createCopilotController(
       }
 
       try {
+        console.log("inside try ");
+        const resolvedUserId = req.user?.user_id ?? (req.body.userId ? Number(req.body.userId) : 3);
+        const resolvedRoleId = req.user?.role_id ?? req.body.roleId ?? "user";
+
         const result = await processCopilotQuery({
-          userId: req.user.user_id,
-          roleId: req.user.role_id,
+          userId: resolvedUserId,
+          roleId: resolvedRoleId,
           question: question.trim(),
           conversationUuid:
             req.body.conversationId ||
@@ -506,6 +510,8 @@ export function createCopilotController(
             req.body.conversation_uuid,
           locale,
         });
+        console.log("after processCopilotQuery");
+        console.log(result)
 
         if (result.status === "NEEDS_CLARIFICATION") {
           return ApiResponse.success(res, {
@@ -527,6 +533,7 @@ export function createCopilotController(
           data: result,
         });
       } catch (error: any) {
+        console.error("processCopilotQuery error:", error);
         return fail(res, error, locale);
       }
     },

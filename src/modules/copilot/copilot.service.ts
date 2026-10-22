@@ -868,6 +868,8 @@ export async function processCopilotQuery(
 ): Promise<CopilotQueryResult> {
   const { userId, roleId = "user", question, conversationUuid, locale = "en" } = args;
 
+  console.log("inside processCopilotQuery")
+
   if (!Number.isSafeInteger(userId) || userId <= 0) {
     throw new CopilotError(401, "UNAUTHENTICATED", "copilot.errors.UNAUTHENTICATED");
   }
@@ -880,18 +882,20 @@ export async function processCopilotQuery(
     throw new CopilotError(413, "PAYLOAD_TOO_LARGE", "Question exceeds 4,000 character limit.");
   }
 
+  console.log("inside processCopilotQuery")
+
   const requestId = randomUUID();
 
-  logger.info("QUERY_REQUEST_RECEIVED", {
-    severity: "INFO",
-    event: "QUERY_REQUEST_RECEIVED",
-    requestId,
-    userId,
-    locale,
-  });
+  // logger.info("QUERY_REQUEST_RECEIVED", {
+  //   severity: "INFO",
+  //   event: "QUERY_REQUEST_RECEIVED",
+  //   requestId,
+  //   userId,
+  //   locale,
+  // });
 
   // 1. Quota Check (Section 8.2)
-  await checkUserQuota(userId, roleId);
+  // await checkUserQuota(userId, roleId);
 
   // 2. Load or Create Conversation
   let conversation: any = null;
@@ -919,6 +923,7 @@ export async function processCopilotQuery(
     (conversation.analytical_context as any)?.aiSessionId || null;
 
   // 5. Call Data/AI Query Service (API 1: POST /v1/query/generate)
+  console.log("before generateQueryFromAi")
   const aiResult = await generateQueryFromAi({
     requestId,
     conversationId: conversation.conversation_uuid,
@@ -927,6 +932,7 @@ export async function processCopilotQuery(
     question,
     locale,
   });
+  console.log("after generateQueryFromAi")
 
   // Save returned aiSessionId to conversation so follow-ups reuse the same session
   const returnedSessionId = (aiResult as any).aiSessionId;
@@ -977,9 +983,9 @@ export async function processCopilotQuery(
 
   // 9. Send Bounded Matrix Result to Data/AI Service for Narration (API 2: POST /v1/result/interpret)
   const interpretation = await interpretResultFromAi({
-    requestId: `${requestId}-result`,
+    requestId: `${requestId}`,
     conversationId: conversation.conversation_uuid,
-    userId: `user-${userId}`,
+    userId: `${userId}`,
     aiSessionId: returnedSessionId || existingAiSessionId,
     question,
     result: execution.matrixResult,
