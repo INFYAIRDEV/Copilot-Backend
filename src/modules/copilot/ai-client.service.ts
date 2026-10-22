@@ -138,11 +138,11 @@ export async function interpretResultFromAi(
   req: InterpretResultRequest,
 ): Promise<InterpretResultResponse> {
   try {
-     const result=await callAIService<InterpretResultResponse>(
+    const result = await callAIService<InterpretResultResponse>(
       "/v1/result/interpret",
       req,
     );
-    console.log("result from intepretation by ai",result)
+    console.log("result from intepretation by ai", result)
     return result;
   } catch (err: any) {
     logger.warn("Remote AI Interpretation call failed, falling back to local engine:", err.message);

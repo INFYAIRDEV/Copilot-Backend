@@ -585,8 +585,7 @@ export function createCopilotService(
       return {
         conversations: page.map((c: any) => ({
           conversation_uuid: c.conversation_uuid,
-          title: (c.analytical_context as any)?.title || null,
-          title: c.conversation_message?.[0]?.text || c.title || null,
+          title: (c.analytical_context as any)?.title || c.conversation_message?.[0]?.text || c.title || null,
           locale: c.locale,
           state: c.state,
           created_at: c.created_at,
