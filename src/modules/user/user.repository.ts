@@ -8,6 +8,7 @@ const publicUserSelect = {
   username: true,
   full_name: true,
   email: true,
+  mobile: true,
   role_id: true,
   created_at: true,
 } as const;
@@ -20,11 +21,17 @@ export const userRepository = {
       select: { user_id: true },
     }),
 
-  // Finds every user using this username or email (they can be two different rows).
-  findConflicts: (username: string, email: string) =>
+  // Finds every user using this username, email or mobile.
+  findConflicts: (username: string, email: string, mobile?: string | null) =>
     prisma.users.findMany({
-      where: { OR: [{ username }, { email }] },
-      select: { user_id: true, is_email_verified: true },
+      where: {
+        OR: [
+          { username },
+          { email },
+          ...(mobile ? [{ mobile }] : []),
+        ],
+      },
+      select: { user_id: true, is_email_verified: true, mobile: true },
     }),
 
   // Deletes accounts that never verified. The guard stops it from ever deleting a verified user.
@@ -35,15 +42,17 @@ export const userRepository = {
 
   deleteOtp: (id: number) => prisma.user_otp.delete({ where: { id } }),
 
-  // Creates the user. The role is always set here, never by the client.
+  // Creates the user. Role comes from validated registration input (USER, ADMIN, or SUPER_ADMIN).
   create: (data: {
     username: string;
     full_name: string;
     email: string;
     password_hash: string;
+    role_id: string;
+    mobile?: string | null;
   }) =>
     prisma.users.create({
-      data: { ...data, role_id: RoleCode.USER, is_email_verified: false },
+      data: { ...data, is_email_verified: false },
       select: publicUserSelect,
     }),
 
@@ -69,6 +78,7 @@ export const userRepository = {
         username: true,
         full_name: true,
         email: true,
+        mobile: true,
         role_id: true,
         is_active: true,
       },
@@ -186,6 +196,43 @@ export const userRepository = {
         password_hash: passwordHash,
         refresh_token: null,
         updated_at: new Date(),
+      },
+    }),
+
+  // Fetch basic user fields for profile update checks.
+  findBasicById: (userId: number) =>
+    prisma.users.findUnique({
+      where: { user_id: userId },
+      select: { email: true, mobile: true, is_email_verified: true },
+    }),
+
+  // Find user by mobile number to prevent duplicate conflicts.
+  findByMobile: (mobile: string) =>
+    prisma.users.findUnique({
+      where: { mobile },
+      select: { user_id: true },
+    }),
+
+  // Persist full_name / mobile changes.
+  updateProfile: (
+    userId: number,
+    data: { full_name: string; mobile?: string | null },
+  ) =>
+    prisma.users.update({
+      where: { user_id: userId },
+      data: {
+        full_name: data.full_name,
+        ...(data.mobile !== undefined ? { mobile: data.mobile } : {}),
+        updated_at: new Date(),
+      },
+      select: {
+        user_id: true,
+        username: true,
+        full_name: true,
+        email: true,
+        mobile: true,
+        role_id: true,
+        is_active: true,
       },
     }),
 };

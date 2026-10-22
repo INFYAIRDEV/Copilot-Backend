@@ -16,6 +16,7 @@ import type {
   EmailOnlyInput,
   ResetPasswordInput,
   ChangePasswordInput,
+  UpdateProfileInput,
 } from "./user.validation.js";
 import { userRepository } from "./user.repository.js";
 import { logger } from "../../shared/utils/logger.js";
@@ -43,7 +44,7 @@ const issueOtp = async (
   if (
     latest &&
     Date.now() - latest.created_at.getTime() <
-      OTP_RESEND_COOLDOWN_SECONDS * 1000
+    OTP_RESEND_COOLDOWN_SECONDS * 1000
   ) {
     throw new TooManyRequestsError("user.otpResendTooSoon");
   }
@@ -129,9 +130,14 @@ export const userService = {
     const conflicts = await userRepository.findConflicts(
       input.username,
       input.email,
+      input.mobile,
     );
-    // A verified account owns the name and email. Unverified leftovers do not.
-    if (conflicts.some((u) => u.is_email_verified)) {
+    // A verified account owns the name, email, or mobile. Unverified leftovers do not.
+    const verified = conflicts.find((u) => u.is_email_verified);
+    if (verified) {
+      if (input.mobile && verified.mobile === input.mobile) {
+        throw new ConflictError("user.mobileAlreadyExists");
+      }
       throw new ConflictError("user.alreadyExists");
     }
     if (conflicts.length > 0) {
@@ -145,7 +151,9 @@ export const userService = {
         username: input.username,
         full_name: input.full_name,
         email: input.email,
+        mobile: input.mobile,
         password_hash,
+        role_id: input.role_id,
       });
 
       // try {
@@ -165,6 +173,7 @@ export const userService = {
         username: user.username,
         fullName: user.full_name,
         email: user.email,
+        mobile: user.mobile,
         role: user.role_id,
         createdAt: user.created_at,
       };
@@ -173,6 +182,10 @@ export const userService = {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === "P2002"
       ) {
+        const target = (error.meta?.target as string[]) || [];
+        if (target.includes("mobile")) {
+          throw new ConflictError("user.mobileAlreadyExists");
+        }
         throw new ConflictError("user.alreadyExists");
       }
       throw error;
@@ -222,8 +235,48 @@ export const userService = {
       username: user.username,
       fullName: user.full_name,
       email: user.email,
+      mobile: user.mobile,
       roleId: user.role_id,
     };
+  },
+  // Update profile (full name and mobile).
+  // The caller NEVER provides a userId from the request body; it must come from the JWT.
+  async updateProfile(userId: number, data: UpdateProfileInput) {
+    // Load the current state from the database.
+    const existing = await userRepository.findBasicById(userId);
+    if (!existing) throw new UnauthorizedError("user.unauthorized");
+
+    // Reject the new mobile if it is already owned by another account.
+    if (data.mobile && data.mobile !== existing.mobile) {
+      const conflict = await userRepository.findByMobile(data.mobile);
+      if (conflict && conflict.user_id !== userId) {
+        throw new ConflictError("user.mobileAlreadyExists");
+      }
+    }
+
+    try {
+      const updated = await userRepository.updateProfile(userId, {
+        full_name: data.full_name,
+        mobile: data.mobile,
+      });
+
+      return {
+        userId: updated.user_id,
+        username: updated.username,
+        fullName: updated.full_name,
+        email: updated.email,
+        mobile: updated.mobile,
+        roleId: updated.role_id,
+      };
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        throw new ConflictError("user.mobileAlreadyExists");
+      }
+      throw error;
+    }
   },
 
   async verifyEmail(input: VerifyEmailInput) {

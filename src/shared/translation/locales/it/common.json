@@ -29,6 +29,7 @@
     "emailInvalid": "Inserisci un indirizzo email valido",
     "confirmPasswordRequired": "Conferma la password",
     "confirmPasswordMismatch": "Le password non corrispondono",
+    "invalidRole": "Ruolo utente non valido. Ruoli consentiti: USER, ADMIN, SUPER_ADMIN",
     "invalidRequest": "Richiesta non valida",
     "alreadyExists": "Nome utente o email già registrati",
     "registered": "Registrazione completata. Controlla la tua email per il codice di verifica.",
@@ -60,7 +61,11 @@
     "loggedIn": "Accesso effettuato",
     "loginFailed": "Accesso non riuscito. Riprova più tardi.",
     "profileFetched": "Profilo recuperato",
-    "profileFailed": "Impossibile recuperare il profilo. Riprova più tardi."
+    "profileFailed": "Impossibile recuperare il profilo. Riprova più tardi.",
+    "profileUpdated": "Profilo aggiornato con successo",
+    "profileUpdateFailed": "Impossibile aggiornare il profilo. Riprova più tardi.",
+    "mobileInvalid": "Inserisci un numero di cellulare valido",
+    "mobileAlreadyExists": "Questo numero di cellulare è già registrato"
   },
   "ai": {
     "defaultNarrative": "Piano analitico candidato generato.",

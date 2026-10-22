@@ -29,6 +29,7 @@
     "emailInvalid": "Enter a valid email address",
     "confirmPasswordRequired": "Please confirm your password",
     "confirmPasswordMismatch": "Passwords do not match",
+    "invalidRole": "Invalid user role. Allowed roles: USER, ADMIN, SUPER_ADMIN",
     "invalidRequest": "Invalid request",
     "alreadyExists": "Username or email is already registered",
     "registered": "Registration successful. Check your email for the verification code.",
@@ -60,7 +61,11 @@
     "loggedIn": "Login successful",
     "loginFailed": "Login failed. Please try again later.",
     "profileFetched": "Profile retrieved",
-    "profileFailed": "Could not retrieve the profile. Please try again later."
+    "profileFailed": "Could not retrieve the profile. Please try again later.",
+    "profileUpdated": "Profile updated successfully",
+    "profileUpdateFailed": "Could not update the profile. Please try again later.",
+    "mobileInvalid": "Please enter a valid mobile number",
+    "mobileAlreadyExists": "This mobile number is already registered"
   },
   "ai": {
     "defaultNarrative": "Generated candidate analytical plan.",
