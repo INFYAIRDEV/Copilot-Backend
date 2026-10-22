@@ -576,7 +576,11 @@ export function createCopilotController(
 
         return ApiResponse.success(res, {
           statusCode: 200,
-          data: conv,
+          data: {
+            ...conv,
+            conversationId: conv.conversation_uuid,
+            messages: conv.conversation_message,
+          },
         });
       } catch (error) {
         return fail(res, error, locale);

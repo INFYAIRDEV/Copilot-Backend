@@ -157,7 +157,7 @@ async function runArchitectureValidationTests() {
       requestId: "test-arch-req-interpret",
       conversationId: "test-arch-conv-1",
       userId: "3",
-      aiSessionId: sharedAiSessionId,
+      aiSessionId: sharedAiSessionId || "session-default",
       question: "Show total sales by year.",
       result: mockMatrix,
       executionMetadata: {
