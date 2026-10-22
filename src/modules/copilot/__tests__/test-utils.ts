@@ -127,6 +127,62 @@ export function createMockConversationRepository(initialData?: {
       return conversations.find((c) => c.id === id) || null;
     },
 
+    async rename(conversation_uuid: string, owner_user_id: number, title: string) {
+      const conv = conversations.find(
+        (c) =>
+          c.conversation_uuid === conversation_uuid &&
+          c.owner_user_id === owner_user_id &&
+          c.deleted_at === null &&
+          c.state !== conversation_state.DELETED,
+      );
+      if (!conv) return null;
+      conv.analytical_context = {
+        ...(typeof conv.analytical_context === "object" && conv.analytical_context ? conv.analytical_context : {}),
+        title: title.trim(),
+      };
+      conv.updated_at = new Date();
+      audits.push({
+        sequence: nextAuditSeq++,
+        request_uuid: randomUUID(),
+        conversation_id: conv.id,
+        event_type: "CONVERSATION_RENAMED",
+        status: "SUCCESS",
+        payload: { title: title.trim() },
+      });
+      return {
+        conversation_uuid: conv.conversation_uuid,
+        title: title.trim(),
+        updated_at: conv.updated_at,
+      };
+    },
+
+    async softDelete(conversation_uuid: string, owner_user_id: number) {
+      const conv = conversations.find(
+        (c) =>
+          c.conversation_uuid === conversation_uuid &&
+          c.owner_user_id === owner_user_id &&
+          c.deleted_at === null &&
+          c.state !== conversation_state.DELETED,
+      );
+      if (!conv) return null;
+      conv.state = conversation_state.DELETED;
+      conv.deleted_at = new Date();
+      conv.updated_at = new Date();
+      audits.push({
+        sequence: nextAuditSeq++,
+        request_uuid: randomUUID(),
+        conversation_id: conv.id,
+        event_type: "CONVERSATION_DELETED",
+        status: "SUCCESS",
+        payload: { conversation_uuid },
+      });
+      return {
+        conversation_uuid: conv.conversation_uuid,
+        deleted: true,
+      };
+    },
+
+
     async updateAnalyticalContext(
       conversation_id: number,
       expected_version: number,
@@ -347,6 +403,7 @@ export function createMockConversationRepository(initialData?: {
         conversation_uuid: c.conversation_uuid,
         locale: c.locale,
         state: c.state,
+        analytical_context: c.analytical_context,
         created_at: c.created_at,
         updated_at: c.updated_at,
       }));

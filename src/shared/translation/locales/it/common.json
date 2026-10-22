@@ -276,7 +276,8 @@
       "CONVERSATION_NOT_ACTIVE": "La conversazione non è attiva",
       "INTERNAL_ERROR": "Errore interno del server",
       "IDEMPOTENCY_KEY_REUSED": "La chiave di idempotenza è stata usata con un corpo di richiesta diverso",
-      "INVALID_ANALYTICAL_CONTEXT": "Validazione del contesto non riuscita"
+      "INVALID_ANALYTICAL_CONTEXT": "Validazione del contesto non riuscita",
+      "CONVERSATION_NOT_FOUND": "Conversazione non trovata"
     },
     "contextValidation": {
       "forbiddenField": "Campo di sicurezza vietato nel contesto analitico: {{field}}",
@@ -300,6 +301,8 @@
       "invalidKind": "Tipo di messaggio non valido",
       "textRequired": "Il testo del messaggio è obbligatorio",
       "textTooLong": "Il testo del messaggio è troppo lungo",
+      "titleRequired": "Il titolo è obbligatorio",
+      "titleTooLong": "Il titolo deve contenere al massimo 255 caratteri",
       "invalidLocale": "Lingua non supportata. Usa inglese o italiano.",
       "invalidLimit": "Il limite deve essere un numero tra 1 e 100",
       "invalidCursor": "Cursore non valido o troppo lungo"
@@ -312,6 +315,8 @@
     },
     "controller": {
       "conversationCreated": "Conversazione creata",
+      "conversationRenamed": "Conversazione rinominata",
+      "conversationDeleted": "Conversazione eliminata",
       "invalidRequestBody": "Corpo della richiesta non valido",
       "messageAccepted": "Messaggio accettato",
       "permissionDenied": "Permesso negato",

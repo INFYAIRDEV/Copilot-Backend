@@ -69,3 +69,20 @@ export const historySchema = z.object({
 export const listConversationsSchema = z.object({
   query: z.object({ limit: limitSchema, cursor: cursorSchema }),
 });
+
+export const renameConversationSchema = z.object({
+  params: z.object({ id: uuidSchema }),
+  body: z
+    .object({
+      title: z
+        .string({ message: "copilot.validation.titleRequired" })
+        .trim()
+        .min(1, { message: "copilot.validation.titleRequired" })
+        .max(255, { message: "copilot.validation.titleTooLong" }),
+    })
+    .strict({ message: "copilot.validation.invalidRequest" }),
+});
+
+export const deleteConversationSchema = z.object({
+  params: z.object({ id: uuidSchema }),
+});

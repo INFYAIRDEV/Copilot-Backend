@@ -6,8 +6,10 @@ import { prisma } from "../../shared/utils/prismaClient.js";
 
 import {
   createConversationSchema,
+  deleteConversationSchema,
   historySchema,
   listConversationsSchema,
+  renameConversationSchema,
   sendMessageSchema,
 } from "./conversation.validation.js";
 
@@ -472,6 +474,85 @@ export function createCopilotController(
         return fail(res, error, locale);
       }
     },
+
+    async rename(req: Request, res: Response) {
+      const locale = getLocale(req);
+      if (!req.user || !req.user.user_id) {
+        return ApiResponse.error(res, {
+          statusCode: 401,
+          code: "UNAUTHENTICATED",
+          message: t("copilot.errors.UNAUTHENTICATED", { lng: locale }),
+        });
+      }
+
+      const parsed = renameConversationSchema.safeParse({
+        params: req.params,
+        body: req.body,
+      });
+      if (!parsed.success) {
+        return ApiResponse.error(res, {
+          statusCode: 400,
+          code: "VALIDATION_ERROR",
+          message: t("copilot.validation.invalidRequest", { lng: locale }),
+          error: translateIssues(parsed.error.issues, locale),
+        });
+      }
+
+      try {
+        const { id } = parsed.data.params;
+        const { title } = parsed.data.body;
+        const data = await service.renameConversation(
+          req.user.user_id,
+          id,
+          title,
+        );
+        return ApiResponse.success(res, {
+          statusCode: 200,
+          message: t("copilot.controller.conversationRenamed", { lng: locale }),
+          data,
+        });
+      } catch (error) {
+        return fail(res, error, locale);
+      }
+    },
+
+    async delete(req: Request, res: Response) {
+      const locale = getLocale(req);
+      if (!req.user || !req.user.user_id) {
+        return ApiResponse.error(res, {
+          statusCode: 401,
+          code: "UNAUTHENTICATED",
+          message: t("copilot.errors.UNAUTHENTICATED", { lng: locale }),
+        });
+      }
+
+      const parsed = deleteConversationSchema.safeParse({
+        params: req.params,
+      });
+      if (!parsed.success) {
+        return ApiResponse.error(res, {
+          statusCode: 400,
+          code: "VALIDATION_ERROR",
+          message: t("copilot.validation.invalidRequest", { lng: locale }),
+          error: translateIssues(parsed.error.issues, locale),
+        });
+      }
+
+      try {
+        const { id } = parsed.data.params;
+        const data = await service.deleteConversation(
+          req.user.user_id,
+          id,
+        );
+        return ApiResponse.success(res, {
+          statusCode: 200,
+          message: t("copilot.controller.conversationDeleted", { lng: locale }),
+          data,
+        });
+      } catch (error) {
+        return fail(res, error, locale);
+      }
+    },
     /**
      * POST /api/v1/copilot/query
      * Primary Sales Intelligence Copilot analytical query endpoint (Section 6 & Figure 1).
@@ -715,9 +796,9 @@ export async function generateAnalyticalPlan(req: Request, res: Response) {
       statusCode: 400,
       message: validation.error.issues[0]
         ? t(validation.error.issues[0].message, {
-            lng,
-            defaultValue: validation.error.issues[0].message,
-          })
+          lng,
+          defaultValue: validation.error.issues[0].message,
+        })
         : t("copilot.validation.invalidRequest", { lng }),
       error: validation.error.issues.map((i) => ({
         field: i.path.join("."),

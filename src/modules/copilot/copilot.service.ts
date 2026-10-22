@@ -217,6 +217,60 @@ export function createCopilotService(
       return repo.create(userId, locale as locale_code | undefined);
     },
 
+    async renameConversation(
+      userId: number,
+      conversationUuid: string,
+      title: string,
+    ) {
+      if (!Number.isSafeInteger(userId) || userId <= 0)
+        throw new CopilotError(
+          401,
+          "UNAUTHENTICATED",
+          "copilot.errors.UNAUTHENTICATED",
+        );
+
+      const trimmedTitle = (title || "").trim();
+      if (!trimmedTitle) {
+        throw new CopilotError(
+          400,
+          "VALIDATION_ERROR",
+          "copilot.validation.titleRequired",
+        );
+      }
+
+      const updated = await repo.rename(conversationUuid, userId, trimmedTitle);
+      if (!updated) {
+        throw new CopilotError(
+          404,
+          "CONVERSATION_NOT_FOUND",
+          "copilot.errors.CONVERSATION_NOT_FOUND",
+        );
+      }
+
+      return updated;
+    },
+
+    async deleteConversation(userId: number, conversationUuid: string) {
+      if (!Number.isSafeInteger(userId) || userId <= 0)
+        throw new CopilotError(
+          401,
+          "UNAUTHENTICATED",
+          "copilot.errors.UNAUTHENTICATED",
+        );
+
+      const deleted = await repo.softDelete(conversationUuid, userId);
+      if (!deleted) {
+        throw new CopilotError(
+          404,
+          "CONVERSATION_NOT_FOUND",
+          "copilot.errors.CONVERSATION_NOT_FOUND",
+        );
+      }
+
+      return deleted;
+    },
+
+
     async sendMessage(
       userId: number,
       conversationUuid: string,
@@ -349,10 +403,10 @@ export function createCopilotService(
       userOrTarget:
         | number
         | {
-            conversationId?: number;
-            conversationUuid?: string;
-            userId?: number;
-          },
+          conversationId?: number;
+          conversationUuid?: string;
+          userId?: number;
+        },
       conversationUuidOrBody: string | AssistantMessageInput,
       maybeBody?: AssistantMessageInput,
     ) {
@@ -418,7 +472,7 @@ export function createCopilotService(
 
       const kind = (
         body.kind &&
-        Object.values(message_kind).includes(body.kind as message_kind)
+          Object.values(message_kind).includes(body.kind as message_kind)
           ? body.kind
           : message_kind.CLARIFICATION_REQUEST
       ) as message_kind;
@@ -489,10 +543,10 @@ export function createCopilotService(
       const filterHash = computeFilterHash(filters);
       const after = cursor
         ? paginator.decodeConversationCursor(cursor, {
-            userId,
-            limit,
-            filterHash,
-          })
+          userId,
+          limit,
+          filterHash,
+        })
         : undefined;
       const rows = await repo.listUserConversations(userId, after, limit);
       const hasMore = rows.length > limit;
@@ -501,12 +555,12 @@ export function createCopilotService(
       const nextCursor =
         hasMore && last
           ? paginator.encodeConversationCursor({
-              userId,
-              conversationId: last.id,
-              limit,
-              createdAt: last.created_at,
-              filterHash,
-            })
+            userId,
+            conversationId: last.id,
+            limit,
+            createdAt: last.created_at,
+            filterHash,
+          })
           : null;
 
       await repo.auditConversationListRead({
@@ -531,7 +585,7 @@ export function createCopilotService(
       return {
         conversations: page.map((c: any) => ({
           conversation_uuid: c.conversation_uuid,
-          title: c.conversation_message?.[0]?.text || c.title || null,
+          title: (c.analytical_context as any)?.title || c.conversation_message?.[0]?.text || c.title || null,
           locale: c.locale,
           state: c.state,
           created_at: c.created_at,
@@ -576,11 +630,11 @@ export function createCopilotService(
       const filterHash = computeFilterHash(filters);
       const after = cursor
         ? paginator.decodeMessageCursor(cursor, {
-            userId,
-            conversationId: conversation.id,
-            limit,
-            filterHash,
-          })
+          userId,
+          conversationId: conversation.id,
+          limit,
+          filterHash,
+        })
         : undefined;
       const rows = await repo.historyPage(conversation.id, after, limit);
       const hasMore = rows.length > limit;
@@ -589,13 +643,13 @@ export function createCopilotService(
       const nextCursor =
         hasMore && last
           ? paginator.encodeMessageCursor({
-              userId,
-              conversationId: conversation.id,
-              limit,
-              createdAt: last.created_at,
-              messageId: last.id,
-              filterHash,
-            })
+            userId,
+            conversationId: conversation.id,
+            limit,
+            createdAt: last.created_at,
+            messageId: last.id,
+            filterHash,
+          })
           : null;
       await repo.auditHistoryRead({
         conversation_id: conversation.id,
@@ -619,6 +673,7 @@ export function createCopilotService(
       return {
         conversation: {
           conversation_uuid: conversation.conversation_uuid,
+          title: (conversation.analytical_context as any)?.title || null,
           locale: conversation.locale,
           state: conversation.state,
           created_at: conversation.created_at,
@@ -669,7 +724,7 @@ export function createCopilotService(
           400,
           "INVALID_ANALYTICAL_CONTEXT",
           validation.errors?.join("; ") ||
-            "copilot.errors.INVALID_ANALYTICAL_CONTEXT",
+          "copilot.errors.INVALID_ANALYTICAL_CONTEXT",
         );
       }
       return contextSvc.persistContext(
@@ -782,7 +837,7 @@ export function createCopilotService(
             400,
             "INVALID_ANALYTICAL_CONTEXT",
             validation.errors?.join("; ") ||
-              "copilot.errors.INVALID_ANALYTICAL_CONTEXT",
+            "copilot.errors.INVALID_ANALYTICAL_CONTEXT",
           );
         }
 
@@ -1177,7 +1232,7 @@ export const copilotService = {
 };
 
 export class CopilotService {
-  constructor(public aiServiceOrProvider?: any) {}
+  constructor(public aiServiceOrProvider?: any) { }
 
   async generateCandidateAnalyticalPlan(
     userPrompt: string,
