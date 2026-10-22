@@ -1,18 +1,19 @@
 import { Router } from "express";
 import { verifyAccessToken } from "../../shared/utils/jwt.js";
 import { copilotController } from "./copilot.controller.js";
-import { analyticsController } from "@/modules/analytics/analytics.controller.js";
+
 
 const router = Router();
 router.use(verifyAccessToken);
 
-// Track A Demonstrator Answer Endpoints (Accessible for UI and demo queries)
-router.get("/answers", analyticsController.listAnswers);
-router.get("/answers/:id", analyticsController.getAnswerById);
-router.get("/answers/:id/records", analyticsController.getSupportingRecords);
-router.post("/query", analyticsController.queryPipeline);
-router.get("/history", analyticsController.getHistory);
-router.get("/conversations/:id", analyticsController.getConversation);
+// Sales Intelligence Copilot Endpoints (MVP Dynamic SQL Workflow)
+router.post("/query", copilotController.query);
+router.get("/answers", copilotController.listAnswers);
+router.get("/answers/:id", copilotController.getAnswerById);
+router.get("/answers/:id/records", copilotController.getAnswerById);
+router.get("/history", copilotController.listConversations);
+router.get("/conversations/:id", copilotController.getConversation);
+
 
 router.get("/conversations", copilotController.listConversations);
 router.post("/conversations", copilotController.create);

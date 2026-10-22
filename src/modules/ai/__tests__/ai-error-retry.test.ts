@@ -1,4 +1,5 @@
 import assert from "node:assert";
+import "../../../shared/translation/i18n.js";
 import {
   ResilientAIProvider,
   CircuitBreaker,

@@ -1,59 +1,56 @@
--- CreateSchema
-CREATE SCHEMA IF NOT EXISTS "analytics";
+-- CreateEnum
+CREATE TYPE "public"."RoleCode" AS ENUM ('SUPER_ADMIN', 'ADMIN', 'USER');
 
 -- CreateEnum
-CREATE TYPE "analytics"."RoleCode" AS ENUM ('SUPER_ADMIN', 'USER');
+CREATE TYPE "public"."answer_status" AS ENUM ('SUCCESS', 'PARTIAL', 'EMPTY', 'REFUSED', 'FAILED');
 
 -- CreateEnum
-CREATE TYPE "analytics"."answer_status" AS ENUM ('SUCCESS', 'PARTIAL', 'EMPTY', 'REFUSED', 'FAILED');
+CREATE TYPE "public"."artifact_state" AS ENUM ('AVAILABLE', 'REVOKED', 'EXPIRED');
 
 -- CreateEnum
-CREATE TYPE "analytics"."artifact_state" AS ENUM ('AVAILABLE', 'REVOKED', 'EXPIRED');
+CREATE TYPE "public"."conversation_state" AS ENUM ('ACTIVE', 'ARCHIVED', 'DELETED');
 
 -- CreateEnum
-CREATE TYPE "analytics"."conversation_state" AS ENUM ('ACTIVE', 'ARCHIVED', 'DELETED');
+CREATE TYPE "public"."definition_state" AS ENUM ('DRAFT', 'ACTIVE', 'SUSPENDED', 'RETIRED');
 
 -- CreateEnum
-CREATE TYPE "analytics"."definition_state" AS ENUM ('DRAFT', 'ACTIVE', 'SUSPENDED', 'RETIRED');
+CREATE TYPE "public"."evaluation_result" AS ENUM ('PASS', 'FAIL');
 
 -- CreateEnum
-CREATE TYPE "analytics"."evaluation_result" AS ENUM ('PASS', 'FAIL');
+CREATE TYPE "public"."export_format" AS ENUM ('CSV', 'EXCEL', 'PDF');
 
 -- CreateEnum
-CREATE TYPE "analytics"."export_format" AS ENUM ('CSV', 'EXCEL', 'PDF');
+CREATE TYPE "public"."feedback_category" AS ENUM ('CORRECT', 'INCORRECT', 'WRONG_METRIC', 'MISSING_DATA');
 
 -- CreateEnum
-CREATE TYPE "analytics"."feedback_category" AS ENUM ('CORRECT', 'INCORRECT', 'WRONG_METRIC', 'MISSING_DATA');
+CREATE TYPE "public"."feedback_review_state" AS ENUM ('NEW', 'IN_REVIEW', 'RESOLVED', 'DISMISSED');
 
 -- CreateEnum
-CREATE TYPE "analytics"."feedback_review_state" AS ENUM ('NEW', 'IN_REVIEW', 'RESOLVED', 'DISMISSED');
+CREATE TYPE "public"."job_state" AS ENUM ('QUEUED', 'RUNNING', 'SUCCEEDED', 'FAILED', 'CANCEL_REQUESTED', 'CANCELLED', 'EXPIRED');
 
 -- CreateEnum
-CREATE TYPE "analytics"."job_state" AS ENUM ('QUEUED', 'RUNNING', 'SUCCEEDED', 'FAILED', 'CANCEL_REQUESTED', 'CANCELLED', 'EXPIRED');
+CREATE TYPE "public"."locale_code" AS ENUM ('en', 'it');
 
 -- CreateEnum
-CREATE TYPE "analytics"."locale_code" AS ENUM ('en', 'it');
+CREATE TYPE "public"."message_kind" AS ENUM ('QUESTION', 'CLARIFICATION_REQUEST', 'CLARIFICATION_REPLY');
 
 -- CreateEnum
-CREATE TYPE "analytics"."message_kind" AS ENUM ('QUESTION', 'CLARIFICATION_REQUEST', 'CLARIFICATION_REPLY');
+CREATE TYPE "public"."message_role" AS ENUM ('USER', 'ASSISTANT', 'SYSTEM');
 
 -- CreateEnum
-CREATE TYPE "analytics"."message_role" AS ENUM ('USER', 'ASSISTANT', 'SYSTEM');
+CREATE TYPE "public"."narration_source" AS ENUM ('MODEL', 'SERVER_TEMPLATE');
 
 -- CreateEnum
-CREATE TYPE "analytics"."narration_source" AS ENUM ('MODEL', 'SERVER_TEMPLATE');
+CREATE TYPE "public"."retention_class" AS ENUM ('STANDARD', 'SHORT', 'LEGAL_HOLD');
 
 -- CreateEnum
-CREATE TYPE "analytics"."retention_class" AS ENUM ('STANDARD', 'SHORT', 'LEGAL_HOLD');
+CREATE TYPE "public"."schedule_cadence" AS ENUM ('WEEKLY', 'MONTHLY', 'QUARTERLY', 'HALF_YEARLY', 'ANNUAL');
 
 -- CreateEnum
-CREATE TYPE "analytics"."schedule_cadence" AS ENUM ('WEEKLY', 'MONTHLY', 'QUARTERLY', 'HALF_YEARLY', 'ANNUAL');
-
--- CreateEnum
-CREATE TYPE "analytics"."schedule_state" AS ENUM ('DRAFT', 'ACTIVE', 'PAUSED', 'SUSPENDED_OWNER_INACTIVE', 'RETIRED');
+CREATE TYPE "public"."schedule_state" AS ENUM ('DRAFT', 'ACTIVE', 'PAUSED', 'SUSPENDED_OWNER_INACTIVE', 'RETIRED');
 
 -- CreateTable
-CREATE TABLE "analytics"."calendar_definition" (
+CREATE TABLE "public"."calendar_definition" (
     "id" SERIAL NOT NULL,
     "calendar_id" TEXT NOT NULL,
     "version" TEXT NOT NULL,
@@ -74,10 +71,10 @@ CREATE TABLE "analytics"."calendar_definition" (
 );
 
 -- CreateTable
-CREATE TABLE "analytics"."data_asset" (
+CREATE TABLE "public"."data_asset" (
     "asset_id" TEXT NOT NULL,
     "version" TEXT NOT NULL DEFAULT '1.0.0',
-    "object_schema" TEXT NOT NULL DEFAULT 'analytics',
+    "object_schema" TEXT NOT NULL DEFAULT 'public',
     "object_name" TEXT NOT NULL,
     "asset_type" TEXT NOT NULL,
     "grain" TEXT NOT NULL,
@@ -95,7 +92,7 @@ CREATE TABLE "analytics"."data_asset" (
 );
 
 -- CreateTable
-CREATE TABLE "analytics"."data_quality_rule" (
+CREATE TABLE "public"."data_quality_rule" (
     "id" SERIAL NOT NULL,
     "rule_id" TEXT NOT NULL,
     "asset_id" TEXT NOT NULL,
@@ -114,7 +111,7 @@ CREATE TABLE "analytics"."data_quality_rule" (
 );
 
 -- CreateTable
-CREATE TABLE "analytics"."dimension" (
+CREATE TABLE "public"."dimension" (
     "dimension_id" TEXT NOT NULL,
     "display_name" TEXT NOT NULL,
     "description" TEXT NOT NULL,
@@ -132,7 +129,7 @@ CREATE TABLE "analytics"."dimension" (
 );
 
 -- CreateTable
-CREATE TABLE "analytics"."metric" (
+CREATE TABLE "public"."metric" (
     "metric_id" TEXT NOT NULL,
     "display_name" TEXT NOT NULL,
     "description" TEXT NOT NULL,
@@ -146,7 +143,7 @@ CREATE TABLE "analytics"."metric" (
 );
 
 -- CreateTable
-CREATE TABLE "analytics"."metric_dimension_rule" (
+CREATE TABLE "public"."metric_dimension_rule" (
     "metric_id" TEXT NOT NULL,
     "metric_version" TEXT NOT NULL,
     "dimension_id" TEXT NOT NULL,
@@ -163,7 +160,7 @@ CREATE TABLE "analytics"."metric_dimension_rule" (
 );
 
 -- CreateTable
-CREATE TABLE "analytics"."metric_lineage" (
+CREATE TABLE "public"."metric_lineage" (
     "metric_id" TEXT NOT NULL,
     "metric_version" TEXT NOT NULL,
     "asset_id" TEXT NOT NULL,
@@ -177,7 +174,7 @@ CREATE TABLE "analytics"."metric_lineage" (
 );
 
 -- CreateTable
-CREATE TABLE "analytics"."metric_version" (
+CREATE TABLE "public"."metric_version" (
     "metric_id" TEXT NOT NULL,
     "version" TEXT NOT NULL,
     "business_definition" TEXT,
@@ -207,7 +204,7 @@ CREATE TABLE "analytics"."metric_version" (
 );
 
 -- CreateTable
-CREATE TABLE "analytics"."refresh_batch" (
+CREATE TABLE "public"."refresh_batch" (
     "id" SERIAL NOT NULL,
     "batch_key" TEXT NOT NULL,
     "asset_id" TEXT NOT NULL,
@@ -230,7 +227,7 @@ CREATE TABLE "analytics"."refresh_batch" (
 );
 
 -- CreateTable
-CREATE TABLE "analytics"."semantic_term" (
+CREATE TABLE "public"."semantic_term" (
     "locale" TEXT NOT NULL,
     "term" TEXT NOT NULL,
     "target_type" TEXT NOT NULL,
@@ -247,7 +244,7 @@ CREATE TABLE "analytics"."semantic_term" (
 );
 
 -- CreateTable
-CREATE TABLE "analytics"."snapshot_manifest" (
+CREATE TABLE "public"."snapshot_manifest" (
     "id" SERIAL NOT NULL,
     "snapshot_id" TEXT NOT NULL,
     "version" TEXT NOT NULL,
@@ -277,16 +274,16 @@ CREATE TABLE "analytics"."snapshot_manifest" (
 );
 
 -- CreateTable
-CREATE TABLE "analytics"."answer" (
+CREATE TABLE "public"."answer" (
     "id" SERIAL NOT NULL,
     "answer_uuid" UUID NOT NULL,
     "request_uuid" UUID NOT NULL,
     "policy_decision_uuid" UUID,
     "conversation_id" INTEGER NOT NULL,
     "message_id" INTEGER,
-    "status" "analytics"."answer_status" NOT NULL,
-    "locale" "analytics"."locale_code" NOT NULL DEFAULT 'en',
-    "retention_class" "analytics"."retention_class" NOT NULL DEFAULT 'STANDARD',
+    "status" "public"."answer_status" NOT NULL,
+    "locale" "public"."locale_code" NOT NULL DEFAULT 'en',
+    "retention_class" "public"."retention_class" NOT NULL DEFAULT 'STANDARD',
     "journey_no" INTEGER,
     "plan_hash" TEXT,
     "normalized_plan" JSONB,
@@ -299,7 +296,7 @@ CREATE TABLE "analytics"."answer" (
     "structured_result_ref" TEXT,
     "warnings" JSONB,
     "synthetic_label" BOOLEAN NOT NULL DEFAULT true,
-    "narration_source" "analytics"."narration_source",
+    "narration_source" "public"."narration_source",
     "policy_version" TEXT,
     "scope_hash" TEXT,
     "query_fingerprint" TEXT,
@@ -313,7 +310,7 @@ CREATE TABLE "analytics"."answer" (
 );
 
 -- CreateTable
-CREATE TABLE "analytics"."audit_event" (
+CREATE TABLE "public"."audit_event" (
     "id" BIGSERIAL NOT NULL,
     "event_day" DATE NOT NULL,
     "sequence" INTEGER NOT NULL,
@@ -338,13 +335,13 @@ CREATE TABLE "analytics"."audit_event" (
 );
 
 -- CreateTable
-CREATE TABLE "analytics"."conversation" (
+CREATE TABLE "public"."conversation" (
     "id" SERIAL NOT NULL,
     "conversation_uuid" UUID NOT NULL,
     "owner_user_id" INTEGER NOT NULL,
-    "locale" "analytics"."locale_code" NOT NULL DEFAULT 'en',
-    "state" "analytics"."conversation_state" NOT NULL DEFAULT 'ACTIVE',
-    "retention_class" "analytics"."retention_class" NOT NULL DEFAULT 'STANDARD',
+    "locale" "public"."locale_code" NOT NULL DEFAULT 'en',
+    "state" "public"."conversation_state" NOT NULL DEFAULT 'ACTIVE',
+    "retention_class" "public"."retention_class" NOT NULL DEFAULT 'STANDARD',
     "dataset_id" TEXT,
     "dataset_version" TEXT,
     "analytical_context" JSONB,
@@ -357,15 +354,15 @@ CREATE TABLE "analytics"."conversation" (
 );
 
 -- CreateTable
-CREATE TABLE "analytics"."conversation_message" (
+CREATE TABLE "public"."conversation_message" (
     "id" SERIAL NOT NULL,
     "conversation_id" INTEGER NOT NULL,
-    "role" "analytics"."message_role" NOT NULL,
-    "kind" "analytics"."message_kind" NOT NULL,
+    "role" "public"."message_role" NOT NULL,
+    "kind" "public"."message_kind" NOT NULL,
     "text" TEXT,
     "text_redacted" BOOLEAN NOT NULL DEFAULT false,
     "question_hash" TEXT,
-    "locale" "analytics"."locale_code" NOT NULL DEFAULT 'en',
+    "locale" "public"."locale_code" NOT NULL DEFAULT 'en',
     "request_uuid" UUID,
     "idempotency_key" TEXT,
     "canonical_body_hash" TEXT,
@@ -375,7 +372,7 @@ CREATE TABLE "analytics"."conversation_message" (
 );
 
 -- CreateTable
-CREATE TABLE "analytics"."evaluation_run" (
+CREATE TABLE "public"."evaluation_run" (
     "id" SERIAL NOT NULL,
     "suite" TEXT NOT NULL,
     "release_version" TEXT NOT NULL,
@@ -388,7 +385,7 @@ CREATE TABLE "analytics"."evaluation_run" (
     "total_checks" INTEGER NOT NULL,
     "passed_checks" INTEGER NOT NULL,
     "failed_checks" INTEGER NOT NULL,
-    "result" "analytics"."evaluation_result" NOT NULL,
+    "result" "public"."evaluation_result" NOT NULL,
     "details" JSONB,
     "started_at" TIMESTAMPTZ(6) NOT NULL,
     "finished_at" TIMESTAMPTZ(6),
@@ -398,14 +395,14 @@ CREATE TABLE "analytics"."evaluation_run" (
 );
 
 -- CreateTable
-CREATE TABLE "analytics"."export_job" (
+CREATE TABLE "public"."export_job" (
     "id" SERIAL NOT NULL,
     "export_uuid" UUID NOT NULL,
     "answer_id" INTEGER,
     "owner_user_id" INTEGER NOT NULL,
-    "format" "analytics"."export_format" NOT NULL,
-    "state" "analytics"."job_state" NOT NULL DEFAULT 'QUEUED',
-    "artifact_state" "analytics"."artifact_state",
+    "format" "public"."export_format" NOT NULL,
+    "state" "public"."job_state" NOT NULL DEFAULT 'QUEUED',
+    "artifact_state" "public"."artifact_state",
     "artifact_ref" TEXT,
     "scope_hash" TEXT,
     "masking_profile" TEXT,
@@ -421,7 +418,7 @@ CREATE TABLE "analytics"."export_job" (
 );
 
 -- CreateTable
-CREATE TABLE "analytics"."model_usage" (
+CREATE TABLE "public"."model_usage" (
     "id" SERIAL NOT NULL,
     "request_uuid" UUID NOT NULL,
     "answer_id" INTEGER,
@@ -441,11 +438,11 @@ CREATE TABLE "analytics"."model_usage" (
 );
 
 -- CreateTable
-CREATE TABLE "analytics"."report_definition" (
+CREATE TABLE "public"."report_definition" (
     "id" SERIAL NOT NULL,
     "owner_user_id" INTEGER NOT NULL,
     "title" TEXT NOT NULL,
-    "state" "analytics"."definition_state" NOT NULL DEFAULT 'DRAFT',
+    "state" "public"."definition_state" NOT NULL DEFAULT 'DRAFT',
     "report_template" TEXT,
     "config" JSONB NOT NULL,
     "filters" JSONB,
@@ -459,14 +456,14 @@ CREATE TABLE "analytics"."report_definition" (
 );
 
 -- CreateTable
-CREATE TABLE "analytics"."report_run" (
+CREATE TABLE "public"."report_run" (
     "id" SERIAL NOT NULL,
     "schedule_id" INTEGER NOT NULL,
     "planned_run_at" TIMESTAMPTZ(6) NOT NULL,
-    "state" "analytics"."job_state" NOT NULL DEFAULT 'QUEUED',
+    "state" "public"."job_state" NOT NULL DEFAULT 'QUEUED',
     "answer_id" INTEGER,
     "artifact_ref" TEXT,
-    "artifact_state" "analytics"."artifact_state",
+    "artifact_state" "public"."artifact_state",
     "error_code" TEXT,
     "lease_owner" TEXT,
     "lease_expires_at" TIMESTAMPTZ(6),
@@ -480,13 +477,13 @@ CREATE TABLE "analytics"."report_run" (
 );
 
 -- CreateTable
-CREATE TABLE "analytics"."report_schedule" (
+CREATE TABLE "public"."report_schedule" (
     "id" SERIAL NOT NULL,
     "report_definition_id" INTEGER NOT NULL,
     "owner_user_id" INTEGER NOT NULL,
     "timezone" TEXT NOT NULL DEFAULT 'Europe/Rome',
-    "cadence" "analytics"."schedule_cadence" NOT NULL,
-    "state" "analytics"."schedule_state" NOT NULL DEFAULT 'DRAFT',
+    "cadence" "public"."schedule_cadence" NOT NULL,
+    "state" "public"."schedule_state" NOT NULL DEFAULT 'DRAFT',
     "metric_versions" JSONB NOT NULL,
     "next_run_at" TIMESTAMPTZ(6),
     "lease_owner" TEXT,
@@ -500,7 +497,7 @@ CREATE TABLE "analytics"."report_schedule" (
 );
 
 -- CreateTable
-CREATE TABLE "analytics"."roles" (
+CREATE TABLE "public"."roles" (
     "role_id" SERIAL NOT NULL,
     "name" TEXT NOT NULL,
     "role_code" TEXT NOT NULL,
@@ -515,7 +512,7 @@ CREATE TABLE "analytics"."roles" (
 );
 
 -- CreateTable
-CREATE TABLE "analytics"."saved_question" (
+CREATE TABLE "public"."saved_question" (
     "id" SERIAL NOT NULL,
     "owner_user_id" INTEGER NOT NULL,
     "title" TEXT NOT NULL,
@@ -523,7 +520,7 @@ CREATE TABLE "analytics"."saved_question" (
     "normalized_plan" JSONB NOT NULL,
     "plan_hash" TEXT,
     "metric_versions" JSONB NOT NULL,
-    "locale" "analytics"."locale_code" NOT NULL DEFAULT 'en',
+    "locale" "public"."locale_code" NOT NULL DEFAULT 'en',
     "source_answer_id" INTEGER,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL,
@@ -533,13 +530,13 @@ CREATE TABLE "analytics"."saved_question" (
 );
 
 -- CreateTable
-CREATE TABLE "analytics"."user_feedback" (
+CREATE TABLE "public"."user_feedback" (
     "id" SERIAL NOT NULL,
     "answer_id" INTEGER NOT NULL,
     "user_id" INTEGER NOT NULL,
-    "category" "analytics"."feedback_category" NOT NULL,
+    "category" "public"."feedback_category" NOT NULL,
     "comment" TEXT,
-    "review_state" "analytics"."feedback_review_state" NOT NULL DEFAULT 'NEW',
+    "review_state" "public"."feedback_review_state" NOT NULL DEFAULT 'NEW',
     "reviewed_by" TEXT,
     "reviewed_at" TIMESTAMPTZ(6),
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -548,7 +545,7 @@ CREATE TABLE "analytics"."user_feedback" (
 );
 
 -- CreateTable
-CREATE TABLE "analytics"."users" (
+CREATE TABLE "public"."users" (
     "user_id" SERIAL NOT NULL,
     "username" TEXT NOT NULL,
     "password_hash" TEXT NOT NULL,
@@ -564,207 +561,229 @@ CREATE TABLE "analytics"."users" (
     "updated_at" TIMESTAMP(3),
     "updated_by" TEXT,
     "src_hash" TEXT,
+    "is_email_verified" BOOLEAN NOT NULL DEFAULT true,
+    "email_verified_at" TIMESTAMPTZ(6),
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("user_id")
 );
 
--- CreateIndex
-CREATE UNIQUE INDEX "uq_calendar_definition" ON "analytics"."calendar_definition"("calendar_id", "version");
+-- CreateTable
+CREATE TABLE "public"."user_otp" (
+    "id" SERIAL NOT NULL,
+    "user_id" INTEGER NOT NULL,
+    "purpose" TEXT NOT NULL,
+    "otp_hash" TEXT NOT NULL,
+    "expires_at" TIMESTAMPTZ(6) NOT NULL,
+    "attempts" INTEGER NOT NULL DEFAULT 0,
+    "consumed_at" TIMESTAMPTZ(6),
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "user_otp_pkey" PRIMARY KEY ("id")
+);
 
 -- CreateIndex
-CREATE INDEX "ix_data_asset_certification" ON "analytics"."data_asset"("certification_state");
+CREATE UNIQUE INDEX "uq_calendar_definition" ON "public"."calendar_definition"("calendar_id", "version");
 
 -- CreateIndex
-CREATE INDEX "ix_data_asset_object" ON "analytics"."data_asset"("object_schema", "object_name");
+CREATE INDEX "ix_data_asset_certification" ON "public"."data_asset"("certification_state");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "uq_data_asset_object_version" ON "analytics"."data_asset"("object_schema", "object_name", "version");
+CREATE INDEX "ix_data_asset_object" ON "public"."data_asset"("object_schema", "object_name");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "uq_data_asset_version" ON "analytics"."data_asset"("asset_id", "version");
+CREATE UNIQUE INDEX "uq_data_asset_object_version" ON "public"."data_asset"("object_schema", "object_name", "version");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "data_quality_rule_rule_id_key" ON "analytics"."data_quality_rule"("rule_id");
+CREATE UNIQUE INDEX "uq_data_asset_version" ON "public"."data_asset"("asset_id", "version");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "uq_analytics_dimension_dimension_id" ON "analytics"."dimension"("dimension_id");
+CREATE UNIQUE INDEX "data_quality_rule_rule_id_key" ON "public"."data_quality_rule"("rule_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "uq_analytics_metric_metric_id" ON "analytics"."metric"("metric_id");
+CREATE UNIQUE INDEX "uq_public_dimension_dimension_id" ON "public"."dimension"("dimension_id");
 
 -- CreateIndex
-CREATE INDEX "ix_metric_dimension_rule_dimension" ON "analytics"."metric_dimension_rule"("dimension_id");
+CREATE UNIQUE INDEX "uq_public_metric_metric_id" ON "public"."metric"("metric_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "uq_metric_dimension_rule" ON "analytics"."metric_dimension_rule"("metric_id", "metric_version", "dimension_id");
+CREATE INDEX "ix_metric_dimension_rule_dimension" ON "public"."metric_dimension_rule"("dimension_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "uq_metric_lineage" ON "analytics"."metric_lineage"("metric_id", "metric_version", "asset_id", "asset_version");
+CREATE UNIQUE INDEX "uq_metric_dimension_rule" ON "public"."metric_dimension_rule"("metric_id", "metric_version", "dimension_id");
 
 -- CreateIndex
-CREATE INDEX "ix_metric_version_metric" ON "analytics"."metric_version"("metric_id");
+CREATE UNIQUE INDEX "uq_metric_lineage" ON "public"."metric_lineage"("metric_id", "metric_version", "asset_id", "asset_version");
 
 -- CreateIndex
-CREATE INDEX "ix_metric_version_state" ON "analytics"."metric_version"("lifecycle_state");
+CREATE INDEX "ix_metric_version_metric" ON "public"."metric_version"("metric_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "uq_metric_version" ON "analytics"."metric_version"("metric_id", "version");
+CREATE INDEX "ix_metric_version_state" ON "public"."metric_version"("lifecycle_state");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "uq_refresh_batch" ON "analytics"."refresh_batch"("asset_id", "asset_version", "batch_key");
+CREATE UNIQUE INDEX "uq_metric_version" ON "public"."metric_version"("metric_id", "version");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "uq_snapshot_manifest" ON "analytics"."snapshot_manifest"("snapshot_id", "version");
+CREATE UNIQUE INDEX "uq_refresh_batch" ON "public"."refresh_batch"("asset_id", "asset_version", "batch_key");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "answer_answer_uuid_key" ON "analytics"."answer"("answer_uuid");
+CREATE UNIQUE INDEX "uq_snapshot_manifest" ON "public"."snapshot_manifest"("snapshot_id", "version");
 
 -- CreateIndex
-CREATE INDEX "answer_conversation_id_created_at_idx" ON "analytics"."answer"("conversation_id", "created_at");
+CREATE UNIQUE INDEX "answer_answer_uuid_key" ON "public"."answer"("answer_uuid");
 
 -- CreateIndex
-CREATE INDEX "answer_request_uuid_idx" ON "analytics"."answer"("request_uuid");
+CREATE INDEX "answer_conversation_id_created_at_idx" ON "public"."answer"("conversation_id", "created_at");
 
 -- CreateIndex
-CREATE INDEX "audit_event_event_type_created_at_idx" ON "analytics"."audit_event"("event_type", "created_at");
+CREATE INDEX "answer_request_uuid_idx" ON "public"."answer"("request_uuid");
 
 -- CreateIndex
-CREATE INDEX "audit_event_request_uuid_idx" ON "analytics"."audit_event"("request_uuid");
+CREATE INDEX "audit_event_event_type_created_at_idx" ON "public"."audit_event"("event_type", "created_at");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "audit_event_event_day_sequence_key" ON "analytics"."audit_event"("event_day", "sequence");
+CREATE INDEX "audit_event_request_uuid_idx" ON "public"."audit_event"("request_uuid");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "conversation_conversation_uuid_key" ON "analytics"."conversation"("conversation_uuid");
+CREATE UNIQUE INDEX "audit_event_event_day_sequence_key" ON "public"."audit_event"("event_day", "sequence");
 
 -- CreateIndex
-CREATE INDEX "conversation_owner_user_id_created_at_idx" ON "analytics"."conversation"("owner_user_id", "created_at");
+CREATE UNIQUE INDEX "conversation_conversation_uuid_key" ON "public"."conversation"("conversation_uuid");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "conversation_message_request_uuid_key" ON "analytics"."conversation_message"("request_uuid");
+CREATE INDEX "conversation_owner_user_id_created_at_idx" ON "public"."conversation"("owner_user_id", "created_at");
 
 -- CreateIndex
-CREATE INDEX "conversation_message_conversation_id_created_at_idx" ON "analytics"."conversation_message"("conversation_id", "created_at");
+CREATE UNIQUE INDEX "conversation_message_request_uuid_key" ON "public"."conversation_message"("request_uuid");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "conversation_message_conversation_id_idempotency_key_key" ON "analytics"."conversation_message"("conversation_id", "idempotency_key");
+CREATE INDEX "conversation_message_conversation_id_created_at_idx" ON "public"."conversation_message"("conversation_id", "created_at");
 
 -- CreateIndex
-CREATE INDEX "evaluation_run_release_version_created_at_idx" ON "analytics"."evaluation_run"("release_version", "created_at");
+CREATE UNIQUE INDEX "conversation_message_conversation_id_idempotency_key_key" ON "public"."conversation_message"("conversation_id", "idempotency_key");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "export_job_export_uuid_key" ON "analytics"."export_job"("export_uuid");
+CREATE INDEX "evaluation_run_release_version_created_at_idx" ON "public"."evaluation_run"("release_version", "created_at");
 
 -- CreateIndex
-CREATE INDEX "export_job_owner_user_id_expires_at_idx" ON "analytics"."export_job"("owner_user_id", "expires_at");
+CREATE UNIQUE INDEX "export_job_export_uuid_key" ON "public"."export_job"("export_uuid");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "export_job_owner_user_id_idempotency_key_key" ON "analytics"."export_job"("owner_user_id", "idempotency_key");
+CREATE INDEX "export_job_owner_user_id_expires_at_idx" ON "public"."export_job"("owner_user_id", "expires_at");
 
 -- CreateIndex
-CREATE INDEX "model_usage_created_at_idx" ON "analytics"."model_usage"("created_at");
+CREATE UNIQUE INDEX "export_job_owner_user_id_idempotency_key_key" ON "public"."export_job"("owner_user_id", "idempotency_key");
 
 -- CreateIndex
-CREATE INDEX "model_usage_request_uuid_idx" ON "analytics"."model_usage"("request_uuid");
+CREATE INDEX "model_usage_created_at_idx" ON "public"."model_usage"("created_at");
 
 -- CreateIndex
-CREATE INDEX "report_definition_owner_user_id_idx" ON "analytics"."report_definition"("owner_user_id");
+CREATE INDEX "model_usage_request_uuid_idx" ON "public"."model_usage"("request_uuid");
 
 -- CreateIndex
-CREATE INDEX "report_run_lease_expires_at_idx" ON "analytics"."report_run"("lease_expires_at");
+CREATE INDEX "report_definition_owner_user_id_idx" ON "public"."report_definition"("owner_user_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "report_run_schedule_id_planned_run_at_key" ON "analytics"."report_run"("schedule_id", "planned_run_at");
+CREATE INDEX "report_run_lease_expires_at_idx" ON "public"."report_run"("lease_expires_at");
 
 -- CreateIndex
-CREATE INDEX "report_schedule_lease_expires_at_idx" ON "analytics"."report_schedule"("lease_expires_at");
+CREATE UNIQUE INDEX "report_run_schedule_id_planned_run_at_key" ON "public"."report_run"("schedule_id", "planned_run_at");
 
 -- CreateIndex
-CREATE INDEX "report_schedule_state_next_run_at_idx" ON "analytics"."report_schedule"("state", "next_run_at");
+CREATE INDEX "report_schedule_lease_expires_at_idx" ON "public"."report_schedule"("lease_expires_at");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "roles_role_code_key" ON "analytics"."roles"("role_code");
+CREATE INDEX "report_schedule_state_next_run_at_idx" ON "public"."report_schedule"("state", "next_run_at");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "saved_question_owner_user_id_title_version_key" ON "analytics"."saved_question"("owner_user_id", "title", "version");
+CREATE UNIQUE INDEX "roles_role_code_key" ON "public"."roles"("role_code");
 
 -- CreateIndex
-CREATE INDEX "user_feedback_review_state_created_at_idx" ON "analytics"."user_feedback"("review_state", "created_at");
+CREATE UNIQUE INDEX "saved_question_owner_user_id_title_version_key" ON "public"."saved_question"("owner_user_id", "title", "version");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "user_feedback_answer_id_user_id_category_key" ON "analytics"."user_feedback"("answer_id", "user_id", "category");
+CREATE INDEX "user_feedback_review_state_created_at_idx" ON "public"."user_feedback"("review_state", "created_at");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "users_username_key" ON "analytics"."users"("username");
+CREATE UNIQUE INDEX "user_feedback_answer_id_user_id_category_key" ON "public"."user_feedback"("answer_id", "user_id", "category");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "users_email_key" ON "analytics"."users"("email");
+CREATE UNIQUE INDEX "users_username_key" ON "public"."users"("username");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "users_mobile_key" ON "analytics"."users"("mobile");
+CREATE UNIQUE INDEX "users_email_key" ON "public"."users"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "users_mobile_key" ON "public"."users"("mobile");
+
+-- CreateIndex
+CREATE INDEX "ix_user_otp_lookup" ON "public"."user_otp"("user_id", "purpose", "created_at");
 
 -- AddForeignKey
-ALTER TABLE "analytics"."data_quality_rule" ADD CONSTRAINT "fk_data_quality_rule_asset" FOREIGN KEY ("asset_id", "asset_version") REFERENCES "analytics"."data_asset"("asset_id", "version") ON DELETE NO ACTION ON UPDATE NO ACTION;
+ALTER TABLE "public"."data_quality_rule" ADD CONSTRAINT "fk_data_quality_rule_asset" FOREIGN KEY ("asset_id", "asset_version") REFERENCES "public"."data_asset"("asset_id", "version") ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 -- AddForeignKey
-ALTER TABLE "analytics"."metric_dimension_rule" ADD CONSTRAINT "fk_metric_dimension_rule_dimension" FOREIGN KEY ("dimension_id") REFERENCES "analytics"."dimension"("dimension_id") ON DELETE NO ACTION ON UPDATE NO ACTION;
+ALTER TABLE "public"."metric_dimension_rule" ADD CONSTRAINT "fk_metric_dimension_rule_dimension" FOREIGN KEY ("dimension_id") REFERENCES "public"."dimension"("dimension_id") ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 -- AddForeignKey
-ALTER TABLE "analytics"."metric_dimension_rule" ADD CONSTRAINT "fk_metric_dimension_rule_metric_version" FOREIGN KEY ("metric_id", "metric_version") REFERENCES "analytics"."metric_version"("metric_id", "version") ON DELETE NO ACTION ON UPDATE NO ACTION;
+ALTER TABLE "public"."metric_dimension_rule" ADD CONSTRAINT "fk_metric_dimension_rule_metric_version" FOREIGN KEY ("metric_id", "metric_version") REFERENCES "public"."metric_version"("metric_id", "version") ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 -- AddForeignKey
-ALTER TABLE "analytics"."metric_lineage" ADD CONSTRAINT "fk_metric_lineage_data_asset" FOREIGN KEY ("asset_id", "asset_version") REFERENCES "analytics"."data_asset"("asset_id", "version") ON DELETE NO ACTION ON UPDATE NO ACTION;
+ALTER TABLE "public"."metric_lineage" ADD CONSTRAINT "fk_metric_lineage_data_asset" FOREIGN KEY ("asset_id", "asset_version") REFERENCES "public"."data_asset"("asset_id", "version") ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 -- AddForeignKey
-ALTER TABLE "analytics"."metric_lineage" ADD CONSTRAINT "fk_metric_lineage_metric_version" FOREIGN KEY ("metric_id", "metric_version") REFERENCES "analytics"."metric_version"("metric_id", "version") ON DELETE NO ACTION ON UPDATE NO ACTION;
+ALTER TABLE "public"."metric_lineage" ADD CONSTRAINT "fk_metric_lineage_metric_version" FOREIGN KEY ("metric_id", "metric_version") REFERENCES "public"."metric_version"("metric_id", "version") ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 -- AddForeignKey
-ALTER TABLE "analytics"."metric_version" ADD CONSTRAINT "fk_metric_version_metric" FOREIGN KEY ("metric_id") REFERENCES "analytics"."metric"("metric_id") ON DELETE NO ACTION ON UPDATE NO ACTION;
+ALTER TABLE "public"."metric_version" ADD CONSTRAINT "fk_metric_version_metric" FOREIGN KEY ("metric_id") REFERENCES "public"."metric"("metric_id") ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 -- AddForeignKey
-ALTER TABLE "analytics"."refresh_batch" ADD CONSTRAINT "fk_refresh_batch_asset" FOREIGN KEY ("asset_id", "asset_version") REFERENCES "analytics"."data_asset"("asset_id", "version") ON DELETE NO ACTION ON UPDATE NO ACTION;
+ALTER TABLE "public"."refresh_batch" ADD CONSTRAINT "fk_refresh_batch_asset" FOREIGN KEY ("asset_id", "asset_version") REFERENCES "public"."data_asset"("asset_id", "version") ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 -- AddForeignKey
-ALTER TABLE "analytics"."semantic_term" ADD CONSTRAINT "fk_semantic_term_dimension" FOREIGN KEY ("dimension_id") REFERENCES "analytics"."dimension"("dimension_id") ON DELETE NO ACTION ON UPDATE NO ACTION;
+ALTER TABLE "public"."semantic_term" ADD CONSTRAINT "fk_semantic_term_dimension" FOREIGN KEY ("dimension_id") REFERENCES "public"."dimension"("dimension_id") ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 -- AddForeignKey
-ALTER TABLE "analytics"."semantic_term" ADD CONSTRAINT "fk_semantic_term_metric" FOREIGN KEY ("metric_id") REFERENCES "analytics"."metric"("metric_id") ON DELETE NO ACTION ON UPDATE NO ACTION;
+ALTER TABLE "public"."semantic_term" ADD CONSTRAINT "fk_semantic_term_metric" FOREIGN KEY ("metric_id") REFERENCES "public"."metric"("metric_id") ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 -- AddForeignKey
-ALTER TABLE "analytics"."answer" ADD CONSTRAINT "answer_conversation_id_fkey" FOREIGN KEY ("conversation_id") REFERENCES "analytics"."conversation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."answer" ADD CONSTRAINT "answer_conversation_id_fkey" FOREIGN KEY ("conversation_id") REFERENCES "public"."conversation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "analytics"."answer" ADD CONSTRAINT "answer_message_id_fkey" FOREIGN KEY ("message_id") REFERENCES "analytics"."conversation_message"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "public"."answer" ADD CONSTRAINT "answer_message_id_fkey" FOREIGN KEY ("message_id") REFERENCES "public"."conversation_message"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "analytics"."conversation" ADD CONSTRAINT "conversation_owner_user_id_fkey" FOREIGN KEY ("owner_user_id") REFERENCES "analytics"."users"("user_id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."conversation" ADD CONSTRAINT "conversation_owner_user_id_fkey" FOREIGN KEY ("owner_user_id") REFERENCES "public"."users"("user_id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "analytics"."conversation_message" ADD CONSTRAINT "conversation_message_conversation_id_fkey" FOREIGN KEY ("conversation_id") REFERENCES "analytics"."conversation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."conversation_message" ADD CONSTRAINT "conversation_message_conversation_id_fkey" FOREIGN KEY ("conversation_id") REFERENCES "public"."conversation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "analytics"."export_job" ADD CONSTRAINT "export_job_answer_id_fkey" FOREIGN KEY ("answer_id") REFERENCES "analytics"."answer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "public"."export_job" ADD CONSTRAINT "export_job_answer_id_fkey" FOREIGN KEY ("answer_id") REFERENCES "public"."answer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "analytics"."model_usage" ADD CONSTRAINT "model_usage_answer_id_fkey" FOREIGN KEY ("answer_id") REFERENCES "analytics"."answer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "public"."model_usage" ADD CONSTRAINT "model_usage_answer_id_fkey" FOREIGN KEY ("answer_id") REFERENCES "public"."answer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "analytics"."report_definition" ADD CONSTRAINT "report_definition_saved_question_id_fkey" FOREIGN KEY ("saved_question_id") REFERENCES "analytics"."saved_question"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "public"."report_definition" ADD CONSTRAINT "report_definition_saved_question_id_fkey" FOREIGN KEY ("saved_question_id") REFERENCES "public"."saved_question"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "analytics"."report_run" ADD CONSTRAINT "report_run_answer_id_fkey" FOREIGN KEY ("answer_id") REFERENCES "analytics"."answer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "public"."report_run" ADD CONSTRAINT "report_run_answer_id_fkey" FOREIGN KEY ("answer_id") REFERENCES "public"."answer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "analytics"."report_run" ADD CONSTRAINT "report_run_schedule_id_fkey" FOREIGN KEY ("schedule_id") REFERENCES "analytics"."report_schedule"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."report_run" ADD CONSTRAINT "report_run_schedule_id_fkey" FOREIGN KEY ("schedule_id") REFERENCES "public"."report_schedule"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "analytics"."report_schedule" ADD CONSTRAINT "report_schedule_report_definition_id_fkey" FOREIGN KEY ("report_definition_id") REFERENCES "analytics"."report_definition"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."report_schedule" ADD CONSTRAINT "report_schedule_report_definition_id_fkey" FOREIGN KEY ("report_definition_id") REFERENCES "public"."report_definition"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "analytics"."saved_question" ADD CONSTRAINT "saved_question_source_answer_id_fkey" FOREIGN KEY ("source_answer_id") REFERENCES "analytics"."answer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "public"."saved_question" ADD CONSTRAINT "saved_question_source_answer_id_fkey" FOREIGN KEY ("source_answer_id") REFERENCES "public"."answer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "analytics"."user_feedback" ADD CONSTRAINT "user_feedback_answer_id_fkey" FOREIGN KEY ("answer_id") REFERENCES "analytics"."answer"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."user_feedback" ADD CONSTRAINT "user_feedback_answer_id_fkey" FOREIGN KEY ("answer_id") REFERENCES "public"."answer"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "analytics"."users" ADD CONSTRAINT "users_role_id_fkey" FOREIGN KEY ("role_id") REFERENCES "analytics"."roles"("role_code") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "public"."users" ADD CONSTRAINT "users_role_id_fkey" FOREIGN KEY ("role_id") REFERENCES "public"."roles"("role_code") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."user_otp" ADD CONSTRAINT "user_otp_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("user_id") ON DELETE CASCADE ON UPDATE CASCADE;

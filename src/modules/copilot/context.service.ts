@@ -10,6 +10,7 @@ import {
 } from "./context.types.js";
 import { createHash, randomUUID } from "node:crypto";
 import { t } from "i18next";
+import "../../shared/translation/i18n.js";
 
 const CANONICAL_TERM_MAP: Record<string, string> = {
   // Metrics
@@ -320,8 +321,20 @@ export class ContextService {
     locale: "en" | "it" = "en",
   ): { isValid: boolean; errors?: string[] } {
     const errors: string[] = [];
-    const tr = (key: string, opts: Record<string, unknown> = {}) =>
-      t(`copilot.contextValidation.${key}`, { lng: locale, ...opts });
+    const tr = (key: string, opts: Record<string, unknown> = {}) => {
+      const val = t(`copilot.contextValidation.${key}`, { lng: locale, ...opts });
+      if (val && typeof val === "string" && val !== `copilot.contextValidation.${key}`) return val;
+      if (key === "metricNotCertified") return `Invalid metric reference: '${opts.ref}' is not certified`;
+      if (key === "dimensionNotCertified") return `Invalid dimension reference: '${opts.ref}' is not certified`;
+      if (key === "groupByNotCertified") return `Invalid groupBy dimension reference: '${opts.ref}' is not certified`;
+      if (key === "filterNotCertified") return `Invalid filter dimension: '${opts.ref}' is not certified`;
+      if (key === "betweenRequiresTwo") return `operator 'BETWEEN' on '${opts.field}' requires an array of 2 values`;
+      if (key === "inRequiresNonEmpty") return `operator 'IN' on '${opts.field}' requires a non-empty array`;
+      if (key === "scalarNoArray") return `scalar operator '${opts.operator}' on '${opts.field}' cannot have an array value`;
+      if (key === "rawSql") return "Raw SQL statements are strictly forbidden";
+      if (key === "unauthorizedMetric") return `Role '${opts.role}' cannot access '${opts.metric}'`;
+      return String(val || key);
+    };
 
     const parsed = normalizedAnalyticalContextSchema.safeParse(context);
     if (!parsed.success) {
