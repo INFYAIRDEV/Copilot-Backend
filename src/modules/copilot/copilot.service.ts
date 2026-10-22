@@ -808,6 +808,7 @@ export function createCopilotService(
 
 import { generateQueryFromAi, interpretResultFromAi } from "./ai-client.service.js";
 import { checkUserQuota, recordUserUsage } from "./quota.service.js";
+import { assertUserMonthlyQuota, recordAiTokenUsage } from "./ai-usage.service.js";
 import { checkUserAuthorization, executeReadOnlyQuery } from "./execution.service.js";
 import { prisma } from "../../shared/utils/prismaClient.js";
 import { logger } from "../../shared/utils/logger.js";
@@ -895,8 +896,11 @@ export async function processCopilotQuery(
   //   locale,
   // });
 
-  // 1. Quota Check (Section 8.2)
-  // await checkUserQuota(userId, roleId);
+  // 1. Monthly Token Quota Check (Section 8.2)
+  await assertUserMonthlyQuota(userId, roleId);
+
+  // Normalize locale to supported values ('en' | 'it'), default to 'en'
+  const resolvedLocale = locale === "it" ? "it" : "en";
 
   // 2. Load or Create Conversation
   let conversation: any = null;
@@ -905,7 +909,7 @@ export async function processCopilotQuery(
   }
 
   if (!conversation) {
-    const created = await conversationRepository.create(userId, locale as locale_code);
+    const created = await conversationRepository.create(userId, resolvedLocale as locale_code);
     conversation = await conversationRepository.findOwned(created.conversation_uuid, userId);
   }
 
@@ -915,7 +919,7 @@ export async function processCopilotQuery(
     role: message_role.USER,
     kind: message_kind.QUESTION,
     text: question,
-    locale: locale as locale_code,
+    locale: resolvedLocale as locale_code,
     request_uuid: requestId,
   });
 
@@ -924,16 +928,26 @@ export async function processCopilotQuery(
     (conversation.analytical_context as any)?.aiSessionId || null;
 
   // 5. Call Data/AI Query Service (API 1: POST /v1/query/generate)
-  console.log("before generateQueryFromAi")
+  console.log("before generateQueryFromAi with locale:", resolvedLocale);
   const aiResult = await generateQueryFromAi({
     requestId,
     conversationId: conversation.conversation_uuid,
     userId: `${userId}`,
-    aiSessionId: existingAiSessionId,
+    aiSessionId: existingAiSessionId ?? null,
     question,
-    locale,
+    locale: resolvedLocale,
   });
-  console.log("after generateQueryFromAi")
+  console.log("after generateQueryFromAi");
+
+  // Record token usage for /v1/query/generate
+  if ((aiResult as any).usage) {
+    await recordAiTokenUsage({
+      userId,
+      requestId,
+      endpoint: "/v1/query/generate",
+      usage: (aiResult as any).usage,
+    });
+  }
 
   // Save returned aiSessionId to conversation so follow-ups reuse the same session
   const returnedSessionId = (aiResult as any).aiSessionId;
@@ -962,7 +976,7 @@ export async function processCopilotQuery(
       conversation_id: conversation.id,
       kind: message_kind.CLARIFICATION_REQUEST,
       text: clarificationQuestion,
-      locale: locale as locale_code,
+      locale: resolvedLocale as locale_code,
       request_uuid: randomUUID(),
     });
 
@@ -989,11 +1003,22 @@ export async function processCopilotQuery(
     userId: `${userId}`,
     aiSessionId: returnedSessionId || existingAiSessionId,
     question,
+    locale: resolvedLocale,
     result: execution.matrixResult,
     executionMetadata: {
       durationMs: execution.durationMs,
     },
   });
+
+  // Record token usage for /v1/result/interpret
+  if ((interpretation as any).usage) {
+    await recordAiTokenUsage({
+      userId,
+      requestId,
+      endpoint: "/v1/result/interpret",
+      usage: (interpretation as any).usage,
+    });
+  }
 
   // 10. Record Model Usage
   await recordUserUsage({

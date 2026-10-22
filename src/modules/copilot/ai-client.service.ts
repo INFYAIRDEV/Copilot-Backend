@@ -116,13 +116,23 @@ export async function checkAiServiceHealth(): Promise<{ ok: boolean; status?: st
 export async function generateQueryFromAi(
   req: GenerateQueryRequest,
 ): Promise<ReadyQueryResponse | ClarificationResponse> {
+  const payload = {
+    requestId: req.requestId,
+    conversationId: req.conversationId,
+    userId: `${req.userId}`,
+    aiSessionId: req.aiSessionId ?? null,
+    locale: req.locale === "it" ? "it" : "en",
+    question: req.question,
+  };
+
   try {
-    console.log("generate api reached")
-    return await callAIService<ReadyQueryResponse | ClarificationResponse>(
+    console.log("generate api reached with locale:", payload.locale);
+    const result = await callAIService<ReadyQueryResponse | ClarificationResponse>(
       "/v1/query/generate",
-      req,
+      payload,
     );
-    console.log("generate api reached - resp")
+    console.log("generate api reached - resp");
+    return result;
   } catch (err: any) {
     logger.warn("Remote AI Query Service call failed, falling back to local engine:", err.message);
   }
@@ -137,12 +147,24 @@ export async function generateQueryFromAi(
 export async function interpretResultFromAi(
   req: InterpretResultRequest,
 ): Promise<InterpretResultResponse> {
+  const payload = {
+    requestId: req.requestId,
+    conversationId: req.conversationId,
+    userId: `${req.userId}`,
+    aiSessionId: req.aiSessionId ?? null,
+    locale: req.locale === "it" ? "it" : "en",
+    question: req.question,
+    result: req.result,
+    ...(req.executionMetadata ? { executionMetadata: req.executionMetadata } : {}),
+  };
+
   try {
-     const result=await callAIService<InterpretResultResponse>(
+    console.log("interpret api reached with locale:", payload.locale);
+    const result = await callAIService<InterpretResultResponse>(
       "/v1/result/interpret",
-      req,
+      payload,
     );
-    console.log("result from intepretation by ai",result)
+    console.log("result from intepretation by ai", result);
     return result;
   } catch (err: any) {
     logger.warn("Remote AI Interpretation call failed, falling back to local engine:", err.message);

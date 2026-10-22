@@ -15,6 +15,8 @@ export interface GenerateQueryRequest {
   };
 }
 
+import { TokenUsage } from "./ai-usage.service.js";
+
 export interface ReadyQueryResponse {
   requestId: string;
   conversationId: string;
@@ -36,6 +38,7 @@ export interface ReadyQueryResponse {
     x?: string;
     y?: string;
   };
+  usage?: TokenUsage;
 }
 
 export interface ClarificationResponse {
@@ -47,6 +50,7 @@ export interface ClarificationResponse {
   clarificationQuestion: string;
   question?: string;
   attemptCount: number;
+  usage?: TokenUsage;
 }
 
 export interface MatrixResultPayload {
@@ -62,6 +66,7 @@ export interface InterpretResultRequest {
   userId: string;
   aiSessionId: string;
   question: string;
+  locale?: string;
   result: MatrixResultPayload | {
     columns: Array<{ name: string; type: string }> | string[];
     rows: any[];
@@ -92,6 +97,7 @@ export interface InterpretResultResponse {
   rowsReceived?: number;
   rowsSentToModel?: number;
   code?: string | null;
+  usage?: TokenUsage;
 }
 
 /**

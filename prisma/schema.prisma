@@ -760,3 +760,20 @@ enum schedule_state {
 
   @@schema("public")
 }
+
+model ai_token_usage {
+  id             Int      @id @default(autoincrement())
+  user_id        Int
+  request_id     String   @db.VarChar(255)
+  endpoint       String   @db.VarChar(100)
+  input_tokens   Int      @default(0)
+  output_tokens  Int      @default(0)
+  thought_tokens Int      @default(0)
+  total_tokens   Int      @default(0)
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([request_id, endpoint], map: "uq_ai_token_usage_request_endpoint")
+  @@index([user_id, created_at], map: "idx_ai_token_usage_user_created")
+  @@schema("public")
+}
+
