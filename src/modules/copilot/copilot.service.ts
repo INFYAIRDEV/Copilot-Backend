@@ -216,6 +216,60 @@ export function createCopilotService(
       return repo.create(userId, locale as locale_code | undefined);
     },
 
+    async renameConversation(
+      userId: number,
+      conversationUuid: string,
+      title: string,
+    ) {
+      if (!Number.isSafeInteger(userId) || userId <= 0)
+        throw new CopilotError(
+          401,
+          "UNAUTHENTICATED",
+          "copilot.errors.UNAUTHENTICATED",
+        );
+
+      const trimmedTitle = (title || "").trim();
+      if (!trimmedTitle) {
+        throw new CopilotError(
+          400,
+          "VALIDATION_ERROR",
+          "copilot.validation.titleRequired",
+        );
+      }
+
+      const updated = await repo.rename(conversationUuid, userId, trimmedTitle);
+      if (!updated) {
+        throw new CopilotError(
+          404,
+          "CONVERSATION_NOT_FOUND",
+          "copilot.errors.CONVERSATION_NOT_FOUND",
+        );
+      }
+
+      return updated;
+    },
+
+    async deleteConversation(userId: number, conversationUuid: string) {
+      if (!Number.isSafeInteger(userId) || userId <= 0)
+        throw new CopilotError(
+          401,
+          "UNAUTHENTICATED",
+          "copilot.errors.UNAUTHENTICATED",
+        );
+
+      const deleted = await repo.softDelete(conversationUuid, userId);
+      if (!deleted) {
+        throw new CopilotError(
+          404,
+          "CONVERSATION_NOT_FOUND",
+          "copilot.errors.CONVERSATION_NOT_FOUND",
+        );
+      }
+
+      return deleted;
+    },
+
+
     async sendMessage(
       userId: number,
       conversationUuid: string,
@@ -530,6 +584,7 @@ export function createCopilotService(
       return {
         conversations: page.map((c) => ({
           conversation_uuid: c.conversation_uuid,
+          title: (c.analytical_context as any)?.title || null,
           locale: c.locale,
           state: c.state,
           created_at: c.created_at,
@@ -617,6 +672,7 @@ export function createCopilotService(
       return {
         conversation: {
           conversation_uuid: conversation.conversation_uuid,
+          title: (conversation.analytical_context as any)?.title || null,
           locale: conversation.locale,
           state: conversation.state,
           created_at: conversation.created_at,

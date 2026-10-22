@@ -16,6 +16,8 @@ router.get("/conversations/:id", analyticsController.getConversation);
 
 router.get("/conversations", copilotController.listConversations);
 router.post("/conversations", copilotController.create);
+router.patch("/conversations/:id", copilotController.rename);
+router.delete("/conversations/:id", copilotController.delete);
 router.post("/conversations/:id/messages", copilotController.sendMessage);
 router.post(
   "/conversations/:id/messages/stream",

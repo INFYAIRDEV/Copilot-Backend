@@ -3,8 +3,10 @@ import { ApiResponse } from "../../shared/types/response.js";
 import { CopilotError, copilotService } from "./copilot.service.js";
 import {
   createConversationSchema,
+  deleteConversationSchema,
   historySchema,
   listConversationsSchema,
+  renameConversationSchema,
   sendMessageSchema,
 } from "./conversation.validation.js";
 
@@ -451,6 +453,85 @@ export function createCopilotController(
           message: t("copilot.controller.conversationHistory", {
             lng: locale,
           }),
+          data,
+        });
+      } catch (error) {
+        return fail(res, error, locale);
+      }
+    },
+
+    async rename(req: Request, res: Response) {
+      const locale = getLocale(req);
+      if (!req.user || !req.user.user_id) {
+        return ApiResponse.error(res, {
+          statusCode: 401,
+          code: "UNAUTHENTICATED",
+          message: t("copilot.errors.UNAUTHENTICATED", { lng: locale }),
+        });
+      }
+
+      const parsed = renameConversationSchema.safeParse({
+        params: req.params,
+        body: req.body,
+      });
+      if (!parsed.success) {
+        return ApiResponse.error(res, {
+          statusCode: 400,
+          code: "VALIDATION_ERROR",
+          message: t("copilot.validation.invalidRequest", { lng: locale }),
+          error: translateIssues(parsed.error.issues, locale),
+        });
+      }
+
+      try {
+        const { id } = parsed.data.params;
+        const { title } = parsed.data.body;
+        const data = await service.renameConversation(
+          req.user.user_id,
+          id,
+          title,
+        );
+        return ApiResponse.success(res, {
+          statusCode: 200,
+          message: t("copilot.controller.conversationRenamed", { lng: locale }),
+          data,
+        });
+      } catch (error) {
+        return fail(res, error, locale);
+      }
+    },
+
+    async delete(req: Request, res: Response) {
+      const locale = getLocale(req);
+      if (!req.user || !req.user.user_id) {
+        return ApiResponse.error(res, {
+          statusCode: 401,
+          code: "UNAUTHENTICATED",
+          message: t("copilot.errors.UNAUTHENTICATED", { lng: locale }),
+        });
+      }
+
+      const parsed = deleteConversationSchema.safeParse({
+        params: req.params,
+      });
+      if (!parsed.success) {
+        return ApiResponse.error(res, {
+          statusCode: 400,
+          code: "VALIDATION_ERROR",
+          message: t("copilot.validation.invalidRequest", { lng: locale }),
+          error: translateIssues(parsed.error.issues, locale),
+        });
+      }
+
+      try {
+        const { id } = parsed.data.params;
+        const data = await service.deleteConversation(
+          req.user.user_id,
+          id,
+        );
+        return ApiResponse.success(res, {
+          statusCode: 200,
+          message: t("copilot.controller.conversationDeleted", { lng: locale }),
           data,
         });
       } catch (error) {

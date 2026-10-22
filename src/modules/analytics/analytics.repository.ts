@@ -383,12 +383,15 @@ export class AnalyticsRepository {
       SELECT
         c.conversation_uuid AS id,
         c.updated_at AS created_at,
-        (
-          SELECT cm.text
-          FROM analytics.conversation_message cm
-          WHERE cm.conversation_id = c.id AND cm.role = 'USER' AND cm.text IS NOT NULL
-          ORDER BY cm.created_at ASC
-          LIMIT 1
+        COALESCE(
+          c.analytical_context->>'title',
+          (
+            SELECT cm.text
+            FROM analytics.conversation_message cm
+            WHERE cm.conversation_id = c.id AND cm.role = 'USER' AND cm.text IS NOT NULL
+            ORDER BY cm.created_at ASC
+            LIMIT 1
+          )
         ) AS title
       FROM analytics.conversation c
       WHERE c.owner_user_id = $1

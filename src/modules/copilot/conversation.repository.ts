@@ -103,6 +103,104 @@ export const conversationRepository = {
       where: { id },
     }),
 
+  rename: (conversation_uuid: string, owner_user_id: number, title: string) =>
+    auditedTransaction(async (tx) => {
+      const conv = await tx.conversation.findFirst({
+        where: {
+          conversation_uuid,
+          owner_user_id,
+          deleted_at: null,
+          state: { not: conversation_state.DELETED },
+        },
+      });
+
+      if (!conv) {
+        return null;
+      }
+
+      const existingContext =
+        conv.analytical_context &&
+        typeof conv.analytical_context === "object" &&
+        !Array.isArray(conv.analytical_context)
+          ? (conv.analytical_context as Record<string, any>)
+          : {};
+
+      const updatedContext = {
+        ...existingContext,
+        title: title.trim(),
+      };
+
+      const updated = await tx.conversation.update({
+        where: { id: conv.id },
+        data: {
+          analytical_context: updatedContext,
+          updated_at: new Date(),
+        },
+        select: {
+          id: true,
+          conversation_uuid: true,
+          locale: true,
+          state: true,
+          analytical_context: true,
+          created_at: true,
+          updated_at: true,
+        },
+      });
+
+      await appendAudit(tx, {
+        request_uuid: randomUUID(),
+        conversation_id: conv.id,
+        event_type: "CONVERSATION_RENAMED",
+        status: "SUCCESS",
+        payload: { title: title.trim() },
+      });
+
+      return {
+        conversation_uuid: updated.conversation_uuid,
+        title: title.trim(),
+        updated_at: updated.updated_at,
+      };
+    }),
+
+  softDelete: (conversation_uuid: string, owner_user_id: number) =>
+    auditedTransaction(async (tx) => {
+      const conv = await tx.conversation.findFirst({
+        where: {
+          conversation_uuid,
+          owner_user_id,
+          deleted_at: null,
+          state: { not: conversation_state.DELETED },
+        },
+      });
+
+      if (!conv) {
+        return null;
+      }
+
+      await tx.conversation.update({
+        where: { id: conv.id },
+        data: {
+          state: conversation_state.DELETED,
+          deleted_at: new Date(),
+          updated_at: new Date(),
+        },
+      });
+
+      await appendAudit(tx, {
+        request_uuid: randomUUID(),
+        conversation_id: conv.id,
+        event_type: "CONVERSATION_DELETED",
+        status: "SUCCESS",
+        payload: { conversation_uuid },
+      });
+
+      return {
+        conversation_uuid: conv.conversation_uuid,
+        deleted: true,
+      };
+    }),
+
+
   updateAnalyticalContext: async (
     conversation_id: number,
     expected_version: number,
@@ -292,6 +390,7 @@ export const conversationRepository = {
         conversation_uuid: true,
         locale: true,
         state: true,
+        analytical_context: true,
         created_at: true,
         updated_at: true,
       },

@@ -276,7 +276,8 @@
       "CONVERSATION_NOT_ACTIVE": "Conversation is not active",
       "INTERNAL_ERROR": "Internal server error",
       "IDEMPOTENCY_KEY_REUSED": "Idempotency-Key was used with a different request body",
-      "INVALID_ANALYTICAL_CONTEXT": "Context validation failed"
+      "INVALID_ANALYTICAL_CONTEXT": "Context validation failed",
+      "CONVERSATION_NOT_FOUND": "Conversation not found"
     },
     "contextValidation": {
       "forbiddenField": "Forbidden security field in analytical context: {{field}}",
@@ -300,6 +301,8 @@
       "invalidKind": "Invalid message type",
       "textRequired": "Message text is required",
       "textTooLong": "Message text is too long",
+      "titleRequired": "Title is required",
+      "titleTooLong": "Title must be at most 255 characters",
       "invalidLocale": "Unsupported language. Use English or Italian.",
       "invalidLimit": "Limit must be a number between 1 and 100",
       "invalidCursor": "Invalid or too long cursor"
@@ -312,6 +315,8 @@
     },
     "controller": {
       "conversationCreated": "Conversation created",
+      "conversationRenamed": "Conversation renamed",
+      "conversationDeleted": "Conversation deleted",
       "invalidRequestBody": "Invalid request body",
       "messageAccepted": "Message accepted",
       "permissionDenied": "Permission denied",
