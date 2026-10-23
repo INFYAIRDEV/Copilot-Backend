@@ -8,6 +8,7 @@ router.use(verifyAccessToken);
 
 // Sales Intelligence Copilot Endpoints (MVP Dynamic SQL Workflow)
 router.post("/query", copilotController.query);
+router.get("/usage", copilotController.getUsage);
 router.get("/answers", copilotController.listAnswers);
 router.get("/answers/:id", copilotController.getAnswerById);
 router.get("/answers/:id/records", copilotController.getAnswerById);

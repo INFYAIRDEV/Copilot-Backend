@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { ApiResponse } from "../../shared/types/response.js";
 import { CopilotError, copilotService, processCopilotQuery } from "./copilot.service.js";
+import { getUserTokenUsage } from "./ai-usage.service.js";
 import { prisma } from "../../shared/utils/prismaClient.js";
 
 import {
@@ -697,6 +698,35 @@ export function createCopilotController(
           data: answers,
         });
       } catch (error) {
+        return fail(res, error, locale);
+      }
+    },
+
+    /**
+     * GET /api/v1/copilot/usage (or /api/copilot/usage)
+     * Returns monthly token allowance, used tokens this month, remaining tokens, percentage used, and reset date.
+     */
+    async getUsage(req: Request, res: Response) {
+      const locale = getLocale(req);
+      if (!req.user || !req.user.user_id) {
+        return ApiResponse.error(res, {
+          statusCode: 401,
+          code: "UNAUTHENTICATED",
+          message: t("copilot.errors.UNAUTHENTICATED", { lng: locale }),
+        });
+      }
+
+      try {
+        const userId = Number(req.user.user_id);
+        const roleId = (req.user as any)?.role_id;
+        const summary = await getUserTokenUsage(userId, roleId);
+
+        return res.status(200).json({
+          success: true,
+          ...summary,
+          data: summary,
+        });
+      } catch (error: any) {
         return fail(res, error, locale);
       }
     },

@@ -5,6 +5,7 @@ import {
   GenerateQueryRequest,
   ReadyQueryResponse,
   ClarificationResponse,
+  FailedQueryResponse,
   InterpretResultRequest,
   InterpretResultResponse,
 } from "./ai-query.service.js";
@@ -115,15 +116,38 @@ export async function checkAiServiceHealth(): Promise<{ ok: boolean; status?: st
  */
 export async function generateQueryFromAi(
   req: GenerateQueryRequest,
-): Promise<ReadyQueryResponse | ClarificationResponse> {
+): Promise<ReadyQueryResponse | ClarificationResponse | FailedQueryResponse> {
+  const payload = {
+    requestId: req.requestId,
+    conversationId: req.conversationId,
+    userId: `${req.userId}`,
+    aiSessionId: req.aiSessionId ?? null,
+    locale: req.locale === "it" ? "it" : "en",
+    question: req.question,
+  };
+
   try {
-    console.log("generate api reached")
-    return await callAIService<ReadyQueryResponse | ClarificationResponse>(
+    console.log("generate api reached with locale:", payload.locale);
+    const result = await callAIService<ReadyQueryResponse | ClarificationResponse | FailedQueryResponse>(
       "/v1/query/generate",
-      req,
+      payload,
     );
-    console.log("generate api reached - resp")
+    console.log("generate api reached - resp");
+    return result;
   } catch (err: any) {
+    if (payload.aiSessionId && String(err.message).toLowerCase().includes("not found")) {
+      logger.warn(`Remote AI session expired or not found (${payload.aiSessionId}), retrying with fresh session...`);
+      try {
+        const retryPayload = { ...payload, aiSessionId: null };
+        const result = await callAIService<ReadyQueryResponse | ClarificationResponse | FailedQueryResponse>(
+          "/v1/query/generate",
+          retryPayload,
+        );
+        return result;
+      } catch (retryErr: any) {
+        logger.warn("Retry with fresh session failed:", retryErr.message);
+      }
+    }
     logger.warn("Remote AI Query Service call failed, falling back to local engine:", err.message);
   }
 
@@ -137,14 +161,39 @@ export async function generateQueryFromAi(
 export async function interpretResultFromAi(
   req: InterpretResultRequest,
 ): Promise<InterpretResultResponse> {
+  const payload = {
+    requestId: req.requestId,
+    conversationId: req.conversationId,
+    userId: `${req.userId}`,
+    aiSessionId: req.aiSessionId ?? null,
+    locale: req.locale === "it" ? "it" : "en",
+    question: req.question,
+    result: req.result,
+    ...(req.executionMetadata ? { executionMetadata: req.executionMetadata } : {}),
+  };
+
   try {
+    console.log("interpret api reached with locale:", payload.locale);
     const result = await callAIService<InterpretResultResponse>(
       "/v1/result/interpret",
-      req,
+      payload,
     );
-    console.log("result from intepretation by ai", result)
+    console.log("result from intepretation by ai", result);
     return result;
   } catch (err: any) {
+    if (payload.aiSessionId && String(err.message).toLowerCase().includes("not found")) {
+      logger.warn(`Remote AI session expired or not found (${payload.aiSessionId}), retrying interpretation with fresh session...`);
+      try {
+        const retryPayload = { ...payload, aiSessionId: null };
+        const result = await callAIService<InterpretResultResponse>(
+          "/v1/result/interpret",
+          retryPayload,
+        );
+        return result;
+      } catch (retryErr: any) {
+        logger.warn("Retry interpretation with fresh session failed:", retryErr.message);
+      }
+    }
     logger.warn("Remote AI Interpretation call failed, falling back to local engine:", err.message);
   }
   // Fallback to local executive narration engine
