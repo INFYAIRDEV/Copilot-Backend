@@ -1045,6 +1045,52 @@ export async function processCopilotQuery(
     };
   }
 
+  // 6.5 Handle FAILED status or ungeneratable query (e.g., requested year is outside database range)
+  if (aiResult.status === "FAILED" || !aiResult.sql) {
+    const fallbackAnswer =
+      resolvedLocale === "it"
+        ? "La richiesta non può essere elaborata con i dati disponibili"
+        : "The requested query could not be performed on the available dataset";
+
+    const completeAnswer = {
+      id: randomUUID(),
+      question,
+      summary: fallbackAnswer,
+      answer: fallbackAnswer,
+      chart: { type: "none" },
+      table: { columns: [], rows: [] },
+      sql: "",
+      rowCount: 0,
+      truncated: false,
+      durationMs: 0,
+      aiSessionId: returnedSessionId || existingAiSessionId,
+    };
+
+    await conversationRepository.createAssistantMessage({
+      conversation_id: conversation.id,
+      kind: message_kind.QUESTION,
+      text: JSON.stringify(completeAnswer),
+      locale: resolvedLocale as locale_code,
+      request_uuid: randomUUID(),
+    });
+
+    return {
+      status: "SUCCESS",
+      requestId,
+      conversationId: conversation.conversation_uuid,
+      aiSessionId: returnedSessionId || existingAiSessionId,
+      question,
+      summary: fallbackAnswer,
+      answer: fallbackAnswer,
+      chart: { type: "none" },
+      table: { columns: [], rows: [] },
+      sql: "",
+      rowCount: 0,
+      truncated: false,
+      executionMetadata: { durationMs: 0 },
+    };
+  }
+
   // 7. Backend RBAC / Authorization check (Section 6.3 & 10)
   checkUserAuthorization({ id: userId, role_id: roleId }, aiResult.referencedTables, aiResult.referencedColumns);
 

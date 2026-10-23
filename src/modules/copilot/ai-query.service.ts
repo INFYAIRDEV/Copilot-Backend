@@ -53,6 +53,22 @@ export interface ClarificationResponse {
   usage?: TokenUsage;
 }
 
+export interface FailedQueryResponse {
+  requestId: string;
+  conversationId: string;
+  aiSessionId: string;
+  status: "FAILED";
+  sql?: null;
+  referencedTables?: string[];
+  referencedColumns?: string[];
+  clarificationQuestion?: null;
+  reasoningSummary?: null;
+  attemptCount: number;
+  code?: string | null;
+  retryable?: boolean | null;
+  usage?: TokenUsage;
+}
+
 export interface MatrixResultPayload {
   columns: string[];
   rows: any[][];
