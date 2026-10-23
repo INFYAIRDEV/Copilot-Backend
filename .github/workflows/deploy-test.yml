@@ -1,0 +1,200 @@
+
+name: Deploy Copilot Backend to GCP Test VM
+
+on:
+  push:
+    branches:
+      - main # Change this to your actual deployment branch
+
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: infysuite-copilot-mvp
+  REGION: europe-west1
+  REPOSITORY: copilot
+  IMAGE_NAME: copilot-backend
+  CONTAINER_NAME: copilot-backend
+  VM_APP_DIR: /opt/copilot
+
+jobs:
+  build-and-deploy:
+    name: Build, Push and Deploy
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      # 1. Checkout source code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Authenticate to Google Cloud using Workload Identity Federation
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      # 3. Configure Google Cloud SDK
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      # 4. Configure Docker authentication
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+
+      # 5. Build and push the Docker image
+      - name: Build and push Docker image
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          IMAGE_URI="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE_NAME}:${IMAGE_TAG}"
+
+          echo "Building Docker image: ${IMAGE_URI}"
+
+          docker build --pull -t "${IMAGE_URI}" .
+
+          docker push "${IMAGE_URI}"
+
+          echo "IMAGE_URI=${IMAGE_URI}" >> "$GITHUB_ENV"
+
+      # 6. Deploy to the GCP test VM over SSH
+      - name: Deploy to GCP test VM
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          IMAGE_URI: ${{ env.IMAGE_URI }}
+          VM_APP_DIR: ${{ env.VM_APP_DIR }}
+          CONTAINER_NAME: ${{ env.CONTAINER_NAME }}
+        with:
+          host: ${{ secrets.COPILOT_GCE_HOST }}
+          username: ${{ secrets.COPILOT_GCE_USER }}
+          key: ${{ secrets.COPILOT_GCE_PRIVATE_KEY }}
+          envs: IMAGE_URI,VM_APP_DIR,CONTAINER_NAME
+          command_timeout: 10m
+          script: |
+            set -eu
+
+            echo "Starting deployment of ${IMAGE_URI}"
+
+            # Verify the application environment file exists.
+            if ! sudo test -f "${VM_APP_DIR}/.env"; then
+              echo "ERROR: ${VM_APP_DIR}/.env does not exist."
+              exit 1
+            fi
+
+            # Download the new image.
+            sudo docker pull "${IMAGE_URI}"
+
+            # Clean up any leftover candidate container.
+            sudo docker rm -f "${CONTAINER_NAME}-candidate" 2>/dev/null || true
+
+            # Start the candidate on a temporary local port.
+            sudo docker run -d \
+              --name "${CONTAINER_NAME}-candidate" \
+              --restart unless-stopped \
+              --env-file "${VM_APP_DIR}/.env" \
+              -p 127.0.0.1:18080:8080 \
+              "${IMAGE_URI}"
+
+            # Check candidate health before replacing the running app.
+            HEALTHY=false
+
+            for i in $(seq 1 30); do
+              if curl --fail --silent \
+                http://127.0.0.1:18080/health >/dev/null; then
+                HEALTHY=true
+                break
+              fi
+
+              sleep 5
+            done
+
+            if [ "${HEALTHY}" != "true" ]; then
+              echo "ERROR: Candidate container failed health checks."
+              sudo docker logs --tail 100 "${CONTAINER_NAME}-candidate" || true
+              sudo docker rm -f "${CONTAINER_NAME}-candidate" || true
+              exit 1
+            fi
+
+            echo "Candidate container is healthy."
+
+            # Record the currently running image for rollback.
+            OLD_IMAGE=""
+
+            if sudo docker inspect "${CONTAINER_NAME}" >/dev/null 2>&1; then
+              OLD_IMAGE=$(sudo docker inspect \
+                --format='{{.Config.Image}}' "${CONTAINER_NAME}")
+            fi
+
+            # Remove the temporary candidate.
+            sudo docker rm -f "${CONTAINER_NAME}-candidate"
+
+            # Replace the application container.
+            sudo docker rm -f "${CONTAINER_NAME}" 2>/dev/null || true
+
+            if sudo docker run -d \
+              --name "${CONTAINER_NAME}" \
+              --restart unless-stopped \
+              --env-file "${VM_APP_DIR}/.env" \
+              -p 8080:8080 \
+              "${IMAGE_URI}"; then
+
+              echo "New application container started."
+
+            else
+              echo "ERROR: Failed to start the new application."
+
+              if [ -n "${OLD_IMAGE}" ]; then
+                sudo docker run -d \
+                  --name "${CONTAINER_NAME}" \
+                  --restart unless-stopped \
+                  --env-file "${VM_APP_DIR}/.env" \
+                  -p 8080:8080 \
+                  "${OLD_IMAGE}" || true
+              fi
+
+              exit 1
+            fi
+
+            # Verify the production container.
+            HEALTHY=false
+
+            for i in $(seq 1 30); do
+              if curl --fail --silent \
+                http://127.0.0.1:8080/health >/dev/null; then
+                HEALTHY=true
+                break
+              fi
+
+              sleep 5
+            done
+
+            if [ "${HEALTHY}" != "true" ]; then
+              echo "ERROR: New container failed its production health check."
+              sudo docker logs --tail 100 "${CONTAINER_NAME}" || true
+
+              sudo docker rm -f "${CONTAINER_NAME}" || true
+
+              if [ -n "${OLD_IMAGE}" ]; then
+                echo "Attempting rollback to ${OLD_IMAGE}"
+
+                sudo docker run -d \
+                  --name "${CONTAINER_NAME}" \
+                  --restart unless-stopped \
+                  --env-file "${VM_APP_DIR}/.env" \
+                  -p 8080:8080 \
+                  "${OLD_IMAGE}" || true
+              fi
+
+              exit 1
+            fi
+
+            echo "Deployment completed successfully."
+
+            # Remove dangling images to reclaim disk space.
+            sudo docker image prune -f
