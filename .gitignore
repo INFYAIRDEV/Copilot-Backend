@@ -1,11 +1,11 @@
-node_modules/
-dist/
+node_modules
+# Keep environment variables out of version control
 .env
-.env.local
-package-lock.json
-yarn.lock
-prisma/*.db
-prisma/*.db-journal
+
+/generated/prisma
+src/generated/prisma/**
+dist
 .DS_Store
-logs/
-coverage/
+**/.DS_Store
+
+credentials
