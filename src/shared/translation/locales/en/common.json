@@ -64,6 +64,7 @@
     "profileFailed": "Could not retrieve the profile. Please try again later.",
     "profileUpdated": "Profile updated successfully",
     "profileUpdateFailed": "Could not update the profile. Please try again later.",
+    "mobileRequired": "Mobile number is required",
     "mobileInvalid": "Please enter a valid mobile number",
     "mobileAlreadyExists": "This mobile number is already registered"
   },

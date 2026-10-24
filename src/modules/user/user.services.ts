@@ -132,16 +132,13 @@ export const userService = {
       input.email,
       input.mobile,
     );
-    // A verified account owns the name, email, or mobile. Unverified leftovers do not.
-    const verified = conflicts.find((u) => u.is_email_verified);
-    if (verified) {
-      if (input.mobile && verified.mobile === input.mobile) {
-        throw new ConflictError("user.mobileAlreadyExists");
-      }
-      throw new ConflictError("user.alreadyExists");
+    // If this mobile number is already registered by any user, disallow registration.
+    if (input.mobile && conflicts.some((u) => u.mobile === input.mobile)) {
+      throw new ConflictError("user.mobileAlreadyExists");
     }
+    // If username or email is already taken, disallow registration.
     if (conflicts.length > 0) {
-      await userRepository.deleteUnverified(conflicts.map((u) => u.user_id));
+      throw new ConflictError("user.alreadyExists");
     }
 
     const password_hash = await hashPassword(input.password);

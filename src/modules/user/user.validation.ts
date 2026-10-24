@@ -62,16 +62,13 @@ export const registerSchema = (z: typeof base) => {
         .max(254, { message: "user.emailInvalid" })
         .email({ message: "user.emailInvalid" }),
       mobile: z
-        .string()
+        .string({ message: "user.mobileRequired" })
         .trim()
+        .min(1, { message: "user.mobileRequired" })
         .max(20, { message: "user.mobileInvalid" })
-        .refine(
-          (val) => !val || /^[+]?[(]?[0-9]{1,4}[)]?[-\s./0-9]{6,15}$/.test(val),
-          { message: "user.mobileInvalid" },
-        )
-        .optional()
-        .nullable()
-        .transform((val) => (val && val.length > 0 ? val : undefined)),
+        .regex(/^[+]?[(]?[0-9]{1,4}[)]?[-\s./0-9]{6,15}$/, {
+          message: "user.mobileInvalid",
+        }),
       password: passwordSchema(z),
       confirm_password: z
         .string({ message: "user.confirmPasswordRequired" })

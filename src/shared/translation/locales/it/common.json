@@ -64,6 +64,7 @@
     "profileFailed": "Impossibile recuperare il profilo. Riprova più tardi.",
     "profileUpdated": "Profilo aggiornato con successo",
     "profileUpdateFailed": "Impossibile aggiornare il profilo. Riprova più tardi.",
+    "mobileRequired": "Il numero di cellulare è obbligatorio",
     "mobileInvalid": "Inserisci un numero di cellulare valido",
     "mobileAlreadyExists": "Questo numero di cellulare è già registrato"
   },
