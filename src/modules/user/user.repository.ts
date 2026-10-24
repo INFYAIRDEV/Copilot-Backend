@@ -31,7 +31,7 @@ export const userRepository = {
           ...(mobile ? [{ mobile }] : []),
         ],
       },
-      select: { user_id: true, is_email_verified: true, mobile: true },
+      select: { user_id: true, username: true, email: true, is_email_verified: true, mobile: true },
     }),
 
   // Deletes accounts that never verified. The guard stops it from ever deleting a verified user.
