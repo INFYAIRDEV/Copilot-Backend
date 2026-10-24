@@ -132,16 +132,27 @@ export const userService = {
       input.email,
       input.mobile,
     );
-    // A verified account owns the name, email, or mobile. Unverified leftovers do not.
-    const verified = conflicts.find((u) => u.is_email_verified);
-    if (verified) {
-      if (input.mobile && verified.mobile === input.mobile) {
-        throw new ConflictError("user.mobileAlreadyExists");
-      }
-      throw new ConflictError("user.alreadyExists");
+    // 1. If this mobile number is already registered, disallow registration.
+    if (input.mobile && conflicts.some((u) => u.mobile === input.mobile)) {
+      throw new ConflictError("user.mobileAlreadyExists");
     }
+    // 2. If this email is already registered, disallow registration.
+    if (
+      input.email &&
+      conflicts.some((u) => u.email?.toLowerCase() === input.email.toLowerCase())
+    ) {
+      throw new ConflictError("user.emailAlreadyExists");
+    }
+    // 3. If this username is already registered, disallow registration.
+    if (
+      input.username &&
+      conflicts.some((u) => u.username?.toLowerCase() === input.username.toLowerCase())
+    ) {
+      throw new ConflictError("user.usernameAlreadyExists");
+    }
+    // Fallback if any conflict was found.
     if (conflicts.length > 0) {
-      await userRepository.deleteUnverified(conflicts.map((u) => u.user_id));
+      throw new ConflictError("user.alreadyExists");
     }
 
     const password_hash = await hashPassword(input.password);
@@ -185,6 +196,12 @@ export const userService = {
         const target = (error.meta?.target as string[]) || [];
         if (target.includes("mobile")) {
           throw new ConflictError("user.mobileAlreadyExists");
+        }
+        if (target.includes("email")) {
+          throw new ConflictError("user.emailAlreadyExists");
+        }
+        if (target.includes("username")) {
+          throw new ConflictError("user.usernameAlreadyExists");
         }
         throw new ConflictError("user.alreadyExists");
       }

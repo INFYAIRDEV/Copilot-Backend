@@ -32,6 +32,8 @@
     "invalidRole": "Invalid user role. Allowed roles: USER, ADMIN, SUPER_ADMIN",
     "invalidRequest": "Invalid request",
     "alreadyExists": "Username or email is already registered",
+    "emailAlreadyExists": "This email is already registered",
+    "usernameAlreadyExists": "This username is already taken",
     "registered": "Registration successful. Check your email for the verification code.",
     "otpRequired": "Verification code is required",
     "otpFormat": "Verification code must be 6 digits",
@@ -64,6 +66,7 @@
     "profileFailed": "Could not retrieve the profile. Please try again later.",
     "profileUpdated": "Profile updated successfully",
     "profileUpdateFailed": "Could not update the profile. Please try again later.",
+    "mobileRequired": "Mobile number is required",
     "mobileInvalid": "Please enter a valid mobile number",
     "mobileAlreadyExists": "This mobile number is already registered"
   },

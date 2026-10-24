@@ -32,6 +32,8 @@
     "invalidRole": "Ruolo utente non valido. Ruoli consentiti: USER, ADMIN, SUPER_ADMIN",
     "invalidRequest": "Richiesta non valida",
     "alreadyExists": "Nome utente o email già registrati",
+    "emailAlreadyExists": "Questa email è già registrata",
+    "usernameAlreadyExists": "Questo nome utente è già in uso",
     "registered": "Registrazione completata. Controlla la tua email per il codice di verifica.",
     "otpRequired": "Il codice di verifica è obbligatorio",
     "otpFormat": "Il codice di verifica deve contenere 6 cifre",
@@ -64,6 +66,7 @@
     "profileFailed": "Impossibile recuperare il profilo. Riprova più tardi.",
     "profileUpdated": "Profilo aggiornato con successo",
     "profileUpdateFailed": "Impossibile aggiornare il profilo. Riprova più tardi.",
+    "mobileRequired": "Il numero di cellulare è obbligatorio",
     "mobileInvalid": "Inserisci un numero di cellulare valido",
     "mobileAlreadyExists": "Questo numero di cellulare è già registrato"
   },
