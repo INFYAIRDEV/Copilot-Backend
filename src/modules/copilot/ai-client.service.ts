@@ -1,5 +1,6 @@
 import { GoogleAuth } from "google-auth-library";
 import {
+  generateValidatedSql,
   interpretTrustedResult,
   GenerateQueryRequest,
   ReadyQueryResponse,
@@ -147,18 +148,11 @@ export async function generateQueryFromAi(
         logger.warn("Retry with fresh session failed:", retryErr.message);
       }
     }
-    logger.error("Remote AI Query Service call failed:", err.message);
-    return {
-      requestId: req.requestId,
-      conversationId: req.conversationId,
-      aiSessionId: req.aiSessionId || "",
-      status: "FAILED",
-      sql: null,
-      referencedTables: [],
-      referencedColumns: [],
-      attemptCount: 1,
-    };
+    logger.warn("Remote AI Query Service call failed, falling back to local engine:", err.message);
   }
+
+  // Fallback to local SQL generator if remote service is unavailable
+  return await generateValidatedSql(req);
 }
 
 /**
