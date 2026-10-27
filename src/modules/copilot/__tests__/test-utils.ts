@@ -16,6 +16,7 @@ export interface MockConversation {
   owner_user_id: number;
   locale: locale_code;
   state: conversation_state;
+  is_pinned?: boolean;
   analytical_context?: any;
   version?: number;
   created_at: Date;
@@ -86,6 +87,7 @@ export function createMockConversationRepository(initialData?: {
         owner_user_id,
         locale,
         state: conversation_state.ACTIVE,
+        is_pinned: false,
         analytical_context: null,
         version: 1,
         created_at: new Date(),
@@ -181,6 +183,33 @@ export function createMockConversationRepository(initialData?: {
         deleted: true,
       };
     },
+
+    async setPin(conversation_uuid: string, owner_user_id: number, is_pinned: boolean) {
+      const conv = conversations.find(
+        (c) =>
+          c.conversation_uuid === conversation_uuid &&
+          c.owner_user_id === owner_user_id &&
+          c.deleted_at === null &&
+          c.state !== conversation_state.DELETED,
+      );
+      if (!conv) return null;
+      conv.is_pinned = is_pinned;
+      conv.updated_at = new Date();
+      audits.push({
+        sequence: nextAuditSeq++,
+        request_uuid: randomUUID(),
+        conversation_id: conv.id,
+        event_type: is_pinned ? "CONVERSATION_PINNED" : "CONVERSATION_UNPINNED",
+        status: "SUCCESS",
+        payload: { conversation_uuid, is_pinned },
+      });
+      return {
+        conversation_uuid: conv.conversation_uuid,
+        is_pinned: conv.is_pinned,
+        updated_at: conv.updated_at,
+      };
+    },
+
 
 
     async updateAnalyticalContext(
@@ -393,6 +422,9 @@ export function createMockConversationRepository(initialData?: {
           return false;
         })
         .sort((a, b) => {
+          const aPinned = a.is_pinned ? 1 : 0;
+          const bPinned = b.is_pinned ? 1 : 0;
+          if (bPinned !== aPinned) return bPinned - aPinned;
           const timeDiff = b.created_at.getTime() - a.created_at.getTime();
           if (timeDiff !== 0) return timeDiff;
           return b.id - a.id;
@@ -404,6 +436,7 @@ export function createMockConversationRepository(initialData?: {
         locale: c.locale,
         state: c.state,
         analytical_context: c.analytical_context,
+        is_pinned: Boolean(c.is_pinned),
         created_at: c.created_at,
         updated_at: c.updated_at,
       }));

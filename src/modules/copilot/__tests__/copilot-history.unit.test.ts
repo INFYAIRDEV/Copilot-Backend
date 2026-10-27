@@ -106,7 +106,7 @@ async function runHistoryUnitTests() {
     const result = await service.listConversations(10, 50);
     assert.strictEqual(result.conversations.length, 2);
     assert.deepStrictEqual(
-      result.conversations.map((c) => c.conversation_uuid).sort(),
+      result.conversations.map((c: any) => c.conversation_uuid).sort(),
       [conv1.conversation_uuid, conv2.conversation_uuid].sort(),
     );
   });

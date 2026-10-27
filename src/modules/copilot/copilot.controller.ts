@@ -9,6 +9,7 @@ import {
   deleteConversationSchema,
   historySchema,
   listConversationsSchema,
+  pinConversationSchema,
   renameConversationSchema,
   sendMessageSchema,
 } from "./conversation.validation.js";
@@ -509,6 +510,55 @@ export function createCopilotController(
         return ApiResponse.success(res, {
           statusCode: 200,
           message: t("copilot.controller.conversationRenamed", { lng: locale }),
+          data,
+        });
+      } catch (error) {
+        return fail(res, error, locale);
+      }
+    },
+
+    async pin(req: Request, res: Response) {
+      const locale = getLocale(req);
+      if (!req.user || !req.user.user_id) {
+        return ApiResponse.error(res, {
+          statusCode: 401,
+          code: "UNAUTHENTICATED",
+          message: t("copilot.errors.UNAUTHENTICATED", { lng: locale }),
+        });
+      }
+
+      const parsed = pinConversationSchema.safeParse({
+        params: req.params,
+        body: req.body,
+      });
+      if (!parsed.success) {
+        return ApiResponse.error(res, {
+          statusCode: 400,
+          code: "VALIDATION_ERROR",
+          message: t("copilot.validation.invalidRequest", { lng: locale }),
+          error: translateIssues(parsed.error.issues, locale),
+        });
+      }
+
+      try {
+        const { id } = parsed.data.params;
+        const { is_pinned } = parsed.data.body;
+        const data = await service.pinConversation(
+          req.user.user_id,
+          id,
+          is_pinned,
+        );
+        return ApiResponse.success(res, {
+          statusCode: 200,
+          message: is_pinned
+            ? t("copilot.controller.conversationPinned", {
+                lng: locale,
+                defaultValue: "Conversation pinned",
+              })
+            : t("copilot.controller.conversationUnpinned", {
+                lng: locale,
+                defaultValue: "Conversation unpinned",
+              }),
           data,
         });
       } catch (error) {
