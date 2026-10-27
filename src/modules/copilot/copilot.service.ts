@@ -862,6 +862,7 @@ export function createCopilotService(
 // ---------------------------------------------------------------------------
 
 import { generateQueryFromAi, interpretResultFromAi } from "./ai-client.service.js";
+import { generateValidatedSql } from "./ai-query.service.js";
 import { checkUserQuota, recordUserUsage } from "./quota.service.js";
 import { assertUserMonthlyQuota, recordAiTokenUsage } from "./ai-usage.service.js";
 import { checkUserAuthorization, executeReadOnlyQuery } from "./execution.service.js";
@@ -878,7 +879,7 @@ export interface ProcessCopilotQueryArgs {
 }
 
 export interface CopilotQueryResult {
-  status: "SUCCESS" | "NEEDS_CLARIFICATION";
+  status: "SUCCESS" | "NEEDS_CLARIFICATION" | "EXECUTION_ERROR";
   requestId: string;
   conversationId: string;
   aiSessionId?: string | null;
@@ -1094,8 +1095,82 @@ export async function processCopilotQuery(
   // 7. Backend RBAC / Authorization check (Section 6.3 & 10)
   checkUserAuthorization({ id: userId, role_id: roleId }, aiResult.referencedTables, aiResult.referencedColumns);
 
-  // 8. Execute Read-Only SQL on Cloud SQL PostgreSQL (Section 6.3 & 7)
-  const execution = await executeReadOnlyQuery(aiResult.sql);
+  // 8. Execute Read-Only SQL on Cloud SQL PostgreSQL (Section 6.3 & 7) with Self-Healing Repair Loop
+  let execution: any;
+  let executedSql = aiResult.sql;
+  try {
+    execution = await executeReadOnlyQuery(executedSql);
+  } catch (execError: any) {
+    console.log("second time query execution")
+    logger.warn(`Primary SQL execution failed: ${execError.message}. Attempting automated repair...`);
+    try {
+      const repaired = await generateValidatedSql({
+        requestId: `${requestId}-repair`,
+        conversationId: conversation.conversation_uuid,
+        userId: `${userId}`,
+        aiSessionId: returnedSessionId || existingAiSessionId,
+        question: `The SQL query "${executedSql}" failed database execution with error: "${execError.message}". Please regenerate a valid PostgreSQL SELECT query answering "${question}" using the approved reporting schema.`,
+        locale: resolvedLocale,
+      });
+
+      if (repaired.status === "READY" && repaired.sql) {
+        executedSql = repaired.sql;
+        execution = await executeReadOnlyQuery(executedSql);
+        logger.info("Automated SQL query repair succeeded.");
+      } else {
+        throw execError;
+      }
+    } catch (finalError: any) {
+      logger.error("SQL query execution and repair failed", {
+        originalSql: aiResult.sql,
+        error: finalError.message,
+      });
+
+      // Conversational graceful fallback - Never crash with 500
+      const fallbackAnswer =
+        resolvedLocale === "it"
+          ? "Non è stato possibile elaborare la richiesta con i dati disponibili nel database. Prova a riformulare la domanda o a richiedere informazioni specifiche sulle vendite (es. per data, categoria prodotto, venditore o territorio)."
+          : "The query could not be completed with the available database fields. Please try rephrasing your question or asking for specific sales dimensions (e.g., date, product category, salesperson, territory, or customer).";
+
+      const fallbackResult = {
+        id: randomUUID(),
+        question,
+        summary: fallbackAnswer,
+        answer: fallbackAnswer,
+        chart: { type: "none" },
+        table: { columns: [], rows: [] },
+        sql: executedSql || aiResult.sql || "",
+        rowCount: 0,
+        truncated: false,
+        durationMs: finalError.durationMs || 0,
+        aiSessionId: returnedSessionId || existingAiSessionId,
+      };
+
+      await conversationRepository.createAssistantMessage({
+        conversation_id: conversation.id,
+        kind: message_kind.QUESTION,
+        text: JSON.stringify(fallbackResult),
+        locale: resolvedLocale as locale_code,
+        request_uuid: randomUUID(),
+      });
+
+      return {
+        status: "SUCCESS",
+        requestId,
+        conversationId: conversation.conversation_uuid,
+        aiSessionId: returnedSessionId || existingAiSessionId,
+        question,
+        summary: fallbackAnswer,
+        answer: fallbackAnswer,
+        chart: { type: "none" },
+        table: { columns: [], rows: [] },
+        sql: executedSql || aiResult.sql || "",
+        rowCount: 0,
+        truncated: false,
+        executionMetadata: { durationMs: finalError.durationMs || 0 },
+      };
+    }
+  }
 
   // 9. Send Bounded Matrix Result to Data/AI Service for Narration (API 2: POST /v1/result/interpret)
   const interpretation = await interpretResultFromAi({
@@ -1142,7 +1217,7 @@ export async function processCopilotQuery(
       columns: execution.matrixResult.columns,
       rows: execution.matrixResult.rows,
     },
-    sql: aiResult.sql,
+    sql: executedSql,
     rowCount: execution.rowCount,
     truncated: execution.matrixResult.truncated,
     durationMs: execution.durationMs,

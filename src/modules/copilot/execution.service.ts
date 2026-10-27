@@ -122,10 +122,17 @@ export async function executeReadOnlyQuery(sql: string): Promise<ExecutionResult
     const durationMs = Date.now() - startTime;
     logger.error("SQL_EXECUTION_FAILED", { sql, error: error.message, durationMs });
 
-    const err: any = new Error(error.message || "Failed to execute database query.");
+    // Clean Prisma invocation prefix so internal stack details are sanitized
+    const rawMessage = error.message || "Failed to execute database query.";
+    const cleanMessage =
+      rawMessage.match(/Message:\s*`([^`]+)`/)?.[1] ||
+      rawMessage.replace(/Invalid `prisma\.\$queryRawUnsafe\(\)` invocation:\s*/g, "").trim();
+
+    const err: any = new Error(cleanMessage || "Failed to execute database query.");
     err.statusCode = 500;
     err.code = "QUERY_EXECUTION_ERROR";
     err.durationMs = durationMs;
+    err.cleanMessage = cleanMessage;
     throw err;
   }
 }
