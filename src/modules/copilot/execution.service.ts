@@ -128,11 +128,13 @@ export async function executeReadOnlyQuery(sql: string): Promise<ExecutionResult
       rawMessage.match(/Message:\s*`([^`]+)`/)?.[1] ||
       rawMessage.replace(/Invalid `prisma\.\$queryRawUnsafe\(\)` invocation:\s*/g, "").trim();
 
+    const pgCode = error?.meta?.code || error?.code || (rawMessage.match(/Code:\s*`?([0-9A-Z]+)`?/i)?.[1]);
     const err: any = new Error(cleanMessage || "Failed to execute database query.");
     err.statusCode = 500;
     err.code = "QUERY_EXECUTION_ERROR";
     err.durationMs = durationMs;
     err.cleanMessage = cleanMessage;
+    err.postgresCode = pgCode;
     throw err;
   }
 }
