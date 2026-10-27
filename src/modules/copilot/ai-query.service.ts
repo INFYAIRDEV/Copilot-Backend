@@ -238,8 +238,7 @@ Instructions:
       if (parsed.status === "NEEDS_CLARIFICATION") {
         const clarificationQuestion =
           parsed.clarificationQuestion ||
-          parsed.question ||
-          "What would you like to rank: customers, products, salespeople, or territories?";
+          parsed.question ;
         return {
           requestId: req.requestId,
           conversationId: req.conversationId,
