@@ -352,6 +352,7 @@ model conversation {
   retention_class      retention_class        @default(STANDARD)
   dataset_id           String?
   dataset_version      String?
+  is_pinned            Boolean?               @default(false)
   analytical_context   Json?
   version              Int                    @default(1)
   created_at           DateTime               @default(now()) @db.Timestamptz(6)
@@ -593,13 +594,13 @@ model users {
   src_hash          String?
   conversation      conversation[]
   roles             roles          @relation(fields: [role_id], references: [role_code])
-  is_email_verified Boolean    @default(true)
-  email_verified_at DateTime?  @db.Timestamptz(6)
+  is_email_verified Boolean        @default(true)
+  email_verified_at DateTime?      @db.Timestamptz(6)
   user_otp          user_otp[]
- 
+
   @@schema("public")
 }
- 
+
 model user_otp {
   id          Int       @id @default(autoincrement())
   user_id     Int
@@ -610,7 +611,7 @@ model user_otp {
   consumed_at DateTime? @db.Timestamptz(6)
   created_at  DateTime  @default(now()) @db.Timestamptz(6)
   users       users     @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
- 
+
   @@index([user_id, purpose, created_at], map: "ix_user_otp_lookup")
   @@schema("public")
 }
@@ -776,4 +777,3 @@ model ai_token_usage {
   @@index([user_id, created_at], map: "idx_ai_token_usage_user_created")
   @@schema("public")
 }
-
