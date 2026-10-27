@@ -1067,8 +1067,7 @@ export async function processCopilotQuery(
   if (aiResult.status === "NEEDS_CLARIFICATION") {
     const clarificationQuestion =
       aiResult.clarificationQuestion ||
-      (aiResult as any).question ||
-      "What would you like to rank: customers, products, salespeople, or territories?";
+      (aiResult as any).question ;
 
     await conversationRepository.createAssistantMessage({
       conversation_id: conversation.id,

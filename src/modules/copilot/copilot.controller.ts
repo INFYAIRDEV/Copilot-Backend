@@ -1,6 +1,9 @@
 import { Request, Response } from "express";
+import { randomUUID } from "node:crypto";
 import { ApiResponse } from "../../shared/types/response.js";
 import { CopilotError, copilotService, processCopilotQuery } from "./copilot.service.js";
+import { conversationRepository } from "./conversation.repository.js";
+import { message_kind } from "@prisma/client";
 import { getUserTokenUsage } from "./ai-usage.service.js";
 import { prisma } from "../../shared/utils/prismaClient.js";
 
@@ -67,6 +70,70 @@ function translateIssues(issues: z.ZodIssue[], locale: Locale) {
   }));
 }
 
+function sanitizeErrorMessage(msg: string | undefined, locale: Locale): string {
+  if (!msg) {
+    return locale === "it"
+      ? "Si è verificato un problema durante l'elaborazione della richiesta. Riprova o riformula la domanda."
+      : "We encountered an issue processing your request. Please try again or rephrase your question.";
+  }
+
+  const raw = String(msg);
+  const isTechnical =
+    raw.includes("prisma") ||
+    raw.includes("Raw query failed") ||
+    raw.includes("Code:") ||
+    raw.includes("column") ||
+    raw.includes("relation") ||
+    raw.includes("syntax error") ||
+    raw.includes("invocation") ||
+    raw.toLowerCase().includes("select ") ||
+    /\b\d{5}\b/.test(raw);
+
+  if (isTechnical) {
+    // Undefined Column (PostgreSQL 42703)
+    if (raw.includes("42703") || (raw.includes("column") && raw.includes("does not exist"))) {
+      return locale === "it"
+        ? "Uno o più attributi o campi richiesti non sono presenti nel database di vendita. Prova a riformulare la domanda specificando attributi disponibili come data ordine, categoria prodotto, venditore, territorio o cliente."
+        : "One or more of the requested fields or attributes are not available in the sales database. Please try rephrasing your question or specifying available dimensions like order date, product category, salesperson, territory, or customer.";
+    }
+
+    // Undefined Table / View (PostgreSQL 42P01)
+    if (raw.includes("42P01") || (raw.includes("relation") && raw.includes("does not exist"))) {
+      return locale === "it"
+        ? "I dati o le tabelle richieste non sono disponibili nel dataset di reporting delle vendite. Prova a riformulare la richiesta."
+        : "The requested reporting data is not available in the sales database. Please try rephrasing your question.";
+    }
+
+    // Timeout / Cancelled (PostgreSQL 57014)
+    if (raw.includes("57014") || raw.toLowerCase().includes("timeout") || raw.toLowerCase().includes("canceled")) {
+      return locale === "it"
+        ? "L'elaborazione della query ha richiesto troppo tempo. Prova a restringere i criteri di ricerca (ad esempio specificando un intervallo di date o limitando il numero di record)."
+        : "The query took too long to complete. Please try narrowing your search criteria (e.g., specifying a date range or limiting the number of records).";
+    }
+
+    // Syntax error (PostgreSQL 42601)
+    if (raw.includes("42601") || raw.toLowerCase().includes("syntax error")) {
+      return locale === "it"
+        ? "Non è stato possibile interpretare la richiesta con la struttura desiderata. Prova a riformulare la domanda in modo più semplice o diretto."
+        : "We could not construct a valid query for this request. Please try phrasing your question in a simpler or more direct way.";
+    }
+
+    // Division by zero (PostgreSQL 22012)
+    if (raw.includes("22012") || raw.toLowerCase().includes("division by zero")) {
+      return locale === "it"
+        ? "Il calcolo richiesto non può essere eseguito a causa di valori pari a zero o fuori intervallo nei dati. Prova con altri criteri o filtri."
+        : "The calculation could not be completed due to zero or out-of-range values in the dataset. Please try with different criteria or filters.";
+    }
+
+    // Generic fallback for any technical database errors
+    return locale === "it"
+      ? "Non è stato possibile completare questa analisi con i dati disponibili nel database delle vendite. Prova a riformulare la domanda o a richiedere informazioni specifiche sulle vendite."
+      : "I was unable to complete this analysis with the available sales data. Please try rephrasing your question or specifying sales dimensions (e.g., date, product category, salesperson, territory, or customer).";
+  }
+
+  return raw;
+}
+
 function fail(res: Response, error: unknown, locale: Locale) {
   if (error instanceof CopilotError) {
     return ApiResponse.error(res, {
@@ -81,11 +148,12 @@ function fail(res: Response, error: unknown, locale: Locale) {
   }
 
   const anyErr = error as any;
-  if (anyErr && typeof anyErr === "object" && anyErr.statusCode) {
+  if (anyErr && typeof anyErr === "object") {
+    const rawMsg = anyErr.cleanMessage || anyErr.message;
     return ApiResponse.error(res, {
-      statusCode: anyErr.statusCode,
+      statusCode: anyErr.statusCode || 500,
       code: anyErr.code || "COPILOT_ERROR",
-      message: anyErr.message || t("copilot.errors.INTERNAL_ERROR", { lng: locale }),
+      message: sanitizeErrorMessage(rawMsg, locale) || t("copilot.errors.INTERNAL_ERROR", { lng: locale }),
       data: anyErr.status ? { status: anyErr.status, retryable: anyErr.retryable } : undefined,
     });
   }
@@ -319,13 +387,17 @@ export function createCopilotController(
         });
       } catch (error: any) {
         if (!aborted) {
-          emitter.emitError({
-            code: (error as any).code || "COPILOT_SERVICE_ERROR",
-            message: translateMessage(
+          const rawErrMsg = (error as any).cleanMessage || (error as any).message;
+          const userMsg =
+            sanitizeErrorMessage(rawErrMsg, locale) ||
+            translateMessage(
               (error as any).message,
               locale,
               "copilot.controller.streamingFailed",
-            ),
+            );
+          emitter.emitError({
+            code: (error as any).code || "COPILOT_SERVICE_ERROR",
+            message: userMsg,
             status_code: (error as any).statusCode || 500,
           });
         }
@@ -626,10 +698,11 @@ export function createCopilotController(
         });
       }
 
+      const resolvedUserId = req.user?.user_id ?? (req.body.userId ? Number(req.body.userId) : 3);
+      const resolvedRoleId = req.user?.role_id ?? req.body.roleId ?? "user";
+
       try {
         console.log("inside try ");
-        const resolvedUserId = req.user?.user_id ?? (req.body.userId ? Number(req.body.userId) : 3);
-        const resolvedRoleId = req.user?.role_id ?? req.body.roleId ?? "user";
 
         const result = await processCopilotQuery({
           userId: resolvedUserId,
@@ -665,8 +738,54 @@ export function createCopilotController(
           data: result,
         });
       } catch (error: any) {
-        console.error("processCopilotQuery error:", error);
-        return fail(res, error, locale);
+        logger.error("processCopilotQuery error:", error);
+        const rawErrMsg = error?.cleanMessage || error?.message || "";
+        const fallbackText = sanitizeErrorMessage(rawErrMsg, locale);
+
+        const convUuid =
+          req.body.conversationId ||
+          req.body.conversationUuid ||
+          req.body.conversation_id ||
+          req.body.conversation_uuid ||
+          "";
+
+        const fallbackData = {
+          status: "SUCCESS",
+          requestId: randomUUID(),
+          conversationId: convUuid,
+          question: question.trim(),
+          summary: fallbackText,
+          answer: fallbackText,
+          chart: { type: "none" },
+          table: { columns: [], rows: [] },
+          sql: "",
+          rowCount: 0,
+          truncated: false,
+          executionMetadata: { durationMs: 0 },
+        };
+
+        if (convUuid) {
+          try {
+            const conv = await conversationRepository.findOwned(convUuid, resolvedUserId);
+            if (conv) {
+              await conversationRepository.createAssistantMessage({
+                conversation_id: conv.id,
+                kind: message_kind.QUESTION,
+                text: JSON.stringify(fallbackData),
+                locale: locale as any,
+                request_uuid: randomUUID(),
+              });
+            }
+          } catch (persistErr) {
+            logger.warn("Could not persist fallback assistant message:", persistErr);
+          }
+        }
+
+        return ApiResponse.success(res, {
+          statusCode: 200,
+          message: fallbackText,
+          data: fallbackData,
+        });
       }
     },
 
