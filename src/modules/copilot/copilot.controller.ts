@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { randomUUID } from "node:crypto";
 import { ApiResponse } from "../../shared/types/response.js";
 import { CopilotError, copilotService, processCopilotQuery } from "./copilot.service.js";
 import { getUserTokenUsage } from "./ai-usage.service.js";
@@ -66,6 +67,30 @@ function translateIssues(issues: z.ZodIssue[], locale: Locale) {
   }));
 }
 
+function sanitizeErrorMessage(msg: string | undefined, locale: Locale): string {
+  if (!msg) {
+    return locale === "it"
+      ? "Si è verificato un problema durante l'elaborazione della richiesta. Riprova o riformula la domanda."
+      : "We encountered an issue processing your request. Please try again or rephrase your question.";
+  }
+  const isTechnical =
+    msg.includes("prisma") ||
+    msg.includes("Raw query failed") ||
+    msg.includes("Code:") ||
+    msg.includes("column") ||
+    msg.includes("relation") ||
+    msg.includes("syntax error") ||
+    msg.includes("invocation") ||
+    /\b\d{5}\b/.test(msg);
+
+  if (isTechnical) {
+    return locale === "it"
+      ? "Non è stato possibile elaborare la richiesta con i dati disponibili. Prova a riformulare la domanda o a richiedere informazioni specifiche."
+      : "I was unable to complete this analysis with the available sales data. Please try rephrasing your question or specifying sales attributes.";
+  }
+  return msg;
+}
+
 function fail(res: Response, error: unknown, locale: Locale) {
   if (error instanceof CopilotError) {
     return ApiResponse.error(res, {
@@ -81,10 +106,11 @@ function fail(res: Response, error: unknown, locale: Locale) {
 
   const anyErr = error as any;
   if (anyErr && typeof anyErr === "object" && anyErr.statusCode) {
+    const rawMsg = anyErr.cleanMessage || anyErr.message;
     return ApiResponse.error(res, {
       statusCode: anyErr.statusCode,
       code: anyErr.code || "COPILOT_ERROR",
-      message: anyErr.message || t("copilot.errors.INTERNAL_ERROR", { lng: locale }),
+      message: sanitizeErrorMessage(rawMsg, locale) || t("copilot.errors.INTERNAL_ERROR", { lng: locale }),
       data: anyErr.status ? { status: anyErr.status, retryable: anyErr.retryable } : undefined,
     });
   }
@@ -615,8 +641,37 @@ export function createCopilotController(
           data: result,
         });
       } catch (error: any) {
-        console.error("processCopilotQuery error:", error);
-        return fail(res, error, locale);
+        logger.error("processCopilotQuery error:", error);
+        const fallbackText =
+          locale === "it"
+            ? "Non è stato possibile completare questa richiesta con i dati disponibili. Prova a riformulare la domanda o a richiedere informazioni specifiche sulle vendite (es. data, categoria prodotto, venditore o territorio)."
+            : "I was unable to complete this analysis with the available sales data. Please try rephrasing your question or specifying sales details such as date, product category, salesperson, or territory.";
+
+        const fallbackData = {
+          status: "SUCCESS",
+          requestId: randomUUID(),
+          conversationId:
+            req.body.conversationId ||
+            req.body.conversationUuid ||
+            req.body.conversation_id ||
+            req.body.conversation_uuid ||
+            "",
+          question: question.trim(),
+          summary: fallbackText,
+          answer: fallbackText,
+          chart: { type: "none" },
+          table: { columns: [], rows: [] },
+          sql: "",
+          rowCount: 0,
+          truncated: false,
+          executionMetadata: { durationMs: 0 },
+        };
+
+        return ApiResponse.success(res, {
+          statusCode: 200,
+          message: fallbackText,
+          data: fallbackData,
+        });
       }
     },
 
