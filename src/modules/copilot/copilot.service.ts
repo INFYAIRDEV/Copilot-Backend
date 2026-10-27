@@ -878,7 +878,7 @@ export interface ProcessCopilotQueryArgs {
 }
 
 export interface CopilotQueryResult {
-  status: "SUCCESS" | "NEEDS_CLARIFICATION" | "EXECUTION_ERROR";
+  status: "SUCCESS" | "NEEDS_CLARIFICATION";
   requestId: string;
   conversationId: string;
   aiSessionId?: string | null;
@@ -920,56 +920,6 @@ export interface CopilotQueryResult {
  * 10. Persists assistant message and answer row.
  * 11. Returns unified response to frontend.
  */
-/**
- * Translates raw PostgreSQL / Prisma execution errors into clean, professional,
- * human-readable messages so technical database details are never exposed to users.
- */
-function formatUserFriendlyDatabaseErrorMessage(error: any, locale: string): string {
-  const isItalian = locale === "it";
-  const raw = String(error?.message || error || "");
-  const code = String(error?.postgresCode || error?.code || "");
-
-  // Undefined Column (PostgreSQL 42703)
-  if (code === "42703" || raw.includes("42703") || (raw.includes("column") && raw.includes("does not exist"))) {
-    return isItalian
-      ? "Uno o più attributi o campi richiesti non sono presenti nel database di vendita. Prova a riformulare la domanda specificando attributi disponibili come data ordine, categoria prodotto, venditore, territorio o cliente."
-      : "One or more of the requested fields or attributes are not available in the sales database. Please try rephrasing your question or specifying available dimensions like order date, product category, salesperson, territory, or customer.";
-  }
-
-  // Undefined Table / View (PostgreSQL 42P01)
-  if (code === "42P01" || raw.includes("42P01") || (raw.includes("relation") && raw.includes("does not exist"))) {
-    return isItalian
-      ? "I dati o le tabelle richieste non sono disponibili nel dataset di reporting delle vendite. Prova a riformulare la richiesta."
-      : "The requested reporting data is not available in the sales database. Please try rephrasing your question.";
-  }
-
-  // Timeout / Cancelled (PostgreSQL 57014)
-  if (code === "57014" || raw.includes("57014") || raw.toLowerCase().includes("timeout") || raw.toLowerCase().includes("canceled")) {
-    return isItalian
-      ? "L'elaborazione della query ha richiesto troppo tempo. Prova a restringere i criteri di ricerca (ad esempio specificando un intervallo di date o limitando il numero di record)."
-      : "The query took too long to complete. Please try narrowing your search criteria (e.g., specifying a date range or limiting the number of records).";
-  }
-
-  // Syntax error (PostgreSQL 42601)
-  if (code === "42601" || raw.includes("42601") || raw.toLowerCase().includes("syntax error")) {
-    return isItalian
-      ? "Non è stato possibile interpretare la richiesta con la struttura desiderata. Prova a riformulare la domanda in modo più semplice o diretto."
-      : "We could not construct a valid query for this request. Please try phrasing your question in a simpler or more direct way.";
-  }
-
-  // Division by zero or math overflow (PostgreSQL 22012, 22003)
-  if (code === "22012" || code === "22003" || raw.toLowerCase().includes("division by zero")) {
-    return isItalian
-      ? "Il calcolo richiesto non può essere eseguito a causa di valori pari a zero o fuori intervallo nei dati. Prova con altri criteri o filtri."
-      : "The calculation could not be completed due to zero or out-of-range values in the dataset. Please try with different criteria or filters.";
-  }
-
-  // Generic fallback (never expose raw SQL or database internal messages)
-  return isItalian
-    ? "Non è stato possibile completare questa analisi con i dati disponibili nel database delle vendite. Prova a riformulare la domanda o a richiedere informazioni specifiche sulle vendite."
-    : "I was unable to complete this analysis with the available sales data. Please try rephrasing your question or asking for specific sales dimensions (e.g., date, product category, salesperson, territory, or customer).";
-}
-
 export async function processCopilotQuery(
   args: ProcessCopilotQueryArgs,
 ): Promise<CopilotQueryResult> {
@@ -1145,57 +1095,7 @@ export async function processCopilotQuery(
   checkUserAuthorization({ id: userId, role_id: roleId }, aiResult.referencedTables, aiResult.referencedColumns);
 
   // 8. Execute Read-Only SQL on Cloud SQL PostgreSQL (Section 6.3 & 7)
-  let execution: any;
-  try {
-    execution = await executeReadOnlyQuery(aiResult.sql);
-  } catch (execError: any) {
-    logger.error("SQL query execution failed", {
-      sql: aiResult.sql,
-      error: execError.message,
-      code: execError.postgresCode || execError.code,
-    });
-
-    // Conversational graceful fallback - Never leak technical database errors or raw SQL to the user
-    const fallbackAnswer = formatUserFriendlyDatabaseErrorMessage(execError, resolvedLocale);
-
-    const fallbackResult = {
-      id: randomUUID(),
-      question,
-      summary: fallbackAnswer,
-      answer: fallbackAnswer,
-      chart: { type: "none" },
-      table: { columns: [], rows: [] },
-      sql: "",
-      rowCount: 0,
-      truncated: false,
-      durationMs: execError.durationMs || 0,
-      aiSessionId: returnedSessionId || existingAiSessionId,
-    };
-
-    await conversationRepository.createAssistantMessage({
-      conversation_id: conversation.id,
-      kind: message_kind.QUESTION,
-      text: JSON.stringify(fallbackResult),
-      locale: resolvedLocale as locale_code,
-      request_uuid: randomUUID(),
-    });
-
-    return {
-      status: "SUCCESS",
-      requestId,
-      conversationId: conversation.conversation_uuid,
-      aiSessionId: returnedSessionId || existingAiSessionId,
-      question,
-      summary: fallbackAnswer,
-      answer: fallbackAnswer,
-      chart: { type: "none" },
-      table: { columns: [], rows: [] },
-      sql: "",
-      rowCount: 0,
-      truncated: false,
-      executionMetadata: { durationMs: execError.durationMs || 0 },
-    };
-  }
+  const execution = await executeReadOnlyQuery(aiResult.sql);
 
   // 9. Send Bounded Matrix Result to Data/AI Service for Narration (API 2: POST /v1/result/interpret)
   const interpretation = await interpretResultFromAi({
