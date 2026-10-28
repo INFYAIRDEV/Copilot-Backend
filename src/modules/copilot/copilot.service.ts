@@ -899,7 +899,10 @@ export interface CopilotQueryResult {
     y?: string;
   };
   rowCount?: number;
+  requestedRowCount?: number;
+  resultPageSize?: number;
   truncated?: boolean;
+  resultTruncated?: boolean;
   executionMetadata?: {
     durationMs: number;
   };
@@ -993,7 +996,7 @@ export async function processCopilotQuery(
     question,
     locale: resolvedLocale,
   });
-  console.log("after generateQueryFromAi");
+  console.log("after generateQueryFromAi", aiResult);
 
   // Record token usage for /v1/query/generate
   if ((aiResult as any).usage) {
@@ -1094,8 +1097,14 @@ export async function processCopilotQuery(
   // 7. Backend RBAC / Authorization check (Section 6.3 & 10)
   checkUserAuthorization({ id: userId, role_id: roleId }, aiResult.referencedTables, aiResult.referencedColumns);
 
-  // 8. Execute Read-Only SQL on Cloud SQL PostgreSQL (Section 6.3 & 7)
-  const execution = await executeReadOnlyQuery(aiResult.sql);
+  // 8. Execute Read-Only SQL on Cloud SQL PostgreSQL (with internal overflow probe if enabled)
+  const pageSize = (aiResult as any).resultPageSize ?? 200;
+  const overflowProbe = (aiResult as any).overflowProbe === true;
+
+  const execution = await executeReadOnlyQuery(aiResult.sql, {
+    pageSize,
+    overflowProbe,
+  });
 
   // 9. Send Bounded Matrix Result to Data/AI Service for Narration (API 2: POST /v1/result/interpret)
   const interpretation = await interpretResultFromAi({
@@ -1132,6 +1141,17 @@ export async function processCopilotQuery(
   const finalAnswer = interpretation.answer || interpretation.summary || "Analysis completed.";
   const finalChart = interpretation.chart || interpretation.visualization;
 
+  const requestedRowCount = (aiResult as any).requestedRowCount;
+  const resultPageSize = (aiResult as any).resultPageSize;
+
+  // The actual database probe (row pageSize + 1 returned) proves truncation
+  const isTruncated = Boolean(
+    execution.truncated ||
+      (interpretation as any).resultTruncated ||
+      (interpretation as any).truncated ||
+      false,
+  );
+
   const completeAnswer = {
     id: randomUUID(),
     question,
@@ -1141,11 +1161,14 @@ export async function processCopilotQuery(
     table: {
       columns: execution.matrixResult.columns,
       rows: execution.matrixResult.rows,
-      truncated: execution.matrixResult.truncated,
+      truncated: isTruncated,
     },
     sql: aiResult.sql,
     rowCount: execution.rowCount,
-    truncated: execution.matrixResult.truncated,
+    requestedRowCount,
+    resultPageSize,
+    truncated: isTruncated,
+    resultTruncated: isTruncated,
     durationMs: execution.durationMs,
     aiSessionId: returnedSessionId || existingAiSessionId,
   };
@@ -1207,11 +1230,14 @@ export async function processCopilotQuery(
     table: {
       columns: execution.matrixResult.columns,
       rows: execution.matrixResult.rows,
-      truncated: execution.matrixResult.truncated,
+      truncated: isTruncated,
     },
     chart: finalChart,
     rowCount: execution.rowCount,
-    truncated: execution.matrixResult.truncated,
+    requestedRowCount,
+    resultPageSize,
+    truncated: isTruncated,
+    resultTruncated: isTruncated,
     executionMetadata: {
       durationMs: execution.durationMs,
     },

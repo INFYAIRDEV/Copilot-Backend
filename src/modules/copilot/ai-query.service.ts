@@ -28,6 +28,9 @@ export interface ReadyQueryResponse {
   clarificationQuestion?: null;
   reasoningSummary?: string;
   attemptCount: number;
+  requestedRowCount?: number;
+  resultPageSize?: number;
+  overflowProbe?: boolean;
   code?: string | null;
   retryable?: boolean | null;
   queryType?: "SELECT";

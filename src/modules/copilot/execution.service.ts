@@ -22,6 +22,7 @@ export interface ExecutionResult {
   durationMs: number;
   bounded: BoundedResult;
   matrixResult: MatrixBoundedResult;
+  truncated: boolean;
 }
 
 /**
@@ -62,16 +63,37 @@ export function checkUserAuthorization(
  * Executes approved SQL using a read-only transaction with statement timeout
  * and interactive limit (1,000 rows cap) (Section 6.3 & 7.2).
  */
-export async function executeReadOnlyQuery(sql: string): Promise<ExecutionResult> {
+export interface QueryExecutionOptions {
+  pageSize?: number;
+  overflowProbe?: boolean;
+}
+
+export async function executeReadOnlyQuery(
+  sql: string,
+  options?: QueryExecutionOptions,
+): Promise<ExecutionResult> {
   const startTime = Date.now();
+
+  const pageSize = options?.pageSize ?? 200;
+  const shouldProbe = options?.overflowProbe === true;
+  const executionLimit = shouldProbe ? pageSize + 1 : pageSize;
+
+  let executionSql = sql.trim();
+  if (shouldProbe) {
+    if (/\bLIMIT\s+\d+/i.test(executionSql)) {
+      executionSql = executionSql.replace(/\bLIMIT\s+\d+/i, `LIMIT ${executionLimit}`);
+    } else {
+      executionSql = `${executionSql} LIMIT ${executionLimit}`;
+    }
+  }
 
   try {
     // Execute inside a read-only transaction with timeout
-    const rows = await prisma.$transaction(
+    const rawRows = await prisma.$transaction(
       async (tx) => {
         await tx.$executeRawUnsafe("SET LOCAL statement_timeout = '10000';"); // 10s timeout
         await tx.$executeRawUnsafe("SET LOCAL default_transaction_read_only = 'on';");
-        return await tx.$queryRawUnsafe<any[]>(sql);
+        return await tx.$queryRawUnsafe<any[]>(executionSql);
       },
       {
         timeout: 12000,
@@ -79,10 +101,13 @@ export async function executeReadOnlyQuery(sql: string): Promise<ExecutionResult
     );
 
     const durationMs = Date.now() - startTime;
-    const rowCount = rows ? rows.length : 0;
+    const rawRowCount = rawRows ? rawRows.length : 0;
+    const truncated = shouldProbe && rawRowCount > pageSize;
+    const rowsToReturn = truncated ? rawRows.slice(0, pageSize) : (rawRows || []);
+    const rowCount = rowsToReturn.length;
 
     // Convert bigints and dates to clean JSON serializable formats
-    const sanitizedRows = rows.map((row) => {
+    const sanitizedRows = rowsToReturn.map((row) => {
       const clean: any = {};
       for (const [k, v] of Object.entries(row)) {
         if (typeof v === "bigint") {
@@ -101,14 +126,14 @@ export async function executeReadOnlyQuery(sql: string): Promise<ExecutionResult
 
     const bounded = boundResultForInterpretation(sanitizedRows, rowCount);
 
-    const allKeys = sanitizedRows.length > 0 ? Object.keys(sanitizedRows[0]).slice(0, 30) : [];
+    const allKeys = sanitizedRows.length > 0 ? Object.keys(sanitizedRows[0]) : [];
     const matrixColumns = allKeys;
-    const matrixRows = sanitizedRows.slice(0, 200).map((r) => allKeys.map((k) => r[k]));
+    const matrixRows = sanitizedRows.map((r) => allKeys.map((k) => r[k]));
     const matrixResult: MatrixBoundedResult = {
       columns: matrixColumns,
       rows: matrixRows,
       rowCount,
-      truncated: rowCount > 200 || sanitizedRows.length > 200,
+      truncated,
     };
 
     return {
@@ -117,6 +142,7 @@ export async function executeReadOnlyQuery(sql: string): Promise<ExecutionResult
       durationMs,
       bounded,
       matrixResult,
+      truncated,
     };
   } catch (error: any) {
     const durationMs = Date.now() - startTime;
