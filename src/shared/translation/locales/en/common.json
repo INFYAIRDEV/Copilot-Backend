@@ -8,7 +8,7 @@
     "mapped": "{{entity}} Mapped Successfully",
     "found": "{{entity}} Found Successfully",
     "notFound": "{{entity}} Not Found",
-    "serverIssue": "Something went wrong. Please try again later."
+    "serverIssue": "Something went wrong. Please try again after reloading the page."
   },
   "user": {
     "passwordRequired": "Password is required",

@@ -890,6 +890,7 @@ export interface CopilotQueryResult {
   table?: {
     columns: Array<{ name: string; type: string }> | string[];
     rows: any[];
+    truncated?: boolean;
   };
   chart?: {
     type?: "bar" | "line" | "scatter" | "table" | string;
@@ -1140,6 +1141,7 @@ export async function processCopilotQuery(
     table: {
       columns: execution.matrixResult.columns,
       rows: execution.matrixResult.rows,
+      truncated: execution.matrixResult.truncated,
     },
     sql: aiResult.sql,
     rowCount: execution.rowCount,
@@ -1205,6 +1207,7 @@ export async function processCopilotQuery(
     table: {
       columns: execution.matrixResult.columns,
       rows: execution.matrixResult.rows,
+      truncated: execution.matrixResult.truncated,
     },
     chart: finalChart,
     rowCount: execution.rowCount,
