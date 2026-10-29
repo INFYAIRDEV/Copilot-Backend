@@ -578,26 +578,26 @@ model user_feedback {
 }
 
 model users {
-  user_id           Int            @id @default(autoincrement())
-  username          String         @unique
-  password_hash     String
-  full_name         String?
-  email             String?        @unique
-  mobile            String?        @unique
-  emergency_contact String?
-  notes             String?
-  is_active         Boolean        @default(true)
-  role_id           String
-  created_at        DateTime       @default(now())
-  refresh_token     String?
-  updated_at        DateTime?
-  updated_by        String?
-  src_hash          String?
-  conversation      conversation[]
-  roles             roles          @relation(fields: [role_id], references: [role_code])
-  is_email_verified Boolean        @default(true)
-  email_verified_at DateTime?      @db.Timestamptz(6)
-  user_otp          user_otp[]
+  user_id             Int                   @id @default(autoincrement())
+  username            String                @unique
+  password_hash       String
+  full_name           String?
+  email               String?               @unique
+  mobile              String?               @unique
+  emergency_contact   String?
+  notes               String?
+  is_active           Boolean               @default(true)
+  role_id             String
+  created_at          DateTime              @default(now())
+  refresh_token       String?
+  updated_at          DateTime?
+  updated_by          String?
+  src_hash            String?
+  conversation        conversation[]
+  roles               roles                 @relation(fields: [role_id], references: [role_code])
+  is_email_verified   Boolean               @default(true)
+  email_verified_at   DateTime?             @db.Timestamptz(6)
+  user_otp            user_otp[]
   shared_conversation shared_conversation[]
 
   @@schema("public")
@@ -615,6 +615,26 @@ model user_otp {
   users       users     @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
 
   @@index([user_id, purpose, created_at], map: "ix_user_otp_lookup")
+  @@schema("public")
+}
+
+model shared_conversation {
+  id              Int          @id @default(autoincrement())
+  share_id        String       @unique @db.VarChar(64)
+  conversation_id Int          @unique
+  user_id         Int
+  title           String?      @db.VarChar(255)
+  snapshot_data   Json
+  is_active       Boolean      @default(true)
+  revoked_at      DateTime?    @db.Timestamptz(6)
+  view_count      Int          @default(0)
+  created_at      DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime     @default(now()) @db.Timestamptz(6)
+  conversation    conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  users           users        @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+
+  @@index([share_id])
+  @@index([user_id])
   @@schema("public")
 }
 
