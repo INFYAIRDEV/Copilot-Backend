@@ -539,6 +539,138 @@ export const conversationRepository = {
         },
       });
     }),
+
+  // ─── Share conversation methods ───────────────────────────────────────
+
+  /**
+   * Create or update a shared link for a conversation.
+   * If one already exists, refreshes the snapshot and re-activates it.
+   */
+  upsertShare: (args: {
+    conversation_id: number;
+    user_id: number;
+    title: string | null;
+    snapshot_data: any;
+    share_id: string;
+  }) =>
+    auditedTransaction(async (tx) => {
+      const existing = await (tx as any).shared_conversation.findUnique({
+        where: { conversation_id: args.conversation_id },
+      });
+
+      let record;
+      if (existing) {
+        // Re-activate & refresh snapshot for an existing share
+        record = await (tx as any).shared_conversation.update({
+          where: { id: existing.id },
+          data: {
+            title: args.title ?? existing.title,
+            snapshot_data: args.snapshot_data,
+            is_active: true,
+            revoked_at: null,
+            updated_at: new Date(),
+          },
+        });
+      } else {
+        record = await (tx as any).shared_conversation.create({
+          data: {
+            share_id: args.share_id,
+            conversation_id: args.conversation_id,
+            user_id: args.user_id,
+            title: args.title,
+            snapshot_data: args.snapshot_data,
+            is_active: true,
+            created_at: new Date(),
+            updated_at: new Date(),
+          },
+        });
+      }
+
+      await appendAudit(tx, {
+        request_uuid: randomUUID(),
+        conversation_id: args.conversation_id,
+        event_type: "CONVERSATION_SHARED",
+        status: "SUCCESS",
+        payload: {
+          share_id: record.share_id,
+          title: record.title,
+          is_update: !!existing,
+        },
+      });
+
+      return record;
+    }),
+
+  /** Look up an existing share record for a conversation owned by a user. */
+  findShareByConversationId: async (conversation_id: number, user_id: number) => {
+    return (prisma as any).shared_conversation.findFirst({
+      where: {
+        conversation_id,
+        user_id,
+      },
+    });
+  },
+
+  /** Public lookup – used by the unauthenticated GET /share/:shareId route. */
+  findActiveShareByShareId: async (share_id: string) => {
+    return (prisma as any).shared_conversation.findFirst({
+      where: {
+        share_id,
+        is_active: true,
+      },
+    });
+  },
+
+  /** Fire-and-forget view-count bump. */
+  incrementShareViewCount: async (share_id: string) => {
+    try {
+      await (prisma as any).shared_conversation.update({
+        where: { share_id },
+        data: {
+          view_count: { increment: 1 },
+        },
+      });
+    } catch {
+      // background increment – swallow errors
+    }
+  },
+
+  /** Revoke (soft-delete) the shared link for a conversation. */
+  revokeShare: (conversation_id: number, user_id: number) =>
+    auditedTransaction(async (tx) => {
+      const existing = await (tx as any).shared_conversation.findFirst({
+        where: {
+          conversation_id,
+          user_id,
+          is_active: true,
+        },
+      });
+
+      if (!existing) {
+        return null;
+      }
+
+      const updated = await (tx as any).shared_conversation.update({
+        where: { id: existing.id },
+        data: {
+          is_active: false,
+          revoked_at: new Date(),
+          updated_at: new Date(),
+        },
+      });
+
+      await appendAudit(tx, {
+        request_uuid: randomUUID(),
+        conversation_id,
+        event_type: "CONVERSATION_SHARE_REVOKED",
+        status: "SUCCESS",
+        payload: {
+          share_id: existing.share_id,
+        },
+      });
+
+      return updated;
+    }),
 };
 
 export async function appendAudit(

@@ -15,6 +15,9 @@ import {
   pinConversationSchema,
   renameConversationSchema,
   sendMessageSchema,
+  shareConversationSchema,
+  getSharedConversationSchema,
+  revokeShareSchema,
 } from "./conversation.validation.js";
 
 import { z } from "zod";
@@ -675,6 +678,123 @@ export function createCopilotController(
         return fail(res, error, locale);
       }
     },
+
+    /**
+     * POST /api/v1/copilot/conversations/:id/share
+     * Generate or refresh a public share link for a conversation.
+     */
+    async shareConversation(req: Request, res: Response) {
+      const locale = getLocale(req);
+      if (!req.user || !req.user.user_id) {
+        return ApiResponse.error(res, {
+          statusCode: 401,
+          code: "UNAUTHENTICATED",
+          message: t("copilot.errors.UNAUTHENTICATED", { lng: locale }),
+        });
+      }
+
+      const parsed = shareConversationSchema.safeParse({
+        params: req.params,
+        body: req.body,
+      });
+      if (!parsed.success) {
+        return ApiResponse.error(res, {
+          statusCode: 400,
+          code: "VALIDATION_ERROR",
+          message: t("copilot.controller.invalidShareRequest", { lng: locale }),
+          error: translateIssues(parsed.error.issues, locale),
+        });
+      }
+
+      try {
+        const { id } = parsed.data.params;
+        const title = parsed.data.body?.title;
+        const data = await service.shareConversation(
+          req.user.user_id,
+          id,
+          title,
+        );
+        return ApiResponse.success(res, {
+          statusCode: 200,
+          message: t("copilot.controller.shareCreated", { lng: locale }),
+          data,
+        });
+      } catch (error) {
+        return fail(res, error, locale);
+      }
+    },
+
+    /**
+     * GET /api/v1/copilot/share/:shareId
+     * Public endpoint – retrieve a shared conversation snapshot (no auth required).
+     */
+    async getSharedConversation(req: Request, res: Response) {
+      const locale = getLocale(req);
+
+      const parsed = getSharedConversationSchema.safeParse({
+        params: req.params,
+      });
+      if (!parsed.success) {
+        return ApiResponse.error(res, {
+          statusCode: 400,
+          code: "VALIDATION_ERROR",
+          message: t("copilot.controller.invalidShareId", { lng: locale }),
+        });
+      }
+
+      try {
+        const { shareId } = parsed.data.params;
+        const data = await service.getSharedConversation(shareId);
+        return ApiResponse.success(res, {
+          statusCode: 200,
+          data,
+        });
+      } catch (error) {
+        return fail(res, error, locale);
+      }
+    },
+
+    /**
+     * DELETE /api/v1/copilot/conversations/:id/share
+     * Revoke the share link for a conversation.
+     */
+    async revokeShare(req: Request, res: Response) {
+      const locale = getLocale(req);
+      if (!req.user || !req.user.user_id) {
+        return ApiResponse.error(res, {
+          statusCode: 401,
+          code: "UNAUTHENTICATED",
+          message: t("copilot.errors.UNAUTHENTICATED", { lng: locale }),
+        });
+      }
+
+      const parsed = revokeShareSchema.safeParse({
+        params: req.params,
+      });
+      if (!parsed.success) {
+        return ApiResponse.error(res, {
+          statusCode: 400,
+          code: "VALIDATION_ERROR",
+          message: t("copilot.controller.invalidRevokeShareRequest", { lng: locale }),
+        });
+      }
+
+      try {
+        const { id } = parsed.data.params;
+        const data = await service.revokeShare(
+          req.user.user_id,
+          id,
+        );
+        return ApiResponse.success(res, {
+          statusCode: 200,
+          message: t("copilot.controller.shareRevoked", { lng: locale }),
+          data,
+        });
+      } catch (error) {
+        return fail(res, error, locale);
+      }
+    },
+
     /**
      * POST /api/v1/copilot/query
      * Primary Sales Intelligence Copilot analytical query endpoint (Section 6 & Figure 1).
