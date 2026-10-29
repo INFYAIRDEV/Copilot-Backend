@@ -19,6 +19,7 @@ router.get("/conversations/:id", copilotController.getConversation);
 router.get("/conversations", copilotController.listConversations);
 router.post("/conversations", copilotController.create);
 router.patch("/conversations/:id", copilotController.rename);
+router.patch("/conversations/:id/pin", copilotController.pin);
 router.delete("/conversations/:id", copilotController.delete);
 router.post("/conversations/:id/messages", copilotController.sendMessage);
 router.post(

@@ -319,6 +319,8 @@
     "controller": {
       "conversationCreated": "Conversation created",
       "conversationRenamed": "Conversation renamed",
+      "conversationPinned": "Conversation pinned",
+      "conversationUnpinned": "Conversation unpinned",
       "conversationDeleted": "Conversation deleted",
       "invalidRequestBody": "Invalid request body",
       "messageAccepted": "Message accepted",

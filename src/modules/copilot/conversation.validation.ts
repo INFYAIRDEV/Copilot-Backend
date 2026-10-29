@@ -86,3 +86,16 @@ export const renameConversationSchema = z.object({
 export const deleteConversationSchema = z.object({
   params: z.object({ id: uuidSchema }),
 });
+
+export const pinConversationSchema = z.object({
+  params: z.object({ id: uuidSchema }),
+  body: z
+    .object({
+      is_pinned: z.boolean({
+        required_error: "copilot.validation.isPinnedRequired",
+        invalid_type_error: "copilot.validation.invalidIsPinned",
+      }),
+    })
+    .strict({ message: "copilot.validation.invalidRequest" }),
+});
+

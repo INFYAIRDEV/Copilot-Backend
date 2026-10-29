@@ -319,6 +319,8 @@
     "controller": {
       "conversationCreated": "Conversazione creata",
       "conversationRenamed": "Conversazione rinominata",
+      "conversationPinned": "Conversazione aggiunta ai preferiti",
+      "conversationUnpinned": "Conversazione rimossa dai preferiti",
       "conversationDeleted": "Conversazione eliminata",
       "invalidRequestBody": "Corpo della richiesta non valido",
       "messageAccepted": "Messaggio accettato",

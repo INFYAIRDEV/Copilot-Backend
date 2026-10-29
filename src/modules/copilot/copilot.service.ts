@@ -250,6 +250,38 @@ export function createCopilotService(
       return updated;
     },
 
+    async pinConversation(
+      userId: number,
+      conversationUuid: string,
+      isPinned: boolean,
+    ) {
+      if (!Number.isSafeInteger(userId) || userId <= 0)
+        throw new CopilotError(
+          401,
+          "UNAUTHENTICATED",
+          "copilot.errors.UNAUTHENTICATED",
+        );
+
+      if (typeof isPinned !== "boolean") {
+        throw new CopilotError(
+          400,
+          "VALIDATION_ERROR",
+          "copilot.validation.invalidIsPinned",
+        );
+      }
+
+      const updated = await repo.setPin(conversationUuid, userId, isPinned);
+      if (!updated) {
+        throw new CopilotError(
+          404,
+          "CONVERSATION_NOT_FOUND",
+          "copilot.errors.CONVERSATION_NOT_FOUND",
+        );
+      }
+
+      return updated;
+    },
+
     async deleteConversation(userId: number, conversationUuid: string) {
       if (!Number.isSafeInteger(userId) || userId <= 0)
         throw new CopilotError(
@@ -572,7 +604,7 @@ export function createCopilotService(
         ),
         output_hash: sha256(
           JSON.stringify(
-            page.map(({ conversation_uuid, state, created_at }) => ({
+            page.map(({ conversation_uuid, state, created_at }: any) => ({
               conversation_uuid,
               state,
               created_at,
@@ -582,15 +614,26 @@ export function createCopilotService(
         returned_count: page.length,
       });
 
+      const mappedConversations = page.map((c: any) => ({
+        conversation_uuid: c.conversation_uuid,
+        title: (c.analytical_context as any)?.title || c.conversation_message?.[0]?.text || c.title || null,
+        locale: c.locale,
+        state: c.state,
+        is_pinned: Boolean(c.is_pinned),
+        created_at: c.created_at,
+        updated_at: c.updated_at,
+      }));
+
+      // Pinned conversations appear before unpinned conversations, preserving existing ordering within each group
+      mappedConversations.sort((a: any, b: any) => {
+        const aPinned = a.is_pinned ? 1 : 0;
+        const bPinned = b.is_pinned ? 1 : 0;
+        if (bPinned !== aPinned) return bPinned - aPinned;
+        return 0;
+      });
+
       return {
-        conversations: page.map((c: any) => ({
-          conversation_uuid: c.conversation_uuid,
-          title: (c.analytical_context as any)?.title || c.conversation_message?.[0]?.text || c.title || null,
-          locale: c.locale,
-          state: c.state,
-          created_at: c.created_at,
-          updated_at: c.updated_at,
-        })),
+        conversations: mappedConversations,
         page: { limit, next_cursor: nextCursor, has_more: hasMore },
       };
     },

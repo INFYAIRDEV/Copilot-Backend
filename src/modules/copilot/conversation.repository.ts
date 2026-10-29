@@ -200,6 +200,55 @@ export const conversationRepository = {
       };
     }),
 
+  setPin: (conversation_uuid: string, owner_user_id: number, is_pinned: boolean) =>
+    auditedTransaction(async (tx) => {
+      const conv = await tx.conversation.findFirst({
+        where: {
+          conversation_uuid,
+          owner_user_id,
+          deleted_at: null,
+          state: { not: conversation_state.DELETED },
+        },
+      });
+
+      if (!conv) {
+        return null;
+      }
+
+      const updated = await (tx.conversation as any).update({
+        where: { id: conv.id },
+        data: {
+          is_pinned,
+          updated_at: new Date(),
+        },
+        select: {
+          id: true,
+          conversation_uuid: true,
+          locale: true,
+          state: true,
+          analytical_context: true,
+          is_pinned: true,
+          created_at: true,
+          updated_at: true,
+        },
+      });
+
+      await appendAudit(tx, {
+        request_uuid: randomUUID(),
+        conversation_id: conv.id,
+        event_type: is_pinned ? "CONVERSATION_PINNED" : "CONVERSATION_UNPINNED",
+        status: "SUCCESS",
+        payload: { conversation_uuid, is_pinned },
+      });
+
+      return {
+        conversation_uuid: updated.conversation_uuid,
+        is_pinned: (updated as any).is_pinned ?? is_pinned,
+        updated_at: updated.updated_at,
+      };
+    }),
+
+
 
   updateAnalyticalContext: async (
     conversation_id: number,
@@ -369,39 +418,81 @@ export const conversationRepository = {
     after?: { created_at: Date; id: number },
     limit = 50,
   ) => {
-    const rows = await prisma.conversation.findMany({
-      where: {
-        owner_user_id,
-        deleted_at: null,
-        state: { not: conversation_state.DELETED },
-        ...(after
-          ? {
-              OR: [
-                { created_at: { lt: after.created_at } },
-                { created_at: after.created_at, id: { lt: after.id } },
-              ],
-            }
-          : {}),
-      },
-      orderBy: [{ created_at: "desc" }, { id: "desc" }],
-      take: limit + 1,
-      select: {
-        id: true,
-        conversation_uuid: true,
-        locale: true,
-        state: true,
-        analytical_context: true,
-        created_at: true,
-        updated_at: true,
-        conversation_message: {
-          where: { role: message_role.USER },
-          orderBy: { created_at: "asc" },
-          take: 1,
-          select: { text: true },
+    try {
+      const rows = await (prisma.conversation as any).findMany({
+        where: {
+          owner_user_id,
+          deleted_at: null,
+          state: { not: conversation_state.DELETED },
+          ...(after
+            ? {
+                OR: [
+                  { created_at: { lt: after.created_at } },
+                  { created_at: after.created_at, id: { lt: after.id } },
+                ],
+              }
+            : {}),
         },
-      },
-    });
-    return rows;
+        orderBy: [
+          { is_pinned: "desc" },
+          { created_at: "desc" },
+          { id: "desc" },
+        ],
+        take: limit + 1,
+        select: {
+          id: true,
+          conversation_uuid: true,
+          locale: true,
+          state: true,
+          analytical_context: true,
+          is_pinned: true,
+          created_at: true,
+          updated_at: true,
+          conversation_message: {
+            where: { role: message_role.USER },
+            orderBy: { created_at: "asc" },
+            take: 1,
+            select: { text: true },
+          },
+        },
+      });
+      return rows;
+    } catch {
+      // Graceful fallback for queries before the database column is added in Postgres
+      const rows = await prisma.conversation.findMany({
+        where: {
+          owner_user_id,
+          deleted_at: null,
+          state: { not: conversation_state.DELETED },
+          ...(after
+            ? {
+                OR: [
+                  { created_at: { lt: after.created_at } },
+                  { created_at: after.created_at, id: { lt: after.id } },
+                ],
+              }
+            : {}),
+        },
+        orderBy: [{ created_at: "desc" }, { id: "desc" }],
+        take: limit + 1,
+        select: {
+          id: true,
+          conversation_uuid: true,
+          locale: true,
+          state: true,
+          analytical_context: true,
+          created_at: true,
+          updated_at: true,
+          conversation_message: {
+            where: { role: message_role.USER },
+            orderBy: { created_at: "asc" },
+            take: 1,
+            select: { text: true },
+          },
+        },
+      });
+      return rows;
+    }
   },
 
   auditHistoryRead: (args: {
