@@ -99,3 +99,30 @@ export const pinConversationSchema = z.object({
     .strict({ message: "copilot.validation.invalidRequest" }),
 });
 
+
+export const shareConversationSchema = z.object({
+  params: z.object({ id: uuidSchema }),
+  body: z
+    .object({
+      title: z
+        .string()
+        .trim()
+        .max(255, { message: "copilot.validation.titleTooLong" })
+        .optional(),
+    })
+    .optional(),
+});
+
+export const getSharedConversationSchema = z.object({
+  params: z.object({
+    shareId: z
+      .string({ message: "copilot.validation.invalidShareId" })
+      .trim()
+      .min(1, { message: "copilot.validation.invalidShareId" })
+      .max(64, { message: "copilot.validation.invalidShareId" }),
+  }),
+});
+
+export const revokeShareSchema = z.object({
+  params: z.object({ id: uuidSchema }),
+});

@@ -302,6 +302,156 @@ export function createCopilotService(
       return deleted;
     },
 
+    /**
+     * Generate (or refresh) a public share link for a conversation.
+     * Captures a sanitised snapshot of all messages at the moment of sharing.
+     */
+    async shareConversation(
+      userId: number,
+      conversationUuid: string,
+      title?: string,
+    ) {
+      if (!Number.isSafeInteger(userId) || userId <= 0)
+        throw new CopilotError(
+          401,
+          "UNAUTHENTICATED",
+          "copilot.errors.UNAUTHENTICATED",
+        );
+
+      const conversation = await repo.findOwned(conversationUuid, userId);
+      if (!conversation) {
+        throw new CopilotError(
+          404,
+          "CONVERSATION_NOT_FOUND",
+          "copilot.errors.CONVERSATION_NOT_FOUND",
+        );
+      }
+      if (
+        conversation.state === conversation_state.DELETED ||
+        conversation.deleted_at !== null
+      ) {
+        throw new CopilotError(
+          404,
+          "CONVERSATION_NOT_FOUND",
+          "copilot.errors.CONVERSATION_NOT_FOUND",
+        );
+      }
+
+      // Fetch all messages for the snapshot
+      const messages = await repo.findMessagesByConversationId(conversation.id);
+
+      // Build a sanitised snapshot – strip internal fields
+      const sanitisedMessages = messages.map((m: any) => ({
+        role: m.role,
+        kind: m.kind,
+        text: m.text_redacted ? null : m.text,
+        redacted: m.text_redacted,
+        created_at: m.created_at,
+      }));
+
+      // Derive title from the analytical_context or first user message
+      const ctx =
+        conversation.analytical_context &&
+        typeof conversation.analytical_context === "object" &&
+        !Array.isArray(conversation.analytical_context)
+          ? (conversation.analytical_context as Record<string, any>)
+          : {};
+      const resolvedTitle =
+        title?.trim() ||
+        ctx.title ||
+        sanitisedMessages.find((m: any) => m.role === "USER")?.text?.slice(0, 100) ||
+        "Shared conversation";
+
+      const snapshotData = {
+        conversationUuid: conversation.conversation_uuid,
+        title: resolvedTitle,
+        messageCount: sanitisedMessages.length,
+        messages: sanitisedMessages,
+        sharedAt: new Date().toISOString(),
+      };
+
+      // Check if a share already exists – reuse the same share_id
+      const existingShare = await repo.findShareByConversationId(
+        conversation.id,
+        userId,
+      );
+      const shareId = existingShare?.share_id || randomUUID().replace(/-/g, "");
+
+      const record = await repo.upsertShare({
+        conversation_id: conversation.id,
+        user_id: userId,
+        title: resolvedTitle,
+        snapshot_data: snapshotData,
+        share_id: shareId,
+      });
+
+      return {
+        shareId: record.share_id,
+        title: resolvedTitle,
+        messageCount: sanitisedMessages.length,
+        isUpdate: !!existingShare,
+        createdAt: record.created_at,
+      };
+    },
+
+    /**
+     * Retrieve a shared conversation by its public share_id.
+     * No authentication required.
+     */
+    async getSharedConversation(shareId: string) {
+      const record = await repo.findActiveShareByShareId(shareId);
+      if (!record) {
+        throw new CopilotError(
+          404,
+          "SHARE_NOT_FOUND",
+          "copilot.errors.SHARE_NOT_FOUND",
+        );
+      }
+
+      // Increment view count in the background
+      repo.incrementShareViewCount(shareId);
+
+      return {
+        shareId: record.share_id,
+        title: record.title,
+        snapshot: record.snapshot_data,
+        viewCount: record.view_count + 1,
+        sharedAt: record.created_at,
+      };
+    },
+
+    /**
+     * Revoke a share link so it can no longer be accessed.
+     */
+    async revokeShare(userId: number, conversationUuid: string) {
+      if (!Number.isSafeInteger(userId) || userId <= 0)
+        throw new CopilotError(
+          401,
+          "UNAUTHENTICATED",
+          "copilot.errors.UNAUTHENTICATED",
+        );
+
+      const conversation = await repo.findOwned(conversationUuid, userId);
+      if (!conversation) {
+        throw new CopilotError(
+          404,
+          "CONVERSATION_NOT_FOUND",
+          "copilot.errors.CONVERSATION_NOT_FOUND",
+        );
+      }
+
+      const revoked = await repo.revokeShare(conversation.id, userId);
+      if (!revoked) {
+        throw new CopilotError(
+          404,
+          "SHARE_NOT_FOUND",
+          "copilot.errors.SHARE_NOT_FOUND",
+        );
+      }
+
+      return { revoked: true };
+    },
+
 
     async sendMessage(
       userId: number,
